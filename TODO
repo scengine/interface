@@ -1,0 +1,103 @@
+
+See the file ./doc/html/todo.html
+
++ :
+
+- Flipper l'image lors d'une conversion de format -> DXTC (à l'envers sinon).
+- Ajouter une fonction de flip d'images (flip et... euh, dans l'autre sens).
+- Corriger les bugs du support du Cg.
+- Animations squelettales.
+- Gérer 'type' dans la fonction SCE_Texture_Load().
+- Implémenter la détection d'ID d'attributs dans le gestionnaire de shaders Cg.
+- Corriger le bug au niveau des niveaux de mipmap sur les images DDS.
+- Rajouter une structure de données par état, càd un paramètre à fourguer aux
+  callbacks (genre type de HDR, pour varier l'état en fonction de ça).
+- Implémenter un système de compression de plusieurs maps, avec possibilité
+  de choisir où iront combien de bits de chaque map, etc...
+- Ajouter une fonction de tri des indices de vertex d'après le tuto :
+  http://bakura.developpez.com/tutoriel/cpp/vertexcache/
+- Définir une constante pour un index de paramète de shader invalide.
+- Système de "plans" pour le gestionnaire de scène, afin d'augmenter la
+  profondeur des scènes en définissant plusieurs plans qui seront dessines
+  l'un après l'autre du plus éloigné au plus proche, en remettant le tampon
+  de profondeur à 1 à chaque fois (on suppose qu'aucun plan ne se "croise").
+
+- Pour le SCEditor : prévoir une partie "code source" lors de l'export d'une
+  scène, à inclure ensuite au code pour un support complet de la scène. (nul..?)
+- Pour le SCEditor : prévoir les animations de textures... genre animations
+  de visages. 
+
+- Prévoir des séquences de matrices de modification des coordonnées de texture.
+- Geometry shaders.
+- Scinder vertex, pixel et geometry shaders au niveau du cœur.
+- Is glLinkProgram() a fast function? Can be called many times on each frame?
+- FBOs Multisampling.
+- Différents calculs pour la gestion du LOD (basés directement sur la distance
+  ou pas).
+- Ajouter une fonction reload() au gestionnaire de médias/ressources.
+- Ajouter une fonction qui permet de mettre à jour certaines parties de la scène
+  via des flags SCE_Scene_Update (scene, a | b | c | d).
+- Gestion des terrains (wesh) :
+    Différents types de terrain :
+    - simple heightmap ;
+    - géométrie complexe : map de translation des sommets sur (x, y) ;
+    - géométrie dynamique : eau.
+    Fonctionnalités :
+    - geomipmapping ;
+    - pseudo mega textures... ?
+    - culling: frustum, occlusion, ... ;
+    - geometry clipmaps ;
+    - geometry shaders for subdivision of complex surfaces ;
+    - un seul mesh fixe par rapport à la caméra.
+- Virer un max d'appels à glEnable/glDisable si c'est pour ne rien changer.
+- Textures atlases manager.
+- Créer une fonction de mise en état d'un mode propice au "double-speed z-pass".
+- Permettre de transformer dynamiquement les types des données de vertices
+  via le gestionnaire de géométrie (float -> short).
+- Regrouper plusieurs meshs en un seul via le gestionnaire de meshs
+  (ou de batchs...) + plusieurs instances uniquement via indices OpenGL...
+- Instaurer d'autres règles pour le changement d'entité d'une instance en plus
+  du LOD (?).
+- API de shaders intégrée au moteur (noms similaires, uniforms définis, etc...).
+    Cette fonctionnalité devient importante. Prévoir de gérer des trucs comme :
+    - textures comme support d'informations (skinning, instancing, ...)
+    - lier le module à tous les autres pour définir et récupérer les états :
+      - quel mode d'instancing est utilisé ;
+      - quelles textures représentent quelles données ;
+      - informations de scène, etc.
+    - matrices (SCECMatrix) ;
+- Paramétrage global des entités par le gestionnaire de scènes (doit-on
+  utiliser les textures pour ce rendu ? etc.).
+- Improve MulCopy() functions: DONT duplicate all the matrix.
+- Modifier les attributs d'un octree peu visible après une requête d'occlusion.
+- Matrix_Mask() : applique un masque (multiplie chaque élément).
+- Désactivation des nœuds : non mise à jour de leur position dans l'octree, etc.
+- SCE_SSceneEntityInstanceGroup : groupe d'instances situées impérativement dans
+  le même bounding volume.
+- Paramètres de ressources lors de l'utilisation : recharger la ressource de
+  type SCE_SShader lorsque les paramètres à fourguer sont différents, mais
+  instancier quand même le SCE_CShader.
+- Scinder le core pour la compatibilité avec les versions récentes d'OpenGL.
+- Renommer SCEGeometryInstance en SCEInstancing.
+- Add documentation for SCECBuffer.
+- Use enum for GL tokens in appropriated file (work in progress).
+- Texture buffers.
+- Uniform buffers.
+- Pixel buffers (video).
+- GetMappedAddress (buffer, data, range).
+- Manage modified vertices range in skeletal animation:
+    create range-specific skeletons.
+- Setup interleaved arrays (stride come back) in:
+  - geometry (add switch-to-stride function);
+  - animated geometry.
+- Transform feedback.
+- Texture arrays.
+- Solve divin function SCE_Texture_Create().
+- Volume based culling.
+- Avoid VBO generation if VA are requested on Mesh_Build().
+- Allow VA render mode for IBO.
+- Allow double-build of meshes (call Mesh_Build() more than once).
+- Fix skyboxes problem
+- Multi-threaded particles (treat range of particles).
+
+54

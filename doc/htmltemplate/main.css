@@ -1,0 +1,379 @@
+/* LICENSE
+ * 
+ * BanSE - a site base (designed to be the SCEngine website)
+ * Copyright (C) 2007-2008 Colomban "Ban" Wendling <ban-ubuntu@club-internet.fr>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
+/* Storm, default style for the SCE's site */
+
+body {
+background-color: #fcfcff;
+color: #333;
+font-family: "DejaVu Sans", Verdana, sans-serif;
+
+margin: 0;
+}
+
+
+a {
+color: #7AA4BD;
+text-decoration: none;
+cursor: pointer;
+}
+a:hover {
+/*     color: #999; */
+text-decoration: underline;
+}
+a img {
+border: none;
+}
+a[href^="http://"]:after {
+padding-left: 3px;
+content: url('../styles/default/external_link.png');
+}
+
+cite:before {
+content: "«";
+padding-right: 3px;
+}
+cite {font-style: italic;}
+cite:after {
+content: "»";
+padding-left: 3px;
+}
+
+hr {
+border-top: 1px solid #20639a;
+border-bottom: none;
+border-left: none;
+border-right: none;
+/*
+margin: 50px 0;
+*/
+}
+
+h1 {font-size: 32px;}
+h2 {font-size: 22px;}
+h3 {font-size: 18px;}
+h4 {font-size: 16px;}
+h5 {font-size: 14px;}
+h6 {font-size: 12px;}
+
+h3,h4,h5,h6 {
+color: #20639a;
+text-align: left;
+}
+h1,h2 {
+color: #20639a;
+text-align: center;
+}
+
+ul {
+padding-left: 20px;
+}
+
+input[type=button], input[type=submit], input[type=reset] {
+background-color: #dfdfdf;
+border: 1px solid #bfbfbf;
+color: #20639a;
+margin: 1px;
+}
+input[type=button]:hover, input[type=submit]:hover, input[type=reset]:hover {
+background-color: #f5f5f5;
+cursor: pointer;
+}
+textarea, input[type=text], input[type=password], input[type=file] {
+width: 90%;
+background-color: #fafafa;
+color: black;
+border: 1px solid #bfbfbf;
+font-family: sans-serif;
+padding: 0 2px;
+}
+textarea[disabled],
+input[type=text][disabled],
+input[type=password][disabled] {
+color: #333;
+background-color: #eee;
+}
+input.nosize, textarea.nosize {width: auto;}
+select {
+color: #333;
+font-size: 90%;
+background-color: #fafafa;
+border: 1px solid #bfbfbf;
+font-family: sans-serif;
+}
+select option {
+font-size: 90%;
+}
+select option:hover {
+background-color: #333;
+color: #fafafa;
+}
+
+form  {
+text-align: left;
+}
+
+acronym, abbr {
+cursor: help;
+border-bottom: 1px dotted #20639a;
+}
+
+#header {
+height: 50px;
+/*     background-color: #000; */
+padding: 10px;
+/*     margin-bottom: 10px; */
+}
+#header h1 {
+margin: 0px;
+}
+#header h1 a,
+#header h1 a:hover {
+color: #20639a;
+text-decoration: none;
+}
+
+
+
+#menu,
+#content .navigation .tabs {
+height: 28px;
+background-color: #eee;
+border-top: 1px solid #83C9FC;
+border-bottom: 1px solid #83C9FC;
+font-size: 11px;
+z-index: 10;
+}
+#menu a,
+#content .navigation .tabs a {
+color: #111;
+display: block;
+font-weight: bold;
+margin: 0;
+padding: 6px 10px 4px 10px;
+height: 18px;
+}
+#menu a:hover,
+#content .navigation .tabs a:hover {
+text-decoration: none;
+}
+#menu ul,
+#content .navigation .tabs ul {
+list-style-type: none;
+margin: 0 10px;
+padding: 0;
+}
+#menu>ul>li,
+#content .navigation .tabs>ul>li {
+float: left;
+height: 28px;
+border-left: 1px solid #bbb;
+}
+#menu li:hover,
+#content .navigation .tabs li:hover {
+background-color: #fafafa;
+}
+#menu ul li ul {
+display: none;
+}
+#menu ul li:hover ul {
+background-color: #eee;
+display: block;
+position: absolute;
+z-index: 11;
+margin: -1px;
+margin-top: 0px;
+border: 1px solid #bbb;
+}
+#menu ul li:hover ul li {
+float: none;
+font-size: 80%;
+border: none;
+}
+#menu ul li ul li a {
+height: 15px;
+
+}
+
+/* overwrites for doc tabs */
+#content .navigation .tabs {
+border-left: 1px solid #83C9FC;
+border-right: 1px solid #83C9FC;
+}
+#content .navigation .tabs ul {
+margin: 0;
+}
+#content .navigation .tabs>ul>li:first-child {
+border-left: none;
+}
+.tabs + .tabs { margin-top: -1px; }
+
+/*** rounded tabs ***/
+/* first tab row */
+#content .navigation div.tabs:first-child {
+-moz-border-radius-topleft: 8px;
+-moz-border-radius-topright: 8px;
+}
+/* last tab row */
+#content .navigation div.tabs:last-child {
+-moz-border-radius-bottomleft: 8px;
+-moz-border-radius-bottomright: 8px;
+margin-bottom: 10px;
+}
+/* topleft tab */
+#content .navigation div.tabs:first-child li:first-child:hover {
+-moz-border-radius-topleft: 6px;
+}
+/* toright tab */
+#content .navigation div.tabs:first-child li:last-child:hover {
+-moz-border-radius-topright: 6px;
+}
+/* bottomleft tab */
+#content .navigation div.tabs:last-child li:first-child:hover {
+-moz-border-radius-bottomleft: 6px;
+}
+/* bottomright */
+#content .navigation div.tabs:last-child li:last-child:hover {
+-moz-border-radius-bottomright: 6px;
+}
+/*** end rounded tabs ***/
+
+#content {
+/* text-align: justify; */
+border: 1px solid #83C9FC;
+background-color: #eee;
+margin: 10px;
+padding: 10px;
+-moz-border-radius: 12px 12px 0 0;
+}
+
+#footerdoc {
+text-align: right;
+font-size: 85%;
+font-style: italic;
+margin-top: 10px;
+/*
+border-top: 1px solid #83C9FC;
+*/
+border-top: 1px solid #20639a;
+}
+
+#footer {
+text-align: justify;
+border: 1px solid #83C9FC;
+background-color: #eee;
+
+margin: 10px;
+padding: 10px;
+-moz-border-radius: 0 0 12px 12px;
+
+text-align: center;
+font-size: 12px;
+}
+
+
+/*** Begin Doxygen tags ***/
+
+#content .contents { color: #000; }
+#content .contents a { color: #3F7B9F; }
+#content .contents ul {
+list-style-type: none;
+padding-left: 50px;
+margin: 0;
+}
+#content .contents>ul { margin-top: 1em;}
+
+/*
+#content .contents>table>tbody>tr>td { background-color: #fafafa; }
+*/
+#content .contents>table>tbody>tr>td.memItemLeft,
+#content .contents>table>tbody>tr>td.mdescLeft,
+#content .contents>table>tbody>tr>td.memItemRight,
+#content .contents>table>tbody>tr>td.mdescRight,
+#content .contents>table>tbody>tr>td.indexkey,
+#content .contents>table>tbody>tr>td.indexvalue {
+background-color: #fafafa;
+padding: 0 5px;
+}
+#content .contents>table>tbody>tr>td.memItemLeft, 
+#content .contents>table>tbody>tr>td.memItemRight {
+border-top: 1px solid #eee;
+padding: 0px;
+}
+#content .contents>table>tbody>tr>td:first-child { padding-left: 5px; }
+#content .contents>table>tbody>tr>td:last-child { padding-right: 5px; }
+
+.mdescLeft,
+.mdescRight {
+font-style: italic;
+font-size: 85%;
+}
+
+.memitem {
+background-color: #fafafa;
+font-size: 16px;
+margin: 10px;
+padding: 10px;
+padding-left: 20px;
+border: 1px solid #83C9FC;
+-moz-border-radius: 10px;
+}
+
+.memname { font-weight: bold; } /* Why have I to do that to get memproto bolded?? */
+.memproto {
+background-color: #eee;
+font-family: "DejaVu Sans Mono", monospace, fixed;
+font-weight: bold;
+margin-left: -10px; /* hack parent padding */
+border: 1px solid #83C9FC;
+-moz-border-radius: 8px;
+}
+
+/* hack to get prameter names in description colored */
+.memdoc dl table tr td:first-child + td em { color: #991111; }
+
+.warning {
+background-color: #FFEBEB;
+border: 1px solid #FC8385;
+padding: 5px;
+}
+
+p.formulaDsp { text-align: center; }
+img.formulaInl { vertical-align: middle; }
+
+/* Code tags */
+.paramtype { color: #050582 ;}
+td.memname a, /*< return type link */
+.paramtype a { color: #0008BD; }
+.paramname { color: #991111; }
+
+
+.fragment {
+font-family: "DejaVu Sans Mono", monospace, fixed;
+font-size: 95%;
+}
+/*** Code coloration ***/
+.fragment a { color: blue; }
+.fragment .comment      { color: #d00000 }
+.fragment .preprocessor { color: #007F7F }
+.fragment .keyword,
+.fragment .keywordtype,
+.fragment .keywordflow  { color: #00007F; font-weight: bold; }
+.fragment .stringliteral,
+.fragment .charliteral { color: #FF901E }
