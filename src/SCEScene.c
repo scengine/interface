@@ -963,12 +963,12 @@ static void SCE_Scene_RenderSkybox (SCE_SScene *scene, SCE_SCamera *cam)
 /* TODO: cheat. */
 static void SCE_Scene_UseCamera (SCE_SCamera *cam)
 {
-    SCE_CViewport (cam->viewport.x, cam->viewport.y,
+    SCE_RViewport (cam->viewport.x, cam->viewport.y,
                    cam->viewport.w, cam->viewport.h);
-    SCE_CSetActiveMatrix (SCE_MAT_PROJECTION);
-    SCE_CLoadMatrix (cam->proj);  /* NOTE: Load ou Mult ? */
-    SCE_CSetActiveMatrix (SCE_MAT_MODELVIEW);
-    SCE_CLoadMatrix (cam->finalview);  /* Load ou Mult ? */
+    SCE_RSetActiveMatrix (SCE_MAT_PROJECTION);
+    SCE_RLoadMatrix (cam->proj);  /* NOTE: Load ou Mult ? */
+    SCE_RSetActiveMatrix (SCE_MAT_MODELVIEW);
+    SCE_RLoadMatrix (cam->finalview);  /* Load ou Mult ? */
 }
 
 /**
