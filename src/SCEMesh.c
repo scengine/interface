@@ -351,7 +351,7 @@ static void SCE_Mesh_MakeIndependantVB (SCE_SMesh *mesh)
         array = SCE_Geometry_GetUserArray (&marray->auser);
         while (array) {
             SCE_EVertexAttribute attrib;
-            attrib = SCE_Geometry_GetArrayAttributeType (array);
+            attrib = SCE_Geometry_GetArrayVertexAttribute (array);
             /* TODO: just shit. */
             if (attrib == SCE_POSITION) {
                 stream = SCE_MESH_STREAM_G;
