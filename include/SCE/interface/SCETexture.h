@@ -30,8 +30,7 @@
 #include "SCE/interface/SCESceneResource.h"
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
 /**
@@ -94,11 +93,8 @@ struct sce_stexture {
 int SCE_Init_Texture (void);
 void SCE_Quit_Texture (void);
 
-void SCE_Texture_Bind (SCE_STexture*) SCE_GNUC_DEPRECATED;
-
 SCE_STexture* SCE_Texture_Create (SCEenum, int, int);
 void SCE_Texture_Delete (SCE_STexture*);
-void SCE_Texture_Delete_ (void);
 
 SCE_SSceneResource* SCE_Texture_GetSceneResource (SCE_STexture*);
 
@@ -123,16 +119,13 @@ int SCE_Texture_GetType (SCE_STexture*);
 int SCE_Texture_GetCType (SCE_STexture*);
 
 SCE_RTexture* SCE_Texture_GetCTexture (SCE_STexture*);
-SCE_RTexture* SCE_Texture_GetCTexture_ (void);
 
 int SCE_Texture_GetWidth (SCE_STexture*, int, int);
 int SCE_Texture_GetHeight (SCE_STexture*, int, int);
 
 int SCE_Texture_Build (SCE_STexture*, int);
-int SCE_Texture_Build_ (int);
 
 int SCE_Texture_Update (SCE_STexture*);
-int SCE_Texture_Update_ (void);
 
 SCE_STexture* SCE_Texture_Loadv (int, int, int, int, int, const char**);
 SCE_STexture* SCE_Texture_Load (int, int, int, int, int, ...);
@@ -158,7 +151,6 @@ void SCE_Texture_Restore (void);
 #endif
 
 void SCE_Texture_RenderTo (SCE_STexture*, SCEuint);
-void SCE_Texture_RenderTo_ (SCEuint);
 
 #ifdef __cplusplus
 } /* extern "C" */

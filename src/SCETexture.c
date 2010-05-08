@@ -46,7 +46,7 @@
 
 static int resource_type = 0;
 
-static SCE_STexture *bound = NULL, *textmp = NULL;
+static SCE_STexture *textmp = NULL;
 
 static SCE_SList texused;
 #if 0
@@ -86,13 +86,6 @@ void SCE_Quit_Texture (void)
     SCE_List_Clear (&texused);
 }
 
-/** \deprecated */
-void SCE_Texture_Bind (SCE_STexture *tex)
-{
-    bound = tex;
-    /* NOTE: binding de la texture du coeur ? */
-}
-
 static void SCE_Texture_Init (SCE_STexture *tex)
 {
     unsigned int i;
@@ -117,11 +110,9 @@ static void SCE_Texture_SetupParameters (SCE_STexture *tex)
     if (type == SCE_RENDER_COLOR_CUBE || type == SCE_TEX_CUBE ||
         type == SCE_RENDER_DEPTH_CUBE || type == SCE_RENDER_DEPTH ||
         type == SCE_RENDER_COLOR) {
-        SCE_RBindTexture (tex->tex);
-        SCE_RSetTextureParam_ (GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        SCE_RSetTextureParam_ (GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        SCE_RSetTextureParam_ (GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-        SCE_RBindTexture (NULL);
+        SCE_RSetTextureParam (tex->tex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        SCE_RSetTextureParam (tex->tex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        SCE_RSetTextureParam (tex->tex, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     }
 }
 
@@ -134,25 +125,22 @@ static int SCE_Texture_MakeRender (SCE_STexture *tex, int type)
     if (!tex->fb[0])
         goto failure;
 
-    SCE_RBindFramebuffer (tex->fb[0]);
-    if (SCE_RCreateRenderTexture_ (type, 0, 0, 0, w, h) < 0)
+    if (SCE_RCreateRenderTexture (tex->fb[0], type, 0, 0, 0, w, h) < 0)
         goto failure;
     /* s'il s'agit d'une color, on ajoute un depth buffer */
     if (type == SCE_ROLOR_BUFFER) {
-        if (SCE_RAddRenderBuffer_ (SCE_DEPTH_BUFFER, 0, w, h) < 0)
+        if (SCE_RAddRenderBuffer (tex->fb[0], SCE_DEPTH_BUFFER, 0, w, h) < 0)
             goto failure;
     }
     /* le proprietaire de la texture reste le frame buffer
        car tex->canfree[n] est egal a SCE_FALSE par defaut */
-    tex->tex = SCE_RGetRenderTexture_ (type);
-    SCE_RBindFramebuffer (NULL);
+    tex->tex = SCE_RGetRenderTexture (tex->fb[0], type);
     goto success;
 
 failure:
     SCEE_LogSrc ();
     code = SCE_ERROR;
 success:
-    SCE_btend ();
     return code;
 }
 
@@ -269,41 +257,20 @@ success:
 }
 
 
-#define SCE_DEFAULTFUNC(action)\
-SCE_STexture *back = bound;\
-SCE_Texture_Bind (tex);\
-action;\
-SCE_Texture_Bind (back);
-
-#define SCE_DEFAULTFUNCR(t, action)\
-t r;\
-SCE_STexture *back = bound;\
-SCE_Texture_Bind (tex);\
-r = action;\
-SCE_Texture_Bind (back);\
-return r;
-
 /**
  * \brief Deletes an existing texture
  * \param tex the texture to delete
  */
 void SCE_Texture_Delete (SCE_STexture *tex)
 {
-    SCE_DEFAULTFUNC (SCE_Texture_Delete_ ())
-}
-void SCE_Texture_Delete_ (void)
-{
-    SCE_btstart ();
-    if (bound) {
+    if (tex) {
         unsigned int i;
-        SCE_SceneResource_RemoveResource (&bound->s_resource);
-        for (i=0; i<6; i++)
-            SCE_RDeleteFramebuffer (bound->fb[i]);
-        SCE_RDeleteTexture (bound->tex);
-        SCE_free (bound);
-        bound = NULL;
+        SCE_SceneResource_RemoveResource (&tex->s_resource);
+        for (i = 0; i < 6; i++)
+            SCE_RDeleteFramebuffer (tex->fb[i]);
+        SCE_RDeleteTexture (tex->tex);
+        SCE_free (tex);
     }
-    SCE_btend ();
 }
 
 
@@ -435,10 +402,6 @@ SCE_RTexture* SCE_Texture_GetCTexture (SCE_STexture *tex)
 {
     return tex->tex;
 }
-SCE_RTexture* SCE_Texture_GetCTexture_ (void)
-{
-    return bound->tex;
-}
 
 /**
  * \brief Gets the width of a texture
@@ -475,13 +438,10 @@ int SCE_Texture_Build (SCE_STexture *tex, int use_mipmap)
 {
     int hw_mipmap;
 
-    SCE_btstart ();
-    SCE_RBindTexture (tex->tex);
-
     /* trying to generate mipmaps on the hardware */
     hw_mipmap = (use_mipmap && SCE_RHasCap (SCE_TEX_HW_GEN_MIPMAP));
     if (SCE_RGetTextureTarget (tex->tex) != SCE_TEX_CUBE)
-        hw_mipmap = (SCE_RGetTextureNumMipmaps_ (0) <= 1 && hw_mipmap);
+        hw_mipmap = (SCE_RGetTextureNumMipmaps (tex->tex, 0) <= 1 && hw_mipmap);
     /* adding some data if needed */
     if (!SCE_RHasTextureData (tex->tex)) {
         SCE_RTexData d;
@@ -489,25 +449,16 @@ int SCE_Texture_Build (SCE_STexture *tex, int use_mipmap)
         d.w = tex->w; d.h = tex->h;/* d.d = tex->d;*/
         if (SCE_RAddTextureTexDataDup (tex->tex, tex->type /* hope */, &d) < 0) {
             SCEE_LogSrc ();
-            SCE_btend ();
             return SCE_ERROR;
         }
     }
 
     if (SCE_RBuildTexture (tex->tex, use_mipmap, hw_mipmap) < 0) {
         SCEE_LogSrc ();
-        SCE_btend ();
         return SCE_ERROR;
     }
 
-    SCE_RBindTexture (NULL);
-
-    SCE_btend ();
     return SCE_OK;
-}
-int SCE_Texture_Build_ (int use_mipmap)
-{
-    return SCE_Texture_Build (bound, use_mipmap);
 }
 
 /**
@@ -517,18 +468,11 @@ int SCE_Texture_Build_ (int use_mipmap)
  */
 int SCE_Texture_Update (SCE_STexture *tex)
 {
-    SCE_btstart ();
     if (SCE_RUpdateTexture (tex->tex, -1, -1) < 0) {
         SCEE_LogSrc ();
-        SCE_btend ();
         return SCE_ERROR;
     }
-    SCE_btend ();
     return SCE_OK;
-}
-int SCE_Texture_Update_ (void)
-{
-    return SCE_Texture_Update (bound);
 }
 
 
@@ -937,10 +881,6 @@ void SCE_Texture_RenderTo (SCE_STexture *tex, SCEuint cubeface)
             SCE_RUseFramebuffer (tex->fb[0], NULL);
     } else
         SCE_RUseFramebuffer (NULL, NULL);
-}
-void SCE_Texture_RenderTo_ (SCEuint cubeface)
-{
-    SCE_Texture_RenderTo (bound, cubeface);
 }
 
 /** @} */
