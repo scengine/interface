@@ -960,6 +960,16 @@ static void SCE_Scene_RenderSkybox (SCE_SScene *scene, SCE_SCamera *cam)
     SCE_Texture_Flush ();
     SCE_Shader_Use (NULL);
 }
+/* TODO: cheat. */
+static void SCE_Scene_UseCamera (SCE_SCamera *cam)
+{
+    SCE_CViewport (cam->viewport.x, cam->viewport.y,
+                   cam->viewport.w, cam->viewport.h);
+    SCE_CSetActiveMatrix (SCE_MAT_PROJECTION);
+    SCE_CLoadMatrix (cam->proj);  /* NOTE: Load ou Mult ? */
+    SCE_CSetActiveMatrix (SCE_MAT_MODELVIEW);
+    SCE_CLoadMatrix (cam->finalview);  /* Load ou Mult ? */
+}
 
 /**
  * \brief Renders a scene into a render target
@@ -996,7 +1006,7 @@ void SCE_Scene_Render (SCE_SScene *scene, SCE_SCamera *cam,
     /* activation de la camera et mise en place des matrices */
     SCE_RSetActiveMatrix (SCE_MAT_MODELVIEW);
     SCE_RPushMatrix ();
-    SCE_Camera_Use (cam);
+    SCE_Scene_UseCamera (cam);
 
     /* render skybox (if any) */
     if (scene->skybox) {
