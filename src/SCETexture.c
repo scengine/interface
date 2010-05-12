@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 11/03/2007
-   updated: 12/07/2009 */
+   updated: 12/05/2010 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -192,7 +192,6 @@ failure:
     SCEE_LogSrc ();
     code = SCE_ERROR;
 success:
-    SCE_btend ();
     return code;
 }
 
@@ -210,7 +209,6 @@ SCE_STexture* SCE_Texture_Create (SCEenum type, int w, int h/*, int d*/)
 {
     SCE_STexture *tex = NULL;
 
-    SCE_btstart ();
     tex = SCE_malloc (sizeof *tex);
     if (!tex)
         goto failure;
@@ -246,14 +244,12 @@ SCE_STexture* SCE_Texture_Create (SCEenum type, int w, int h/*, int d*/)
             goto failure;
     }
     SCE_Texture_SetupParameters (tex);
-    goto success;
 
-failure:
-    SCE_Texture_Delete (tex), tex = NULL;
-    SCEE_LogSrc ();
-success:
-    SCE_btend ();
     return tex;
+failure:
+    SCE_Texture_Delete (tex);
+    SCEE_LogSrc ();
+    return NULL;
 }
 
 
@@ -492,11 +488,9 @@ static void* SCE_Texture_LoadResource (const char *name, int force, void *data)
     type = rinfo->type;
     w = rinfo->w; h = rinfo->h; d = rinfo->d;
 
-    SCE_btstart ();
     tex = SCE_Texture_Create (type, w, h);
     if (!tex) {
         SCEE_LogSrc ();
-        SCE_btend ();
         return NULL;
     }
 
@@ -512,7 +506,6 @@ static void* SCE_Texture_LoadResource (const char *name, int force, void *data)
     } else
         SCE_Texture_SetupParameters (tex);
 
-    SCE_btend ();
     return tex;
 }
 
@@ -561,7 +554,6 @@ SCE_STexture* SCE_Texture_Load (int type, int w, int h, int d, int force, ...)
     const char *names[42];
     SCE_STexture *tex = NULL;
 
-    SCE_btstart ();
     va_start (args, force);
     name = va_arg (args, const char*);
     while (name && i < 42 - 1) {
@@ -575,12 +567,10 @@ SCE_STexture* SCE_Texture_Load (int type, int w, int h, int d, int force, ...)
     if (i == 0) {
         SCEE_Log (SCE_INVALID_ARG);
         SCEE_LogMsg ("excpected at least 1 file name, but 0 given");
-        SCE_btend ();
         return NULL;
     }
 #endif
     tex = SCE_Texture_Loadv (type, w, h, d, force, names);
-    SCE_btend ();
     return tex;
 }
 
