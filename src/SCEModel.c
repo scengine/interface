@@ -210,7 +210,6 @@ void* SCE_Model_GetData (SCE_SModel *mdl)
 static void SCE_Model_BuildEntityv (SCE_SModelEntity *entity, SCE_SMesh *mesh,
                                     SCE_SShader *shader, SCE_STexture **texs)
 {
-
     SCE_SceneEntity_SetMesh (entity->entity, mesh);
     if (shader)
         SCE_SceneEntity_SetShader (entity->entity, shader);
@@ -221,7 +220,7 @@ static void SCE_Model_BuildEntityv (SCE_SModelEntity *entity, SCE_SMesh *mesh,
     }
 }
 
-#define SCE_RHECK_LEVEL(level) do {                                     \
+#define SCE_CHECK_LEVEL(level) do {                                     \
         if (level >= SCE_MAX_MODEL_ENTITIES) {                          \
             SCEE_Log (SCE_INVALID_ARG);                                 \
             SCEE_LogMsg ("parameter 'level' is too high (%d), maximum is %u",\
@@ -246,7 +245,7 @@ int SCE_Model_AddEntityv (SCE_SModel *mdl, int level, SCE_SMesh *mesh,
     if (level < 0)
         level = SCE_Model_GetNumLOD (mdl);
 #ifdef SCE_DEBUG
-    SCE_RHECK_LEVEL (level);
+    SCE_CHECK_LEVEL (level);
 #endif
 
     if (!mdl->entities[level]) {
@@ -564,16 +563,15 @@ fail:
 }
 /**
  * \brief Instanciates a model (can only instanciate a built model)
- * \param mode the instance type, read SCE_Model_GetInstanceType()'s
- * documentation for more details about available modes
+ * \param mode the instance type, cannot be SCE_MODEL_ROOT
  * \param dup_inst duplicate instances too?
  *
  * The instances in the new instanced model will be automatically merged.
  * Moreover, \p mdl2 must has been allocated by SCE_Model_Create().
  * \sa SCE_Model_CreateInstanciate()
  */
-int SCE_Model_Instanciate (SCE_SModel *mdl, SCE_SModel *mdl2, int mode,
-                           int dup_inst)
+int SCE_Model_Instanciate (SCE_SModel *mdl, SCE_SModel *mdl2,
+                           SCE_EModelType mode, int dup_inst)
 {
     int code = SCE_OK;
     switch (mode) {
@@ -610,9 +608,8 @@ fail:
  * This function does like SCE_Model_Instanciate() except that it first creates
  * a new model.
  * \sa SCE_Model_Instanciate()
- * \todo use enum for \p mode
  */
-SCE_SModel* SCE_Model_CreateInstanciate (SCE_SModel *mdl, int mode,
+SCE_SModel* SCE_Model_CreateInstanciate (SCE_SModel *mdl, SCE_EModelType mode,
                                          int dup_inst)
 {
     SCE_SModel *instance = NULL;

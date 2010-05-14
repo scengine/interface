@@ -107,8 +107,8 @@ SCE_SList* SCE_Model_GetEntitiesList (SCE_SModel*, int);
 SCE_SSceneEntity* SCE_Model_GetEntityEntity (SCE_SModelEntity*);
 
 int SCE_Model_MergeInstances (SCE_SModel*);
-int SCE_Model_Instanciate (SCE_SModel*, SCE_SModel*, int, int);
-SCE_SModel* SCE_Model_CreateInstanciate (SCE_SModel*, int, int);
+int SCE_Model_Instanciate (SCE_SModel*, SCE_SModel*, SCE_EModelType, int);
+SCE_SModel* SCE_Model_CreateInstanciate (SCE_SModel*, SCE_EModelType, int);
 
 SCE_EModelType SCE_Model_GetType (SCE_SModel*);
 
