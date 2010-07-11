@@ -88,7 +88,7 @@ void SCE_Quad_DrawDefault (void)
 void SCE_Quad_MakeMatrix (SCE_TMatrix4 mat, float x, float y, float w, float h)
 {
     SCE_Matrix4_Scale (mat, w, h, 1.);
-    SCE_Matrix4_MulTranslate (mat, x/w, y/w, 0.);
+    SCE_Matrix4_MulTranslate (mat, x/w, y/h, 0.);
 }
 void SCE_Quad_MakeMatrixFromRectangle (SCE_TMatrix4 mat, SCE_SIntRect *r)
 {
