@@ -45,7 +45,9 @@ int SCE_Init_Quad (void)
 {
     SCE_SGeometry *geom = NULL;
     /*SCEvertices vertices[] = {-1., -1.,  1., -1.,  1., 1.,  -1., 1.};*/
-    SCEvertices vertices[] = {0., 0.,  1., 0.,  1., 1., 0., 1.};
+    /* hax, there is no need for a 3rd component but Geometry_SetData()
+       requires it */
+    SCEvertices vertices[] = {0., 0., 0.,  1., 0., 0.,  1., 1., 0.,  0., 1., 0.};
     SCEvertices texcoord[] = {0., 0.,  1., 0.,  1., 1.,  0., 1.};
     SCEvertices normals[] =  {0.,0.,1.,  0.,0.,1., 0.,0.,1., 0.,0.,1.};
     SCEvertices colors[] = {1., 1., 1., 1.,  1., 1., 1., 1.,
