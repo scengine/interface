@@ -25,8 +25,8 @@ ABBREVIATE_BRIEF       = "The $name class" \
 ALWAYS_DETAILED_SEC    = NO
 INLINE_INHERITED_MEMB  = NO
 FULL_PATH_NAMES        = NO
-STRIP_FROM_PATH        = src
-STRIP_FROM_INC_PATH    = include
+STRIP_FROM_PATH        = @top_srcdir@/src
+STRIP_FROM_INC_PATH    = @top_srcdir@/include
 SHORT_NAMES            = NO
 JAVADOC_AUTOBRIEF      = NO
 MULTILINE_CPP_IS_BRIEF = NO
@@ -82,8 +82,8 @@ WARN_LOGFILE           =
 #---------------------------------------------------------------------------
 # configuration options related to the input files
 #---------------------------------------------------------------------------
-INPUT                  = src \
-                         include
+INPUT                  = @top_srcdir@/src \
+                         @top_srcdir@/include
 INPUT_ENCODING         = UTF-8
 FILE_PATTERNS          = *.c \
                          *.cc \
@@ -161,9 +161,9 @@ IGNORE_PREFIX          =
 GENERATE_HTML          = YES
 HTML_OUTPUT            = html
 HTML_FILE_EXTENSION    = .html
-HTML_HEADER            = doc/htmltemplate/header.html
-HTML_FOOTER            = doc/htmltemplate/footer.html
-HTML_STYLESHEET        = doc/htmltemplate/main.css
+HTML_HEADER            = @top_srcdir@/doc/htmltemplate/header.html
+HTML_FOOTER            = @top_srcdir@/doc/htmltemplate/footer.html
+HTML_STYLESHEET        = @top_srcdir@/doc/htmltemplate/main.css
 HTML_ALIGN_MEMBERS     = YES
 GENERATE_HTMLHELP      = NO
 CHM_FILE               = 

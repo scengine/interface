@@ -482,8 +482,8 @@ SCE_SMesh* SCE_SceneEntity_GetMesh (SCE_SSceneEntity *entity)
 
 /**
  * \brief Adds a texture to an entity
- * \param entity the entity where add the texture
- * \param r the resource that represent the texture
+ * \param entity the entity to which add the texture
+ * \param tex the texture to add to \p entity
  * \returns SCE_ERROR on error, SCE_OK otherwise
  *
  * When this function is called, the entity \p entity becomes a new owner of
@@ -507,8 +507,8 @@ fail:
 }
 /**
  * \brief Removes a texture from an entity
- * \param entity the entity from where remove the texture
- * \param r the resource that represent the texture to remove
+ * \param entity the entity from which remove the texture
+ * \param tex the texture to remove from \p entity
  *
  * Removes a texture already added to \p entity by calling
  * SCE_SceneEntity_AddTexture().
@@ -533,7 +533,7 @@ SCE_SList* SCE_SceneEntity_GetTexturesList (SCE_SSceneEntity *entity)
 /**
  * \brief Defines the shader used by an entity
  * \param entity the entity that will use the shader
- * \param r the resource that represent the shader
+ * \param s the shader to use for \p entity
  * \returns SCE_ERROR on error, SCE_OK otherwise
  *
  * If \p r is NULL, \p entity don't use any shader and this function returns
@@ -567,7 +567,7 @@ SCE_SSceneResource* SCE_SceneEntity_GetShader (SCE_SSceneEntity *entity)
 /**
  * \brief Defines the material used by an entity
  * \param entity the entity that will use the material
- * \param r the resource that represent the material
+ * \param mat the material to use for \p entity
  * \returns SCE_ERROR on error, SCE_OK otherwise
  *
  * If \p r is NULL, \p entity don't use any material and this function returns
@@ -675,6 +675,7 @@ static int SCE_SceneEntity_IsBSInFrustum (SCE_SSceneEntityInstance *einst,
 /**
  * \brief Defines the bounding volume to use for frustum culling
  * (frustum culling only for now)
+ * \param entity an entity
  * \param volume the bounding volume to use, can be SCE_BOUNDINGBOX or
  * SCE_BOUNDINGSPHERE
  * \todo maybe rename it to SetupFrustumCullingBoundingVolume
