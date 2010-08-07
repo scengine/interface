@@ -380,6 +380,7 @@ void SCE_Scene_AddNodeRecursive (SCE_SScene *scene, SCE_SNode *node)
 }
 /**
  * \brief Removes a node from a scene
+ * \param scene the scene from which remove \p node
  * \param node the node to remove
  * \warning the node \p node HAVE to be previously added to the scene \p scene,
  * the behavior is undefined otherwise.
@@ -394,6 +395,7 @@ void SCE_Scene_RemoveNode (SCE_SScene *scene, SCE_SNode *node)
 
 /**
  * \brief Adds an instance to a scene
+ * \param scene the scene into which add \p einst
  * \param einst the instance to add
  *
  * Adds an instance to a scene, adds its node by calling SCE_Scene_AddNode().
@@ -417,6 +419,7 @@ void SCE_Scene_AddInstance (SCE_SScene *scene, SCE_SSceneEntityInstance *einst)
 }
 /**
  * \brief Removes an instance from a scene
+ * \param scene the scene from which remove \p einst
  * \param einst the instance to remove
  * \sa SCE_Scene_AddInstance()
  */
@@ -475,7 +478,8 @@ void SCE_Scene_RemoveEntityResources (SCE_SScene *scene,
 
 /**
  * \brief Adds an entity to a scene
- * \param entity the entity to add
+ * \param scene the scene into which add \p entity
+ * \param entity the entity to add into the scene
  */
 void SCE_Scene_AddEntity (SCE_SScene *scene, SCE_SSceneEntity *entity)
 {
@@ -485,7 +489,8 @@ void SCE_Scene_AddEntity (SCE_SScene *scene, SCE_SSceneEntity *entity)
 }
 /**
  * \brief Removes an entity from a scene
- * \param entity the entity to remove
+ * \param scene the scene from which remove \p entity
+ * \param entity the entity to remove from the scene
  */
 void SCE_Scene_RemoveEntity (SCE_SScene *scene, SCE_SSceneEntity *entity)
 {
@@ -512,6 +517,8 @@ static void SCE_Scene_AddModelEntities (SCE_SScene *scene, SCE_SModel *mdl)
 }
 /**
  * \brief Adds a model to a scene
+ * \param scene the scene into which add \p mdl
+ * \param mdl the model to add into the scene
  */
 void SCE_Scene_AddModel (SCE_SScene *scene, SCE_SModel *mdl)
 {
@@ -552,6 +559,8 @@ static void SCE_Scene_RemoveModelEntities (SCE_SScene *scene, SCE_SModel *mdl)
 }
 /**
  * \brief Removes a model from a scene
+ * \param scene the scene from which remove \p mdl
+ * \param mdl the model to remove from the scene
  */
 void SCE_Scene_RemoveModel (SCE_SScene *scene, SCE_SModel *mdl)
 {
@@ -571,6 +580,8 @@ void SCE_Scene_RemoveModel (SCE_SScene *scene, SCE_SModel *mdl)
 
 /**
  * \brief Adds a light to a scene
+ * \param scene the scene into which add \p light
+ * \param light the light to add into the scene
  */
 void SCE_Scene_AddLight (SCE_SScene *scene, SCE_SLight *light)
 {
@@ -583,6 +594,8 @@ void SCE_Scene_AddLight (SCE_SScene *scene, SCE_SLight *light)
 
 /**
  * \brief Adds a camera to a scene
+ * \param scene the scene into which add \p camera
+ * \param camera the camera to add into the scene
  */
 void SCE_Scene_AddCamera (SCE_SScene *scene, SCE_SCamera *camera)
 {
@@ -595,6 +608,10 @@ void SCE_Scene_AddCamera (SCE_SScene *scene, SCE_SCamera *camera)
 
 /**
  * \brief Adds a resource to a scene
+ * \param scene the scene into which add the resource
+ * \param id ID of the scene group into which add the resource (e.g.
+ *           SCE_SCENE_MATERIALS_GROUP)
+ * \param res the resource to add
  * \todo remove it, use AddTexture, AddShader, etc.
  * \sa SCE_Scene_RemoveResource()
  */
@@ -605,6 +622,7 @@ void SCE_Scene_AddResource (SCE_SScene *scene, int id, SCE_SSceneResource *res)
 /**
  * \brief Removes a resource from a scene (except that no scene parameter is
  * needed.)
+ * \param res the ressource to remove
  * \todo see SCE_Scene_AddResource()
  */
 void SCE_Scene_RemoveResource (SCE_SSceneResource *res)
@@ -614,6 +632,8 @@ void SCE_Scene_RemoveResource (SCE_SSceneResource *res)
 
 /**
  * \brief Defines the skybox of a scene
+ * \param scene the scene
+ * \param skybox the skybox
  */
 void SCE_Scene_SetSkybox (SCE_SScene *scene, SCE_SSkybox *skybox)
 {
@@ -632,6 +652,7 @@ void SCE_Scene_SetSkybox (SCE_SScene *scene, SCE_SSkybox *skybox)
 /**
  * \brief Gets the list of the selected instances (after culling and other
  * tests) for rendering
+ * \param scene a scene
  */
 SCE_SList* SCE_Scene_GetSelectedInstancesList (SCE_SScene *scene)
 {
@@ -641,6 +662,7 @@ SCE_SList* SCE_Scene_GetSelectedInstancesList (SCE_SScene *scene)
 
 /**
  * \brief Defines the size of the octree of a scene
+ * \param scene a scene
  * \param w,h,d the new dimensions of the octree
  * \sa SCE_Octree_SetSize()
  */

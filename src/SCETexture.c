@@ -280,7 +280,8 @@ SCE_SSceneResource* SCE_Texture_GetSceneResource (SCE_STexture *tex)
 
 /**
  * \brief Sets the filter of a texture when is far
- * \param level is the level of filtering, can set SCE_TEX_NEAREST,
+ * \param tex the texture of which set the filter
+ * \param filter the texture's filtering type, can set SCE_TEX_NEAREST,
  * SCE_TEX_LINEAR, SCE_TEX_BILINEAR, SCE_TEX_TRILINEAR.
  * \sa SCE_RSetTextureFilter()
  */
@@ -289,8 +290,10 @@ void SCE_Texture_SetFilter (SCE_STexture *tex, SCEint filter)
     SCE_RSetTextureFilter (tex->tex, filter);
 }
 /**
- * \brief Defines if a texture is pixelized when is near
- * \param p can be SCE_TRUE or SCE_FALSE
+ * \brief Defines if a texture is pixelized when it is near
+ * \param tex a texture
+ * \param p whether the texture should be pixelized when near; can be SCE_TRUE
+ *          or SCE_FALSE
  * \sa SCE_RPixelizeTexture()
  */
 void SCE_Texture_Pixelize (SCE_STexture *tex, int p)
@@ -301,10 +304,6 @@ void SCE_Texture_Pixelize (SCE_STexture *tex, int p)
 /**
  * \brief Sets an OpenGL texture's parameter
  * \param tex the texture to set the parameter
- * \param id the render target's identifier, used only for multiple render
- * targets, if you don't added any texture by calling
- * SCE_Texture_AddRenderTexture() or SCE_Texture_AddRenderCTexture(),
- * ignore this parameter and set it at 0
  * \param pname second glTexParameteri parameter
  * \param param third glTexParameteri parameter
  */
@@ -515,7 +514,7 @@ static void* SCE_Texture_LoadResource (const char *name, int force, void *data)
  * six parameters are expected in \p args defining respectively posx, negx,
  * posy, negy, posz and negz cube face's image
  * \param w,h,d force the new texture's dimentions (0 to keep unchanged)
- * \param args the va_list that gives the file names
+ * \param names the array of the file names
  * \returns the new texture
  * \sa SCE_Texture_Load()
  */
@@ -577,10 +576,9 @@ SCE_STexture* SCE_Texture_Load (int type, int w, int h, int d, int force, ...)
 /**
  * \brief Adds a texture as a new render target's
  * \param tex the texture to add a new render texture
- * \param id render target's identifier (SCE_ROLOR_BUFFERn, SCE_DEPTH_BUFFER
+ * \param id render target's identifier (SCE_ROLOR_BUFFER, SCE_DEPTH_BUFFER
  * or SCE_STENCIL_BUFFER)
  * \param ctex the texture to add as a render target (is a core texture)
- * \param canfree boolean which indicates if \p tex has right to delete \p ctex
  * \returns SCE_ERROR on error, SCE_OK otherwise
  * \note If \p ctex has different dimensions or pixel format of \p tex,
  * then this function maybe generate an error that is implementation and/or
