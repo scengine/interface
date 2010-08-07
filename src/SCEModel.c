@@ -234,6 +234,7 @@ static void SCE_Model_BuildEntityv (SCE_SModelEntity *entity, SCE_SMesh *mesh,
  * \returns SCE_ERROR on error, SCE_OK otherwise
  *
  * If \p level is lesser than 0, then using the latest level of detail.
+ * \todo Rename it as AddNewEntityv, and create a true AddEntity function
  */
 int SCE_Model_AddEntityv (SCE_SModel *mdl, int level, SCE_SMesh *mesh,
                           SCE_SShader *shader, SCE_STexture **tex)
@@ -282,6 +283,9 @@ fail:
     SCEE_LogSrc ();
     return SCE_ERROR;
 }
+/**
+ * \todo Rename it as AddNewEntity, and create a true AddEntity function
+ */
 int SCE_Model_AddEntity (SCE_SModel *mdl, int level, SCE_SMesh *mesh,
                          SCE_SShader *shader, ...)
 {

@@ -500,7 +500,6 @@ static void* SCE_Mesh_LoadResource (const char *fname, int force, void *data)
     SCE_SMesh *mesh = NULL;
     SCE_SGeometry *geom = NULL;
     (void)data;
-
     if (!(mesh = SCE_Mesh_Create ()))
         goto fail;
     if (force > 0)
