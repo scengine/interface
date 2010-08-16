@@ -108,6 +108,7 @@ void SCE_Quit_Interface (void)
             SCE_Quit_Shader ();
             SCE_Quit_Texture ();
             SCE_RQuit ();
+            SCE_Quit_Core ();
             SCE_Quit_Utils ();
         }
         pthread_mutex_unlock (&init_mutex);
