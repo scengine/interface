@@ -92,19 +92,24 @@ void SCE_Quit_Interface (void)
         SCEE_Log (42);
         SCEE_LogMsg ("failed to lock initialization mutex of interface");
     } else {
-        SCE_Quit_Scene ();
-        SCE_Quit_Quad ();
-        SCE_Quit_idTechMD5 ();
-        SCE_Quit_Anim ();
-        SCE_Quit_AnimGeom ();
-        SCE_Quit_OBJ ();
-        SCE_Quit_Mesh ();
-        SCE_Quit_BoxGeom ();
-        SCE_Quit_Geometry ();
-        SCE_Quit_Shader ();
-        SCE_Quit_Texture ();
-        SCE_RQuit ();
-        SCE_Quit_Utils ();
+        init_n--;
+        if (init_n < 0) {
+            init_n = 0;         /* user made an useless call */
+        } else if (init_n == 0) {
+            SCE_Quit_Scene ();
+            SCE_Quit_Quad ();
+            SCE_Quit_idTechMD5 ();
+            SCE_Quit_Anim ();
+            SCE_Quit_AnimGeom ();
+            SCE_Quit_OBJ ();
+            SCE_Quit_Mesh ();
+            SCE_Quit_BoxGeom ();
+            SCE_Quit_Geometry ();
+            SCE_Quit_Shader ();
+            SCE_Quit_Texture ();
+            SCE_RQuit ();
+            SCE_Quit_Utils ();
+        }
         pthread_mutex_unlock (&init_mutex);
     }
 }
