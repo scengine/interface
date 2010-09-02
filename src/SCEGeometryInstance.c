@@ -61,7 +61,11 @@ void SCE_Instance_Delete (SCE_SGeometryInstance *inst)
 
 static void SCE_Instance_FreeInstance (void *inst)
 {
-    SCE_Instance_RemoveInstance (inst);
+    SCE_SGeometryInstance *i = inst;
+    /* if a group is shared, like if you hard instanciate a SCE_SModel,
+       it avoids the deletion of the geometry instances of the model
+       instances to segfault */
+    i->group = NULL;
 }
 void SCE_Instance_InitGroup (SCE_SGeometryInstanceGroup *group)
 {
