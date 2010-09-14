@@ -157,7 +157,9 @@ static void SCE_Model_Init (SCE_SModel *mdl)
     unsigned int i;
     for (i = 0; i < SCE_MAX_MODEL_ENTITIES; i++)
         mdl->entities[i] = NULL;
-    mdl->groups = NULL;
+    SCE_List_Init (&mdl->groups);
+    SCE_List_SetFreeFunc (&mdl->groups,
+                          (SCE_FListFreeFunc)SCE_Model_DeleteEntityGroup);
     SCE_List_Init (&mdl->instances);
     SCE_List_SetFreeFunc (&mdl->instances,
                           (SCE_FListFreeFunc)SCE_Model_DeleteInstance);
@@ -183,7 +185,7 @@ void SCE_Model_Delete (SCE_SModel *mdl)
             unsigned int i;
             for (i = 0; i < SCE_MAX_MODEL_ENTITIES; i++)
                 SCE_List_Delete (mdl->entities[i]);
-            SCE_List_Delete (mdl->groups);
+            SCE_List_Clear (&mdl->groups);
         }
         if (!mdl->root_node_instance)
             SCE_Node_Delete (mdl->root_node);
@@ -254,25 +256,20 @@ int SCE_Model_AddEntityv (SCE_SModel *mdl, int level, SCE_SMesh *mesh,
                   (SCE_FListFreeFunc)SCE_Model_DeleteEntity)))
             goto fail;
     }
-    if (!mdl->groups) {
-        if (!(mdl->groups = SCE_List_Create (
-                  (SCE_FListFreeFunc)SCE_Model_DeleteEntityGroup)))
-            goto fail;
-    }
     n = SCE_List_GetLength (mdl->entities[level]);
-    if (SCE_List_GetLength (mdl->groups) <= n) {
+    if (SCE_List_GetLength (&mdl->groups) <= n) {
         SCE_SModelEntityGroup *mgroup = NULL;
         /* one is enough */
         if (!(mgroup = SCE_Model_CreateEntityGroup (NULL)))
             goto fail;
-        SCE_List_Appendl (mdl->groups, &mgroup->it);
+        SCE_List_Appendl (&mdl->groups, &mgroup->it);
     }
     if (!(entity = SCE_Model_CreateEntity (NULL)))
         goto fail;
     SCE_Model_BuildEntityv (entity, mesh, shader, tex);
     SCE_List_Appendl (mdl->entities[level], &entity->it); {
         /* can't fail */
-        SCE_SListIterator *it = SCE_List_GetIterator (mdl->groups, n);
+        SCE_SListIterator *it = SCE_List_GetIterator (&mdl->groups, n);
         SCE_SModelEntityGroup *mgroup = SCE_List_GetData (it);
         SCE_SceneEntity_AddEntity (mgroup->group, entity->entity);
     }
@@ -472,7 +469,7 @@ int SCE_Model_MergeInstances (SCE_SModel *mdl)
     SCE_SListIterator *it = NULL, *it2 = NULL;
     SCE_List_ForEach (it, &mdl->instances) {
         SCE_SModelInstance *minst = SCE_List_GetData (it);
-        it2 = SCE_List_GetIterator (mdl->groups, minst->n);
+        it2 = SCE_List_GetIterator (&mdl->groups, minst->n);
         if (!it2) {
             SCEE_Log (SCE_INVALID_ARG);
             SCEE_LogMsg ("no group number %u in this model", minst->n);
@@ -508,18 +505,13 @@ static int SCE_Model_InstanciateSoft (SCE_SModel *mdl, SCE_SModel *mdl2)
     unsigned int i;
 
     /* NOTE: mdl's groups will be added to those of mdl2 */
-    if (!mdl2->groups) {
-        if (!(mdl2->groups = SCE_List_Create (
-                  (SCE_FListFreeFunc)SCE_Model_DeleteEntityGroup)))
-            goto fail;
-    }
     /* duplicate SCE_SModelEntityGroup */
-    SCE_List_ForEach (it, mdl->groups) {
+    SCE_List_ForEach (it, &mdl->groups) {
         SCE_SModelEntityGroup *mgroup = NULL, *newg = NULL;
         mgroup = SCE_List_GetData (it);
         if (!(newg = SCE_Model_CreateEntityGroup (mgroup->group)))
             goto fail;
-        SCE_List_Appendl (mdl2->groups, &newg->it);
+        SCE_List_Appendl (&mdl2->groups, &newg->it);
     }
 
     for (i = 0; i < SCE_MAX_MODEL_ENTITIES; i++) {
@@ -650,7 +642,7 @@ SCE_SList* SCE_Model_GetInstancesList (SCE_SModel *mdl)
 SCE_SSceneEntityGroup* SCE_Model_GetSceneEntityGroup (SCE_SModel *mdl,
                                                       unsigned int n)
 {
-    SCE_SListIterator *it = SCE_List_GetIterator (mdl->groups, n);
+    SCE_SListIterator *it = SCE_List_GetIterator (&mdl->groups, n);
     if (!it)
         return NULL;
     else

@@ -68,7 +68,7 @@ typedef enum {
 typedef struct sce_smodel SCE_SModel;
 struct sce_smodel {
     SCE_SList *entities[SCE_MAX_MODEL_ENTITIES];
-    SCE_SList *groups;
+    SCE_SList groups;
     SCE_SList instances;    /**< SCE_SModelInstance */
     SCE_SNode *root_node;   /**< Root node */
     int root_node_instance; /**< Is it root node an instance node? */
