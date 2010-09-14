@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 03/11/2008 
-   updated: 01/11/2009 */
+   updated: 15/09/2010 */
 
 #ifndef SCESCENEENTITY_H
 #define SCESCENEENTITY_H
@@ -121,7 +121,7 @@ void SCE_SceneEntity_InitGroup (SCE_SSceneEntityGroup*);
 SCE_SSceneEntityGroup* SCE_SceneEntity_CreateGroup (void);
 void SCE_SceneEntity_DeleteGroup (SCE_SSceneEntityGroup*);
 
-void SCE_SceneEntity_AddEntity (SCE_SSceneEntityGroup*, SCE_SSceneEntity*);
+void SCE_SceneEntity_AddEntity (SCE_SSceneEntityGroup*, int, SCE_SSceneEntity*);
 void SCE_SceneEntity_RemoveEntity (SCE_SSceneEntity*);
 #if 0
 void SCE_SceneEntity_SortGroup (SCE_SSceneEntityGroup*);

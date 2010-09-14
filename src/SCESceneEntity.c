@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 03/11/2008
-   updated: 01/11/2009 */
+   updated: 15/09/2010 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -220,17 +220,36 @@ void SCE_SceneEntity_DeleteGroup (SCE_SSceneEntityGroup *group)
 
 /**
  * \brief Adds an entity to a group
+ * \param group an entity group
+ * \param lod level of detail that the entity represent
+ * \param entity the entity to add
+ * \sa SCE_SceneEntity_RemoveEntity()
+ * \todo lod not tested
  */
-void SCE_SceneEntity_AddEntity (SCE_SSceneEntityGroup *group,
+void SCE_SceneEntity_AddEntity (SCE_SSceneEntityGroup *group, int lod,
                                 SCE_SSceneEntity *entity)
 {
+    SCE_SListIterator *it = NULL;
+    int i = 0;
     SCE_SceneEntity_RemoveEntity (entity);
-    SCE_List_Appendl (group->entities, &entity->it); /* order defined */
+    if (!SCE_List_HasElements (group->entities))
+        SCE_List_Appendl (group->entities, &entity->it);
+    else SCE_List_ForEach (it, group->entities) {
+        if (i == lod) {
+            SCE_List_Prepend (it, &entity->it);
+            break;
+        } else if (SCE_List_IsLast (group->entities, it)) {
+            SCE_List_Appendl (group->entities, &entity->it);
+            break;
+        }
+        i++;
+    }
     entity->group = group;
     group->n_entities++;
 }
 /**
  * \brief Removes an entity from its group
+ * \sa SCE_SceneEntity_AddEntity()
  */
 void SCE_SceneEntity_RemoveEntity (SCE_SSceneEntity *entity)
 {
