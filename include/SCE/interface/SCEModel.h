@@ -32,9 +32,6 @@
 extern "C" {
 #endif
 
-#define SCE_MAX_MODEL_ENTITIES 8
-#define SCE_MAX_MODEL_LOD_LEVELS SCE_MAX_MODEL_ENTITIES
-
 typedef struct sce_smodelinstance SCE_SModelInstance;
 struct sce_smodelinstance {
     unsigned int n;             /**< Associated entities group */
@@ -53,6 +50,7 @@ typedef struct sce_smodelentitygroup SCE_SModelEntityGroup;
 struct sce_smodelentitygroup {
     SCE_SSceneEntityGroup *group;
     int is_instance;
+    int num;
     SCE_SListIterator it;
 };
 
@@ -67,7 +65,7 @@ typedef enum {
 
 typedef struct sce_smodel SCE_SModel;
 struct sce_smodel {
-    SCE_SList *entities[SCE_MAX_MODEL_ENTITIES];
+    SCE_SList entities;
     SCE_SList groups;
     SCE_SList instances;    /**< SCE_SModelInstance */
     SCE_SNode *root_node;   /**< Root node */
@@ -88,22 +86,23 @@ void SCE_Model_Delete (SCE_SModel*);
 void SCE_Model_SetData (SCE_SModel*, void*);
 void* SCE_Model_GetData (SCE_SModel*);
 
-int SCE_Model_AddEntityv (SCE_SModel*, int, SCE_SMesh*, SCE_SShader*,
-                          SCE_STexture**);
-int SCE_Model_AddEntity (SCE_SModel*, int, SCE_SMesh*, SCE_SShader*, ...);
+int SCE_Model_AddEntityv (SCE_SModel*, SCEuint, SCEuint, SCE_SMesh*,
+                          SCE_SShader*, SCE_STexture**);
+int SCE_Model_AddEntity (SCE_SModel*, SCEuint, SCEuint, SCE_SMesh*,
+                         SCE_SShader*, ...);
 
 void SCE_Model_SetRootNode (SCE_SModel*, SCE_SNode*);
 SCE_SNode* SCE_Model_GetRootNode (SCE_SModel*);
 int SCE_Model_RootNodeIsInstance (SCE_SModel*);
 
 void SCE_Model_AddModelInstance (SCE_SModel*, SCE_SModelInstance*, int);
-int SCE_Model_AddInstance (SCE_SModel*, unsigned int, SCE_SSceneEntityInstance*,
+int SCE_Model_AddInstance (SCE_SModel*, SCEuint, SCE_SSceneEntityInstance*,
                            int);
-int SCE_Model_AddNewInstance (SCE_SModel*, unsigned int, int, float*);
+int SCE_Model_AddNewInstance (SCE_SModel*, SCEuint, int, float*);
 
-unsigned int SCE_Model_GetNumLOD (SCE_SModel*);
-SCE_SSceneEntity* SCE_Model_GetEntity (SCE_SModel*, int, unsigned int);
-SCE_SList* SCE_Model_GetEntitiesList (SCE_SModel*, int);
+unsigned int SCE_Model_GetNumLOD (SCE_SModel*, SCEuint);
+SCE_SSceneEntity* SCE_Model_GetEntity (SCE_SModel*, SCEuint, SCEuint);
+SCE_SList* SCE_Model_GetEntitiesList (SCE_SModel*);
 SCE_SSceneEntity* SCE_Model_GetEntityEntity (SCE_SModelEntity*);
 
 int SCE_Model_MergeInstances (SCE_SModel*);

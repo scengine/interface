@@ -119,6 +119,7 @@ static void SCE_Model_InitEntityGroup (SCE_SModelEntityGroup *group)
 {
     group->group = NULL;
     group->is_instance = SCE_TRUE;
+    group->num = 0;
     SCE_List_InitIt (&group->it);
     SCE_List_SetData (&group->it, group);
 }
@@ -155,8 +156,9 @@ static void SCE_Model_DeleteEntityGroup (SCE_SModelEntityGroup *group)
 static void SCE_Model_Init (SCE_SModel *mdl)
 {
     unsigned int i;
-    for (i = 0; i < SCE_MAX_MODEL_ENTITIES; i++)
-        mdl->entities[i] = NULL;
+    SCE_List_Init (&mdl->entities);
+    SCE_List_SetFreeFunc (&mdl->entities,
+                          (SCE_FListFreeFunc)SCE_Model_DeleteEntity);
     SCE_List_Init (&mdl->groups);
     SCE_List_SetFreeFunc (&mdl->groups,
                           (SCE_FListFreeFunc)SCE_Model_DeleteEntityGroup);
@@ -182,9 +184,7 @@ void SCE_Model_Delete (SCE_SModel *mdl)
     if (mdl) {
         SCE_List_Clear (&mdl->instances);
         if (mdl->type != SCE_MODEL_HARD_INSTANCE) {
-            unsigned int i;
-            for (i = 0; i < SCE_MAX_MODEL_ENTITIES; i++)
-                SCE_List_Delete (mdl->entities[i]);
+            SCE_List_Clear (&mdl->entities);
             SCE_List_Clear (&mdl->groups);
         }
         if (!mdl->root_node_instance)
@@ -222,6 +222,20 @@ static void SCE_Model_BuildEntityv (SCE_SModelEntity *entity, SCE_SMesh *mesh,
     }
 }
 
+
+static SCE_SModelEntityGroup*
+SCE_Model_LocateEntityGroup (SCE_SModel *mdl, int num)
+{
+    SCE_SModelEntityGroup *group = NULL;
+    SCE_SListIterator *it = NULL;
+    SCE_List_ForEach (it, &mdl->groups) {
+        group = SCE_List_GetData (it);
+        if (group->num == num)
+            return group;
+    }
+    return NULL;
+}
+
 #define SCE_CHECK_LEVEL(level) do {                                     \
         if (level >= SCE_MAX_MODEL_ENTITIES) {                          \
             SCEE_Log (SCE_INVALID_ARG);                                 \
@@ -238,43 +252,26 @@ static void SCE_Model_BuildEntityv (SCE_SModelEntity *entity, SCE_SMesh *mesh,
  * If \p level is lesser than 0, then using the latest level of detail.
  * \todo Rename it as AddNewEntityv, and create a true AddEntity function
  */
-int SCE_Model_AddEntityv (SCE_SModel *mdl, int level, SCE_SMesh *mesh,
-                          SCE_SShader *shader, SCE_STexture **tex)
+int SCE_Model_AddEntityv (SCE_SModel *mdl, SCEuint num, SCEuint level,
+                          SCE_SMesh *mesh, SCE_SShader *shader,
+                          SCE_STexture **tex)
 {
     SCE_SModelEntity *entity = NULL;
-    unsigned int n;
+    SCE_SModelEntityGroup *mgroup = NULL;
 
-    /* NOTE: can returns > MAX_MODEL_ENTITIES */
-    if (level < 0)
-        level = SCE_Model_GetNumLOD (mdl);
-#ifdef SCE_DEBUG
-    SCE_CHECK_LEVEL (level);
-#endif
-
-    if (!mdl->entities[level]) {
-        if (!(mdl->entities[level] = SCE_List_Create (
-                  (SCE_FListFreeFunc)SCE_Model_DeleteEntity)))
-            goto fail;
-    }
-    n = SCE_List_GetLength (mdl->entities[level]);
-    if (SCE_List_GetLength (&mdl->groups) <= n) {
-        SCE_SModelEntityGroup *mgroup = NULL;
-        /* one is enough */
+    if (!(mgroup = SCE_Model_LocateEntityGroup (mdl, num))) {
         if (!(mgroup = SCE_Model_CreateEntityGroup (NULL)))
             goto fail;
+        mgroup->num = num;
         SCE_List_Appendl (&mdl->groups, &mgroup->it);
     }
     if (!(entity = SCE_Model_CreateEntity (NULL)))
         goto fail;
     SCE_Model_BuildEntityv (entity, mesh, shader, tex);
-    SCE_List_Appendl (mdl->entities[level], &entity->it); {
-        /* can't fail */
-        SCE_SListIterator *it = SCE_List_GetIterator (&mdl->groups, n);
-        SCE_SModelEntityGroup *mgroup = SCE_List_GetData (it);
-        SCE_SceneEntity_AddEntity (mgroup->group, entity->entity);
-    }
-    /* returns identifier of the added scene entity */
-    return n;
+    SCE_List_Appendl (&mdl->entities, &entity->it);
+    SCE_SceneEntity_AddEntity (mgroup->group, level, entity->entity);
+
+    return SCE_OK;
 fail:
     SCE_Model_DeleteEntity (entity);
     SCEE_LogSrc ();
@@ -283,8 +280,8 @@ fail:
 /**
  * \todo Rename it as AddNewEntity, and create a true AddEntity function
  */
-int SCE_Model_AddEntity (SCE_SModel *mdl, int level, SCE_SMesh *mesh,
-                         SCE_SShader *shader, ...)
+int SCE_Model_AddEntity (SCE_SModel *mdl, SCEuint num, SCEuint level,
+                         SCE_SMesh *mesh, SCE_SShader *shader, ...)
 {
     va_list args;
     int code;
@@ -302,7 +299,7 @@ int SCE_Model_AddEntity (SCE_SModel *mdl, int level, SCE_SMesh *mesh,
     va_end (args);
     textures[i] = NULL;
 
-    code = SCE_Model_AddEntityv (mdl, level, mesh, shader, textures);
+    code = SCE_Model_AddEntityv (mdl, num, level, mesh, shader, textures);
     return code;
 }
 
@@ -359,7 +356,7 @@ void SCE_Model_AddModelInstance (SCE_SModel *mdl, SCE_SModelInstance *minst,
     /* default data of the instances of a model */
     SCE_SceneEntity_SetInstanceData (minst->inst, mdl);
 }
-int SCE_Model_AddInstance (SCE_SModel *mdl, unsigned int n,
+int SCE_Model_AddInstance (SCE_SModel *mdl, SCEuint n,
                            SCE_SSceneEntityInstance *einst, int root)
 {
     SCE_SModelInstance *minst = NULL;
@@ -378,7 +375,7 @@ int SCE_Model_AddInstance (SCE_SModel *mdl, unsigned int n,
  * new instance's node
  * \todo using float* for SCE_TMatrix, bad.
  */
-int SCE_Model_AddNewInstance (SCE_SModel *mdl, unsigned int n, int root,
+int SCE_Model_AddNewInstance (SCE_SModel *mdl, SCEuint n, int root,
                               float *mat)
 {
     SCE_SSceneEntityInstance *einst = NULL;
@@ -400,51 +397,49 @@ fail:
 
 
 /**
- * \brief Gets the number of LOD
+ * \brief Gets the number of LOD for a given the entity group
+ * \param num entity group
  */
-unsigned int SCE_Model_GetNumLOD (SCE_SModel *mdl)
+unsigned int SCE_Model_GetNumLOD (SCE_SModel *mdl, SCEuint num)
 {
-    unsigned int i, n = 0;
-    for (i = 0; i < SCE_MAX_MODEL_ENTITIES; i++) {
-        if (mdl->entities[i] && SCE_List_HasElements (mdl->entities[i]))
-            n++;
-    }
-    return n;
+    SCE_SModelEntityGroup *mgroup = NULL;
+    if (!(mgroup = SCE_Model_LocateEntityGroup (mdl, num)))
+        return 0;
+    return SCE_List_GetLength
+        (SCE_SceneEntity_GetGroupEntitiesList (mgroup->group));
 }
+
 /**
  * \brief Gets the required entity
+ * \param num the number of the required entity
  * \param level LOD of the required entity
- * \param n the number of the required entity
  * \returns the scene entity required, if no on have been found, returns NULL
  *
  * If \p level is lesser than 0, then using the latest level of detail.
  */
-SCE_SSceneEntity* SCE_Model_GetEntity (SCE_SModel *mdl, int level,
-                                       unsigned int n)
+SCE_SSceneEntity* SCE_Model_GetEntity (SCE_SModel *mdl, SCEuint num,
+                                       SCEuint level)
 {
     SCE_SListIterator *it = NULL;
-    SCE_SModelEntity *entity = NULL;
-    if (level < 0)
-        level = SCE_Model_GetNumLOD (mdl);
-    if (level == 0)
+    SCE_SModelEntityGroup *mgroup = NULL;
+    SCE_SSceneEntity *entity = NULL;
+
+    if (!(mgroup = SCE_Model_LocateEntityGroup (mdl, num)))
         return NULL;
-    it = SCE_List_GetIterator (mdl->entities[level], n);
+    it = SCE_List_GetIterator
+        (SCE_SceneEntity_GetGroupEntitiesList (mgroup->group), num);
     if (!it)
         return NULL;
     entity = SCE_List_GetData (it);
-    return entity->entity;
+    return entity;
 }
 /**
- * \brief Gets the list of the entities of the LOD \p level
- *
- * The returned list contains pointers to SCE_SModelEntity structures.
- * If \p level is lesser than 0, then using the latest level of detail.
+ * \brief Gets the list of all the entities of a model
+ * \returns a list of pointers to SCE_SModelEntity structures
  */
-SCE_SList* SCE_Model_GetEntitiesList (SCE_SModel *mdl, int level)
+SCE_SList* SCE_Model_GetEntitiesList (SCE_SModel *mdl)
 {
-    if (level < 0)
-        level = SCE_Model_GetNumLOD (mdl);
-    return mdl->entities[level];
+    return &mdl->entities;
 }
 
 /**
@@ -466,16 +461,16 @@ SCE_SSceneEntity* SCE_Model_GetEntityEntity (SCE_SModelEntity *entity)
 int SCE_Model_MergeInstances (SCE_SModel *mdl)
 {
     SCE_SModelEntityGroup *mgroup = NULL;
-    SCE_SListIterator *it = NULL, *it2 = NULL;
+    SCE_SListIterator *it = NULL;
+
     SCE_List_ForEach (it, &mdl->instances) {
         SCE_SModelInstance *minst = SCE_List_GetData (it);
-        it2 = SCE_List_GetIterator (&mdl->groups, minst->n);
-        if (!it2) {
+        mgroup = SCE_Model_LocateEntityGroup (mdl, minst->n);
+        if (!mgroup) {
             SCEE_Log (SCE_INVALID_ARG);
             SCEE_LogMsg ("no group number %u in this model", minst->n);
             return SCE_ERROR;
         }
-        mgroup = SCE_List_GetData (it2);
         SCE_SceneEntity_AddInstance (mgroup->group, minst->inst);
     }
     return SCE_OK;
@@ -493,9 +488,8 @@ static SCE_SModelEntity* SCE_Model_CopyDupEntity (SCE_SModelEntity *in)
 static int SCE_Model_InstanciateHard (SCE_SModel *mdl, SCE_SModel *mdl2)
 {
     unsigned int i;
+    mdl2->entities = mdl->entities;
     mdl2->groups = mdl->groups;
-    for (i = 0; i < SCE_MAX_MODEL_ENTITIES; i++)
-        mdl2->entities[i] = mdl->entities[i];
     mdl2->type = SCE_MODEL_HARD_INSTANCE;
     return SCE_OK;
 }
@@ -514,20 +508,11 @@ static int SCE_Model_InstanciateSoft (SCE_SModel *mdl, SCE_SModel *mdl2)
         SCE_List_Appendl (&mdl2->groups, &newg->it);
     }
 
-    for (i = 0; i < SCE_MAX_MODEL_ENTITIES; i++) {
-        if (!mdl->entities[i] || !SCE_List_HasElements (mdl->entities[i]))
-            break;
-        if (!mdl2->entities[i]) {
-            if (!(mdl2->entities[i] = SCE_List_Create (
-                      (SCE_FListFreeFunc)SCE_Model_DeleteEntity)))
-                goto fail;
-        }
-        SCE_List_ForEach (it, mdl->entities[i]) {
-            SCE_SModelEntity *entity = NULL;
-            if (!(entity = SCE_Model_CopyDupEntity (SCE_List_GetData (it))))
-                goto fail;
-            SCE_List_Appendl (mdl2->entities[i], &entity->it);
-        }
+    SCE_List_ForEach (it, &mdl->entities) {
+        SCE_SModelEntity *entity = NULL;
+        if (!(entity = SCE_Model_CopyDupEntity (SCE_List_GetData (it))))
+            goto fail;
+        SCE_List_Appendl (&mdl2->entities, &entity->it);
     }
 
     mdl2->type = SCE_MODEL_SOFT_INSTANCE;

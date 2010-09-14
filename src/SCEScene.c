@@ -500,19 +500,15 @@ void SCE_Scene_RemoveEntity (SCE_SScene *scene, SCE_SSceneEntity *entity)
 
 static void SCE_Scene_AddModelEntities (SCE_SScene *scene, SCE_SModel *mdl)
 {
-    unsigned int i, n;
     SCE_SListIterator *it = NULL;
-    n = SCE_Model_GetNumLOD (mdl);
-    for (i = 0; i < n; i++) {
-        SCE_SList *entities = SCE_Model_GetEntitiesList (mdl, i);
-        if (!entities)
-            break;
-        SCE_List_ForEach (it, entities) {
-            SCE_SSceneEntity *entity = NULL;
-            entity = ((SCE_SModelEntity*)SCE_List_GetData (it))->entity;
-            SCE_Scene_AddEntityResources (scene, entity);
-            SCE_Scene_AddEntity (scene, entity);
-        }
+    SCE_SList *entities = SCE_Model_GetEntitiesList (mdl);
+    if (!entities)
+        return;
+    SCE_List_ForEach (it, entities) {
+        SCE_SSceneEntity *entity = NULL;
+        entity = ((SCE_SModelEntity*)SCE_List_GetData (it))->entity;
+        SCE_Scene_AddEntityResources (scene, entity);
+        SCE_Scene_AddEntity (scene, entity);
     }
 }
 /**
@@ -541,20 +537,16 @@ void SCE_Scene_AddModel (SCE_SScene *scene, SCE_SModel *mdl)
 
 static void SCE_Scene_RemoveModelEntities (SCE_SScene *scene, SCE_SModel *mdl)
 {
-    unsigned int i, n;
     SCE_SListIterator *it = NULL;
-    n = SCE_Model_GetNumLOD (mdl);
-    for (i = 0; i < n; i++) {
-        SCE_SList *entities = SCE_Model_GetEntitiesList (mdl, i);
-        if (!entities)
-            break;
-        SCE_List_ForEach (it, entities) {
-            SCE_SSceneEntity *entity = NULL;
+    SCE_SList *entities = SCE_Model_GetEntitiesList (mdl);
+    if (!entities)
+        return;
+    SCE_List_ForEach (it, entities) {
+        SCE_SSceneEntity *entity = NULL;
 
-            entity = ((SCE_SModelEntity*)SCE_List_GetData (it))->entity;
-            SCE_Scene_RemoveEntityResources (scene, entity);
-            SCE_Scene_RemoveEntity (scene, entity);
-        }
+        entity = ((SCE_SModelEntity*)SCE_List_GetData (it))->entity;
+        SCE_Scene_RemoveEntityResources (scene, entity);
+        SCE_Scene_RemoveEntity (scene, entity);
     }
 }
 /**
