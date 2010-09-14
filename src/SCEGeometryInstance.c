@@ -54,7 +54,8 @@ void SCE_Instance_Delete (SCE_SGeometryInstance *inst)
 {
     if (inst) {
         if (inst->group)
-            SCE_Instance_RemoveInstance (inst);
+            inst->group->n_instances--;
+        SCE_List_Remove (&inst->it);
         SCE_free (inst);
     }
 }
