@@ -246,15 +246,14 @@ SCE_Model_LocateEntityGroup (SCE_SModel *mdl, int num)
     } while (0)
 
 /**
- * \brief Builds and adds a scene entity to a model
+ * \brief Creates and adds a entity to a model
  * \returns SCE_ERROR on error, SCE_OK otherwise
  *
  * If \p level is lesser than 0, then using the latest level of detail.
- * \todo Rename it as AddNewEntityv, and create a true AddEntity function
  */
-int SCE_Model_AddEntityv (SCE_SModel *mdl, SCEuint num, SCEuint level,
-                          SCE_SMesh *mesh, SCE_SShader *shader,
-                          SCE_STexture **tex)
+int SCE_Model_AddNewEntityv (SCE_SModel *mdl, SCEuint num, SCEuint level,
+                             SCE_SMesh *mesh, SCE_SShader *shader,
+                             SCE_STexture **tex)
 {
     SCE_SModelEntity *entity = NULL;
     SCE_SModelEntityGroup *mgroup = NULL;
@@ -278,10 +277,11 @@ fail:
     return SCE_ERROR;
 }
 /**
- * \todo Rename it as AddNewEntity, and create a true AddEntity function
+ * \brief Creates and adds a new entity to a model
+ * \sa SCE_Model_AddNewEntityv() SCE_Model_AddEntity()
  */
-int SCE_Model_AddEntity (SCE_SModel *mdl, SCEuint num, SCEuint level,
-                         SCE_SMesh *mesh, SCE_SShader *shader, ...)
+int SCE_Model_AddNewEntity (SCE_SModel *mdl, SCEuint num, SCEuint level,
+                            SCE_SMesh *mesh, SCE_SShader *shader, ...)
 {
     va_list args;
     int code;
@@ -299,10 +299,44 @@ int SCE_Model_AddEntity (SCE_SModel *mdl, SCEuint num, SCEuint level,
     va_end (args);
     textures[i] = NULL;
 
-    code = SCE_Model_AddEntityv (mdl, num, level, mesh, shader, textures);
+    code = SCE_Model_AddNewEntityv (mdl, num, level, mesh, shader, textures);
     return code;
 }
 
+/**
+ * \brief Adds an existing entity to a model
+ * \param mdl a model
+ * \param num identifier of the entity
+ * \param level LOD level of the entity
+ * \param entity the entity
+ * \param is_instance set to SCE_TRUE if \p entity is already
+ * used somewhere else
+ * \returns SCE_ERROR on error, SCE_OK otherwise
+ * \sa SCE_Model_AddNewEntity()
+ */
+int SCE_Model_AddEntity (SCE_SModel *mdl, SCEuint num, SCEuint level,
+                         SCE_SSceneEntity *entity, int is_instance)
+{
+    SCE_SModelEntity *mentity = NULL;
+    SCE_SModelEntityGroup *mgroup = NULL;
+
+    if (!(mgroup = SCE_Model_LocateEntityGroup (mdl, num))) {
+        if (!(mgroup = SCE_Model_CreateEntityGroup (NULL)))
+            goto fail;
+        mgroup->num = num;
+        SCE_List_Appendl (&mdl->groups, &mgroup->it);
+    }
+    if (!(mentity = SCE_Model_CreateEntity (entity)))
+        goto fail;
+    mentity->is_instance = is_instance;
+    SCE_List_Appendl (&mdl->entities, &mentity->it);
+    SCE_SceneEntity_AddEntity (mgroup->group, level, mentity->entity);
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
+}
 
 /**
  * \brief Defines a root node and join all the instances to it, further added

@@ -86,10 +86,11 @@ void SCE_Model_Delete (SCE_SModel*);
 void SCE_Model_SetData (SCE_SModel*, void*);
 void* SCE_Model_GetData (SCE_SModel*);
 
-int SCE_Model_AddEntityv (SCE_SModel*, SCEuint, SCEuint, SCE_SMesh*,
-                          SCE_SShader*, SCE_STexture**);
-int SCE_Model_AddEntity (SCE_SModel*, SCEuint, SCEuint, SCE_SMesh*,
-                         SCE_SShader*, ...);
+int SCE_Model_AddNewEntityv (SCE_SModel*, SCEuint, SCEuint, SCE_SMesh*,
+                             SCE_SShader*, SCE_STexture**);
+int SCE_Model_AddNewEntity (SCE_SModel*, SCEuint, SCEuint, SCE_SMesh*,
+                            SCE_SShader*, ...);
+int SCE_Model_AddEntity (SCE_SModel*, SCEuint, SCEuint, SCE_SSceneEntity*, int);
 
 void SCE_Model_SetRootNode (SCE_SModel*, SCE_SNode*);
 SCE_SNode* SCE_Model_GetRootNode (SCE_SModel*);
