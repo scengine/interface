@@ -175,8 +175,14 @@ SCE_SModel* SCE_Model_Create (void)
     SCE_SModel *mdl = NULL;
     if (!(mdl = SCE_malloc (sizeof *mdl)))
         SCEE_LogSrc ();
-    else
+    else {
         SCE_Model_Init (mdl);
+        if (!(mdl->root_node = SCE_Node_Create ())) {
+            SCEE_LogSrc ();
+            SCE_free (mdl);
+            return NULL;
+        }
+    }
     return mdl;
 }
 void SCE_Model_Delete (SCE_SModel *mdl)
