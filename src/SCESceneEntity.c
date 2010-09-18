@@ -110,7 +110,7 @@ SCE_SceneEntity_DupInstance (SCE_SSceneEntityInstance *einst)
     }
     /* don't copy the final matrix: may cause wrong transformations when adding
        the new instance to the parent's node of einst (for example) */
-    SCE_Node_CopyMatrix (einst->node, new->node);
+    SCE_Node_CopyMatrix (new->node, einst->node);
     return new;
 }
 
