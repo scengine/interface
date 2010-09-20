@@ -662,6 +662,16 @@ void SCE_Scene_SetOctreeSize (SCE_SScene *scene, float w, float h, float d)
 {
     SCE_Octree_SetSize (scene->octree, w, h, d);
 }
+/**
+ * \brief Defines the size of the octree of a scene
+ * \param scene a scene
+ * \param d the new dimensions of the octree
+ * \sa SCE_Scene_SetOctreeSize(), SCE_Octree_SetSize()
+ */
+void SCE_Scene_SetOctreeSizev (SCE_SScene *scene, SCE_TVector3 d)
+{
+    SCE_Octree_SetSizev (scene->octree, d);
+}
 
 /* builds internal structure for an octree */
 static int SCE_Scene_MakeOctreeInternal (SCE_SOctree *tree)
