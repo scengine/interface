@@ -1185,7 +1185,6 @@ static void SCE_Scene_PickRec (SCE_SOctree *octree, SCE_SPickResult *r)
 {
     float *p;
     SCE_SBoundingBox *box = NULL;
-    size_t i;
 
     box = SCE_Octree_GetBoundingBox (octree);
 
