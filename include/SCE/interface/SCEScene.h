@@ -154,6 +154,21 @@ void SCE_Scene_ClearBuffers (SCE_SScene*);
 void SCE_Scene_Update (SCE_SScene*, SCE_SCamera*, SCE_STexture*, SCEuint);
 void SCE_Scene_Render (SCE_SScene*, SCE_SCamera*, SCE_STexture*, int);
 
+typedef struct sce_spickresult SCE_SPickResult;
+struct sce_spickresult {
+    SCE_SLine3 line, line2;
+    SCE_SPlane plane, plane2;
+    SCE_SSceneEntityInstance *inst;
+    SCEindices index;
+    SCE_TVector3 point;
+    float distance;
+    int sup;
+    SCE_TVector3 a, b, c;
+};
+
+void SCE_Pick_Init (SCE_SPickResult*);
+void SCE_Scene_Pick (SCE_SScene*, SCE_SCamera*, SCE_TVector2, SCE_SPickResult*);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

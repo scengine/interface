@@ -1062,4 +1062,181 @@ void SCE_Scene_Render (SCE_SScene *scene, SCE_SCamera *cam,
     SCE_RFlush ();
 }
 
+
+void SCE_Pick_Init (SCE_SPickResult *r)
+{
+    SCE_Line3_Init (&r->line);
+    SCE_Line3_Init (&r->line2);
+    SCE_Plane_Init (&r->plane);
+    SCE_Plane_Init (&r->plane2);
+    r->inst = NULL;
+    r->index = 0;
+    SCE_Vector3_Set (r->point, 0.0, 0.0, 0.0);
+    r->distance = -1.0f;
+    r->sup = SCE_FALSE;
+    SCE_Vector3_Set (r->a, 0.0, 0.0, 0.0);
+    SCE_Vector3_Set (r->b, 0.0, 0.0, 0.0);
+    SCE_Vector3_Set (r->c, 0.0, 0.0, 0.0);
+}
+
+static int ProcessTriangle (SCE_TVector3 a, SCE_TVector3 b, SCE_TVector3 c,
+                            SCEindices index, void *data)
+{
+    SCE_TVector3 p;
+    SCE_SPickResult *r = data;
+
+    if (SCE_Plane_TriangleLineIntersection (a, b, c, &r->line2, p)) {
+        /* check if it is behind the view point */
+        if (SCE_Plane_DistanceToPointv (&r->plane2, p) > 0.0f) {
+            float d = SCE_Vector3_Distance (p, r->line2.o);
+            if (d < r->distance || r->distance < 0.0) {
+                r->distance = d;
+                SCE_Vector3_Copy (r->point, p);
+                r->sup = SCE_TRUE;
+                SCE_Vector3_Copy (r->a, a);
+                SCE_Vector3_Copy (r->b, b);
+                SCE_Vector3_Copy (r->c, c);
+            }
+        }
+    }
+
+    return SCE_FALSE;
+}
+
+static int ProcessGeom (SCE_SGeometry *geom, SCE_SPickResult *r)
+{
+    r->sup = SCE_FALSE;
+    SCE_Geometry_ForEachTriangle (geom, ProcessTriangle, r);
+    return r->sup;
+}
+
+static void UpdateClosest (SCE_SSceneEntityInstance *inst, SCE_SPickResult *r)
+{
+    SCE_SGeometry *geom = NULL;
+    SCE_SMesh *mesh = NULL;
+    SCE_SSceneEntity *entity = NULL;
+    SCE_SNode *node = NULL;
+    SCE_TMatrix4 m;
+
+    node = SCE_SceneEntity_GetInstanceNode (inst);
+    SCE_Node_GetFinalMatrixv (node, m);
+    SCE_Matrix4_InverseCopy (m);
+
+    entity = SCE_SceneEntity_GetInstanceEntity (inst);
+    mesh = SCE_SceneEntity_GetMesh (entity);
+    geom = SCE_Mesh_GetGeometry (mesh);
+    SCE_Line3_Mul (&r->line2, &r->line, m);
+    SCE_Plane_SetFromPointv (&r->plane2, r->line2.n, r->line2.o);
+
+    if (ProcessGeom (geom, r))
+        r->inst = inst;
+}
+
+static int ClosestPointIsCloser (SCE_SBoundingBox *box, SCE_SPickResult *r)
+{
+    float *points = NULL;
+    size_t i;
+    float a;
+
+    /* initial value is lesser than 0 */
+    if (r->distance < 0.0)
+        return SCE_Collide_PlanesWithBBBool (&r->plane, 1, box);
+
+    points = SCE_BoundingBox_GetPoints (box);
+
+    for (i = 0; i < 8; i++) {
+        /* ignore points behind the point of view */
+        if (SCE_Plane_DistanceToPointv (&r->plane, &points[i * 3]) > 0.0f) {
+            /* one point of the bounding box is closer from the view point
+               than the actual collision position, we'll have to
+               process a mesh/line intersection calculus */
+            if (SCE_Vector3_Distance (r->line.o, &points[i * 3]) < r->distance)
+                return SCE_TRUE;
+        }
+    }
+    return SCE_FALSE;
+}
+
+static void SCE_Scene_PickClosest (SCE_SSceneOctree *stree, SCE_SPickResult *r)
+{
+    SCE_SBox tmp;
+    SCE_SBoundingBox *box = NULL;
+    SCE_SSceneEntityInstance *inst = NULL;
+    SCE_SListIterator *it = NULL;
+    SCE_SList *insts = NULL;
+    size_t i;
+
+    /* TODO: warning, 3 ! */
+    for (i = 0; i < 3; i++) {
+        insts = stree->instances[i];
+        SCE_List_ForEach (it, insts) {
+            inst = SCE_List_GetData (it);
+            box = SCE_SceneEntity_PushInstanceBB (inst, &tmp);
+            if (SCE_Collide_BBWithLine (box, &r->line)) {
+                if (ClosestPointIsCloser (box, r))
+                    UpdateClosest (inst, r);
+            }
+            SCE_SceneEntity_PopInstanceBB (inst, &tmp);
+        }
+    }
+}
+
+static void SCE_Scene_PickRec (SCE_SOctree *octree, SCE_SPickResult *r)
+{
+    float *p;
+    SCE_SBoundingBox *box = NULL;
+    size_t i;
+
+    box = SCE_Octree_GetBoundingBox (octree);
+
+    SCE_BoundingBox_MakePlanes (box);
+    /* check if it is behind the view point */
+    if (!SCE_Collide_PlanesWithBBBool (&r->plane, 1, box) ||
+        /* now check if the line intersects the box */
+        !SCE_Collide_BBWithLine (box, &r->line) ||
+        /* check if the octree is close enough */
+        !ClosestPointIsCloser (box, r))
+        return;
+
+    SCE_Scene_PickClosest (SCE_Octree_GetData (octree), r);
+
+    if (SCE_Octree_HasChildren (octree)) {
+        size_t i;
+        SCE_SOctree **children = SCE_Octree_GetChildren (octree);
+        for (i = 0; i < 8; i++)
+            SCE_Scene_PickRec (children[i], r);
+    }
+}
+
+static void SCE_Scene_BuildLine (SCE_SLine3 *l, SCE_SCamera *cam,
+                                 SCE_TVector2 point)
+{
+    SCE_TVector4 n;
+    SCE_TVector3 o;
+    float *invviewproj = NULL;
+
+    SCE_Vector4_Set (n, point[0], point[1], 0.0f, 1.0);
+    invviewproj = SCE_Camera_GetFinalViewProjInverse (cam);
+    SCE_Matrix4_MulV4Copy (invviewproj, n);
+
+    n[3] = 1.0 / n[3];          /* let's hope it is not null */
+    SCE_Vector3_Operator1 (n, *=, n[3]);
+
+    SCE_Camera_GetPositionv (cam, o);
+
+    SCE_Vector3_Operator2v (n, =, n, -, o);
+    SCE_Line3_SetOrigin (l, o);
+    SCE_Line3_SetNormal (l, n);
+}
+
+void SCE_Scene_Pick (SCE_SScene *scene, SCE_SCamera *cam, SCE_TVector2 point,
+                     SCE_SPickResult *r)
+{
+    SCE_SSceneEntityInstance *inst = NULL;
+
+    SCE_Scene_BuildLine (&r->line, cam, point);
+    SCE_Plane_SetFromPointv (&r->plane, r->line.n, r->line.o);
+    SCE_Scene_PickRec (scene->octree, r);
+}
+
 /** @} */
