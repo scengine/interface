@@ -157,6 +157,12 @@ SCE_SceneEntity_GetInstanceIterator1 (SCE_SSceneEntityInstance*);
 SCE_SListIterator*
 SCE_SceneEntity_GetInstanceIterator2 (SCE_SSceneEntityInstance*);
 #endif
+SCE_SSceneEntity* SCE_SceneEntity_GetInstanceEntity (SCE_SSceneEntityInstance*);
+SCE_SBoundingBox* SCE_SceneEntity_GetInstanceBB (SCE_SSceneEntityInstance*);
+SCE_SBoundingBox* SCE_SceneEntity_PushInstanceBB (SCE_SSceneEntityInstance*,
+                                                  SCE_SBox*);
+void SCE_SceneEntity_PopInstanceBB (SCE_SSceneEntityInstance*,
+                                    SCE_SBox*);
 
 void* SCE_SceneEntity_GetInstanceData (SCE_SSceneEntityInstance*);
 void SCE_SceneEntity_SetInstanceData (SCE_SSceneEntityInstance*, void*);

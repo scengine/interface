@@ -436,6 +436,51 @@ SCE_SceneEntity_GetInstanceIterator2 (SCE_SSceneEntityInstance *einst)
 #endif
 
 /**
+ * \brief Gets the entity of an instance
+ */
+SCE_SSceneEntity*
+SCE_SceneEntity_GetInstanceEntity (SCE_SSceneEntityInstance *einst)
+{
+    return einst->entity;
+}
+
+/**
+ * \brief Gets the bounding box of an instance
+ */
+SCE_SBoundingBox*
+SCE_SceneEntity_GetInstanceBB (SCE_SSceneEntityInstance *einst)
+{
+    return &einst->entity->box;
+}
+
+/**
+ * \brief Calls SCE_BoundingBox_Push() and SCE_BoundingBox_MakePlanes()
+ * on the bounding box of the given instance
+ * \param tmp used for SCE_BoundingBox_Push()
+ * \returns the bounding box of \p einst
+ * \sa SCE_SceneEntity_PopInstanceBB()
+ */
+SCE_SBoundingBox*
+SCE_SceneEntity_PushInstanceBB (SCE_SSceneEntityInstance *einst, SCE_SBox *tmp)
+{
+    SCE_SBoundingBox *box = &einst->entity->box;
+    /* NOTE: conversion from Matrix4 to Matrix4x3 */
+    SCE_BoundingBox_Push (box, SCE_Node_GetFinalMatrix (einst->node), tmp);
+    SCE_BoundingBox_MakePlanes (box);
+    return box;
+}
+/**
+ * \brief Calls SCE_BoundingBox_Pop() on the bounding box of the given instance
+ * \param tmp used for SCE_BoundingBox_Pop()
+ * \sa SCE_SceneEntity_PushInstanceBB()
+ */
+void SCE_SceneEntity_PopInstanceBB (SCE_SSceneEntityInstance *einst,
+                                    SCE_SBox *tmp)
+{
+    SCE_BoundingBox_Pop (&einst->entity->box, tmp);
+}
+
+/**
  * \brief Returns user data
  */
 void* SCE_SceneEntity_GetInstanceData (SCE_SSceneEntityInstance *einst)
