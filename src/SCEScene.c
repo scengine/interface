@@ -1093,6 +1093,7 @@ static int ProcessTriangle (SCE_TVector3 a, SCE_TVector3 b, SCE_TVector3 c,
                 r->distance = d;
                 SCE_Vector3_Copy (r->point, p);
                 r->sup = SCE_TRUE;
+                r->index = index;
                 SCE_Vector3_Copy (r->a, a);
                 SCE_Vector3_Copy (r->b, b);
                 SCE_Vector3_Copy (r->c, c);
