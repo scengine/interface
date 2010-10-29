@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2008
-   updated: 28/02/2010 */
+   updated: 29/02/2010 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -1136,7 +1136,6 @@ static int ClosestPointIsCloser (SCE_SBoundingBox *box, SCE_SPickResult *r)
 {
     float *points = NULL;
     size_t i;
-    float a;
 
     /* initial value is lesser than 0 */
     if (r->distance < 0.0)
