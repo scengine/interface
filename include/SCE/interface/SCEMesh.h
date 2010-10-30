@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 31/07/2009
-   updated: 02/08/2009 */
+   updated: 31/10/2010 */
 
 #ifndef SCEMESH_H
 #define SCEMESH_H
@@ -71,6 +71,7 @@ struct sce_smesh {
     SCE_SGeometryArrayUser index_auser;
     SCE_RBufferRenderMode rmode;/**< Render mode */
     SCE_EMeshBuildMode bmode;   /**< Build mode */
+    int built;                  /**< Is the mesh built? */
 };
 
 int SCE_Init_Mesh (void);

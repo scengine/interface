@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 31/07/2009
-   updated: 22/08/2009 */
+   updated: 31/10/2010 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -115,6 +115,7 @@ void SCE_Mesh_Init (SCE_SMesh *mesh)
     SCE_Geometry_InitArrayUser (&mesh->index_auser);
     mesh->rmode = SCE_VA_RENDER_MODE;
     mesh->bmode = SCE_INDEPENDANT_VERTEX_BUFFER;
+    mesh->built = SCE_FALSE;
 }
 SCE_SMesh* SCE_Mesh_Create (void)
 {
@@ -441,6 +442,10 @@ static void SCE_Mesh_BuildBuffers (SCE_SMesh *mesh, SCE_RBufferUsage
 void SCE_Mesh_Build (SCE_SMesh *mesh, SCE_EMeshBuildMode bmode,
                      SCE_RBufferUsage usage[SCE_MESH_NUM_STREAMS + 1])
 {
+    if (mesh->built)
+        return;
+    mesh->built = SCE_TRUE;     /* do not do a return after that, it could
+                                   consider an unbuilt mesh as built */
     /* SCE_Mesh_Unbuild (mesh); */
 
     switch (bmode) {
