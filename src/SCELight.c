@@ -38,6 +38,7 @@ void SCE_Light_Init (SCE_SLight *light)
     SCE_BoundingSphere_GetSphere (&light->sphere)->radius = light->radius;
     SCE_List_InitIt (&light->it);
     SCE_List_SetData (&light->it, light);
+    light->udata = NULL;
 }
 
 SCE_SLight* SCE_Light_Create (void)
@@ -69,6 +70,16 @@ void SCE_Light_Delete (SCE_SLight *light)
         SCE_Node_Delete (light->node);
         SCE_free (light);
     }
+}
+
+
+void SCE_Light_SetData (SCE_SLight *light, void *data)
+{
+    light->udata = data;
+}
+void* SCE_Light_GetData (SCE_SLight *light)
+{
+    return light->udata;
 }
 
 

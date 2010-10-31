@@ -45,6 +45,7 @@ struct sce_slight {
     SCE_SBoundingSphere sphere; /**< Bounding sphere (if omnidirectionnal) */
     SCE_SNode *node;    /* noeud de la lumiere */
     SCE_SListIterator it;
+    void *udata;
 };
 
 void SCE_Light_Init (SCE_SLight*);
@@ -52,6 +53,9 @@ void SCE_Light_Init (SCE_SLight*);
 /* cree une lumiere */
 SCE_SLight* SCE_Light_Create (void);
 void SCE_Light_Delete (SCE_SLight*);
+
+void SCE_Light_SetData (SCE_SLight*, void*);
+void* SCE_Light_GetData (SCE_SLight*);
 
 void SCE_Light_Activate (SCE_SLight*, int);
 int SCE_Light_IsActivated (SCE_SLight*);
