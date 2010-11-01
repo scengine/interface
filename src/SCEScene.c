@@ -1232,8 +1232,6 @@ static void SCE_Scene_BuildLine (SCE_SLine3 *l, SCE_SCamera *cam,
 void SCE_Scene_Pick (SCE_SScene *scene, SCE_SCamera *cam, SCE_TVector2 point,
                      SCE_SPickResult *r)
 {
-    SCE_SSceneEntityInstance *inst = NULL;
-
     SCE_Scene_BuildLine (&r->line, cam, point);
     SCE_Plane_SetFromPointv (&r->plane, r->line.n, r->line.o);
     SCE_Scene_PickRec (scene->octree, r);
