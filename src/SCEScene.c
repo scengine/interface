@@ -1208,31 +1208,10 @@ static void SCE_Scene_PickRec (SCE_SOctree *octree, SCE_SPickResult *r)
     }
 }
 
-static void SCE_Scene_BuildLine (SCE_SLine3 *l, SCE_SCamera *cam,
-                                 SCE_TVector2 point)
-{
-    SCE_TVector4 n;
-    SCE_TVector3 o;
-    float *invviewproj = NULL;
-
-    SCE_Vector4_Set (n, point[0], point[1], 0.0f, 1.0);
-    invviewproj = SCE_Camera_GetFinalViewProjInverse (cam);
-    SCE_Matrix4_MulV4Copy (invviewproj, n);
-
-    n[3] = 1.0 / n[3];          /* let's hope it is not null */
-    SCE_Vector3_Operator1 (n, *=, n[3]);
-
-    SCE_Camera_GetPositionv (cam, o);
-
-    SCE_Vector3_Operator2v (n, =, n, -, o);
-    SCE_Line3_SetOrigin (l, o);
-    SCE_Line3_SetNormal (l, n);
-}
-
 void SCE_Scene_Pick (SCE_SScene *scene, SCE_SCamera *cam, SCE_TVector2 point,
                      SCE_SPickResult *r)
 {
-    SCE_Scene_BuildLine (&r->line, cam, point);
+    SCE_Camera_Line (cam, point, &r->line);
     SCE_Plane_SetFromPointv (&r->plane, r->line.n, r->line.o);
     SCE_Scene_PickRec (scene->octree, r);
 }
