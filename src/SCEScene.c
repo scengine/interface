@@ -762,8 +762,10 @@ static void SCE_Scene_SelectAllInstances (SCE_SScene *scene,
                                           SCE_SSceneOctree *stree,
                                           unsigned int id)
 {
-    SCE_List_Join (scene->selected_join, stree->instances[id]);
-    scene->selected_join = stree->instances[id];
+    if (SCE_List_HasElements (stree->instances[id])) {
+        SCE_List_Join (scene->selected_join, stree->instances[id]);
+        scene->selected_join = stree->instances[id];
+    }
 }
 static void SCE_Scene_SelectVisibleInstances (SCE_SScene *scene,
                                               SCE_SSceneOctree *stree,
@@ -1183,7 +1185,6 @@ static void SCE_Scene_PickClosest (SCE_SSceneOctree *stree, SCE_SPickResult *r)
 
 static void SCE_Scene_PickRec (SCE_SOctree *octree, SCE_SPickResult *r)
 {
-    float *p;
     SCE_SBoundingBox *box = NULL;
 
     box = SCE_Octree_GetBoundingBox (octree);
