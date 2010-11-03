@@ -98,12 +98,10 @@ static SCE_SModelEntity* SCE_Model_CreateEntity (SCE_SSceneEntity *e)
         entity->is_instance = SCE_FALSE;
     }
     entity->entity = e;
-    SCE_btend ();
     return entity;
 fail:
     SCE_Model_DeleteEntity (entity);
     SCEE_LogSrc ();
-    SCE_btend ();
     return NULL;
 }
 static void SCE_Model_DeleteEntity (SCE_SModelEntity *entity)
