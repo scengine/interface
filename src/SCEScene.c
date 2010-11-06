@@ -169,6 +169,31 @@ static void SCE_Scene_Init (SCE_SScene *scene)
     scene->rendertarget = NULL;
     scene->cubeface = 0;
     scene->camera = NULL;
+
+    scene->bbmesh = NULL;
+    scene->bsmesh = NULL;
+}
+
+static int SCE_Scene_MakeBoundingVolumes (SCE_SScene *scene)
+{
+    SCE_SBox box;
+    SCE_SSphere sphere;
+    SCE_SGeometry *geom = NULL;
+    SCE_TVector3 v;
+
+    SCE_Vector3_Set (v, 0.0, 0.0, 0.0);
+    SCE_Box_SetFromCenter (&box, v, 1.0, 1.0, 1.0);
+    if (!(geom = SCE_BoxGeom_Create (&box, SCE_LINES, SCE_BOX_NONE_TEXCOORD)))
+        goto fail;
+    if (!(scene->bbmesh = SCE_Mesh_CreateFrom (geom, SCE_TRUE)))
+        goto fail;
+    SCE_Mesh_AutoBuild (scene->bbmesh);
+
+    return SCE_TRUE;
+fail:
+    SCE_Geometry_Delete (geom);
+    SCEE_LogSrc ();
+    return SCE_ERROR;
 }
 /**
  * \brief Creates a new scene
@@ -203,6 +228,9 @@ SCE_SScene* SCE_Scene_Create (void)
     if (!(stree = SCE_Scene_CreateOctree ()))
         goto failure;
     SCE_Octree_SetData (scene->octree, stree);
+
+    if (SCE_Scene_MakeBoundingVolumes (scene) < 0)
+        goto failure;
 
     return scene;
 failure:
@@ -1214,6 +1242,40 @@ void SCE_Scene_Pick (SCE_SScene *scene, SCE_SCamera *cam, SCE_TVector2 point,
     SCE_Camera_Line (cam, point, &r->line);
     SCE_Plane_SetFromPointv (&r->plane, r->line.n, r->line.o);
     SCE_Scene_PickRec (scene->octree, r);
+}
+
+
+static void SCE_Scene_DrawBB (SCE_SSceneEntityInstance *inst)
+{
+    SCE_TVector3 center, dim;
+    SCE_TMatrix4 mat, mat2;
+    SCE_SBox *b;
+    SCE_SBoundingBox *box = SCE_SceneEntity_GetInstanceBB (inst);
+    b = SCE_BoundingBox_GetBox (box);
+
+    SCE_Box_GetCenterv (b, center);
+    SCE_Box_GetDimensionsv (b, &dim[0], &dim[1], &dim[2]);
+    SCE_Matrix4_Translatev (mat, center);
+    SCE_Matrix4_MulCopy (mat, SCE_Node_GetFinalMatrix (inst->node));
+    SCE_Matrix4_MulScalev (mat, dim);
+
+    SCE_RPushMatrix ();
+    SCE_RMultMatrix (mat);
+    SCE_Mesh_Render ();
+    SCE_RPopMatrix ();
+}
+
+void SCE_Scene_DrawBoundingBoxes (SCE_SScene *scene)
+{
+    SCE_SSceneEntityInstance *inst = NULL;
+    SCE_SListIterator *it = NULL;
+
+    SCE_Mesh_Use (scene->bbmesh);
+    SCE_List_ForEach (it, scene->selected) {
+        inst = SCE_List_GetData (it);
+        SCE_Scene_DrawBB (inst);
+    }
+    SCE_Mesh_Unuse ();
 }
 
 /** @} */

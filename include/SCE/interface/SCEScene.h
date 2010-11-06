@@ -103,6 +103,9 @@ struct sce_sscene
     SCEuint cubeface;           /**< Face of the cubemap (used if
                                  * \c rendertarget is a cubemap) */
     SCE_SCamera *camera;        /**< The camera of the current render */
+
+    SCE_SMesh *bbmesh;
+    SCE_SMesh *bsmesh;
 };
 
 /** @} */
@@ -168,6 +171,8 @@ struct sce_spickresult {
 
 void SCE_Pick_Init (SCE_SPickResult*);
 void SCE_Scene_Pick (SCE_SScene*, SCE_SCamera*, SCE_TVector2, SCE_SPickResult*);
+
+void SCE_Scene_DrawBoundingBoxes (SCE_SScene*);
 
 #ifdef __cplusplus
 } /* extern "C" */
