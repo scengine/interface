@@ -1245,24 +1245,29 @@ void SCE_Scene_Pick (SCE_SScene *scene, SCE_SCamera *cam, SCE_TVector2 point,
 }
 
 
-static void SCE_Scene_DrawBB (SCE_SSceneEntityInstance *inst)
+static void SCE_Scene_DrawBB (SCE_SBoundingBox *box, SCE_TMatrix4 m)
 {
     SCE_TVector3 center, dim;
-    SCE_TMatrix4 mat, mat2;
+    SCE_TMatrix4 mat;
     SCE_SBox *b;
-    SCE_SBoundingBox *box = SCE_SceneEntity_GetInstanceBB (inst);
     b = SCE_BoundingBox_GetBox (box);
 
     SCE_Box_GetCenterv (b, center);
     SCE_Box_GetDimensionsv (b, &dim[0], &dim[1], &dim[2]);
     SCE_Matrix4_Translatev (mat, center);
-    SCE_Matrix4_MulCopy (mat, SCE_Node_GetFinalMatrix (inst->node));
+    SCE_Matrix4_MulCopy (mat, m);
     SCE_Matrix4_MulScalev (mat, dim);
 
     SCE_RPushMatrix ();
     SCE_RMultMatrix (mat);
     SCE_Mesh_Render ();
     SCE_RPopMatrix ();
+}
+
+static void SCE_Scene_DrawInstBB (SCE_SSceneEntityInstance *inst)
+{
+    SCE_Scene_DrawBB (SCE_SceneEntity_GetInstanceBB (inst),
+                      SCE_Node_GetFinalMatrix (inst->node));
 }
 
 void SCE_Scene_DrawBoundingBoxes (SCE_SScene *scene)
@@ -1273,7 +1278,27 @@ void SCE_Scene_DrawBoundingBoxes (SCE_SScene *scene)
     SCE_Mesh_Use (scene->bbmesh);
     SCE_List_ForEach (it, scene->selected) {
         inst = SCE_List_GetData (it);
-        SCE_Scene_DrawBB (inst);
+        SCE_Scene_DrawInstBB (inst);
+    }
+    SCE_Mesh_Unuse ();
+}
+
+
+void SCE_Scene_DrawInstanceOctrees (SCE_SScene *scene,
+                                    SCE_SSceneEntityInstance *inst)
+{
+    SCE_TMatrix4 id;
+    SCE_SOctree *tree = NULL;
+    SCE_SOctreeElement *el = NULL;
+
+    el = SCE_Node_GetElement (SCE_SceneEntity_GetInstanceNode (inst));
+    tree = el->octree;
+    SCE_Matrix4_Identity (id);
+
+    SCE_Mesh_Use (scene->bbmesh);
+    while (tree) {
+        SCE_Scene_DrawBB (SCE_Octree_GetBoundingBox (tree), id);
+        tree = SCE_Octree_GetParent (tree);
     }
     SCE_Mesh_Unuse ();
 }

@@ -173,6 +173,7 @@ void SCE_Pick_Init (SCE_SPickResult*);
 void SCE_Scene_Pick (SCE_SScene*, SCE_SCamera*, SCE_TVector2, SCE_SPickResult*);
 
 void SCE_Scene_DrawBoundingBoxes (SCE_SScene*);
+void SCE_Scene_DrawInstanceOctrees (SCE_SScene*, SCE_SSceneEntityInstance*);
 
 #ifdef __cplusplus
 } /* extern "C" */
