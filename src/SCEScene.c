@@ -992,23 +992,21 @@ static void SCE_Scene_RenderEntities (SCE_SScene *scene)
 static void SCE_Scene_RenderSkybox (SCE_SScene *scene, SCE_SCamera *cam)
 {
     SCE_TVector3 pos;
-    float *matcam = NULL;
+    float *mat = NULL;
     SCE_SSceneEntity *entity = SCE_Skybox_GetEntity (scene->skybox);
     SCE_SSceneEntityInstance *einst = SCE_Skybox_GetInstance (scene->skybox);
     SCE_SNode *node = SCE_SceneEntity_GetInstanceNode (einst);
 
-    matcam = SCE_Node_GetFinalMatrix (SCE_Camera_GetNode (cam));
-    SCE_Matrix4_GetTranslation (matcam, pos);
-    matcam = SCE_Node_GetMatrix (node, SCE_NODE_WRITE_MATRIX);
-    matcam[3]  = pos[0];
-    matcam[7]  = pos[1];
-    matcam[11] = pos[2];
-/*    SCE_Matrix4_Scale (matcam, 420.0, 420.0, 420.0);*/
-    SCE_Node_HasMoved (node);
-    SCE_Node_UpdateRootRecursive (node);
+    mat = SCE_Camera_GetFinalViewInverse (cam);
+    SCE_Matrix4_GetTranslation (mat, pos);
+    mat = SCE_Node_GetFinalMatrix (node); /* hax */
+    SCE_Matrix4_Translatev (mat, pos);
+    SCE_Matrix4_MulScale (mat, 42.0, 42.0, 42.0);
+    SCE_Matrix4_MulTranslate (mat, -0.5, -0.5, -0.5);
 
     SCE_SceneEntity_UseResources (entity);
     SCE_SceneEntity_Render (entity);
+    /* because skybox properties disabled it */
     SCE_RActivateDepthBuffer (GL_TRUE);
 
     SCE_Texture_Flush ();
