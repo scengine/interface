@@ -224,7 +224,6 @@ void SCE_SceneEntity_DeleteGroup (SCE_SSceneEntityGroup *group)
  * \param lod level of detail that the entity represent
  * \param entity the entity to add
  * \sa SCE_SceneEntity_RemoveEntity()
- * \todo lod not tested
  */
 void SCE_SceneEntity_AddEntity (SCE_SSceneEntityGroup *group, int lod,
                                 SCE_SSceneEntity *entity)
