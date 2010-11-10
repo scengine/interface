@@ -153,7 +153,6 @@ static void SCE_Scene_Init (SCE_SScene *scene)
     for (i = 0; i < SCE_SCENE_NUM_RESOURCE_GROUP; i++)
         scene->rgroups[i] = NULL;
 
-    scene->instances = NULL;
     scene->selected = NULL;
     scene->selected_join = NULL;
 
@@ -218,8 +217,6 @@ SCE_SScene* SCE_Scene_Create (void)
         SCE_SceneResource_SetGroupType (scene->rgroups[i], i);
     }
     /* TODO: sucks (use static structures) */
-    if (!(scene->instances = SCE_List_Create (NULL)))
-        goto failure;
     if (!(scene->selected = SCE_List_Create (NULL)))
         goto failure;
 
@@ -442,8 +439,6 @@ void SCE_Scene_AddInstance (SCE_SScene *scene, SCE_SSceneEntityInstance *einst)
     SCE_Scene_AddNodeElement (scene, node);
     /* NOTE: not relative to the (future) parent (gne?) */
     SCE_Node_SetOnMovedCallback (node, SCE_Scene_OnNodeMoved, scene);
-    SCE_List_Prependl (scene->instances,
-                       SCE_SceneEntity_GetInstanceIterator1 (einst));
 }
 /**
  * \brief Removes an instance from a scene

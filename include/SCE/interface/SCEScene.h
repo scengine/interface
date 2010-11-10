@@ -86,7 +86,6 @@ struct sce_sscene
     /** All the resources of the scene */
     SCE_SSceneResourceGroup *rgroups[SCE_SCENE_NUM_RESOURCE_GROUP];
 
-    SCE_SList *instances;       /**< Instances */
     SCE_SList *selected;        /**< Selected instances */
     SCE_SList *selected_join;   /**< Where to join lists */
 
