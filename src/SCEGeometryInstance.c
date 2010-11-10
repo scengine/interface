@@ -170,6 +170,7 @@ void SCE_Instance_RemoveInstance (SCE_SGeometryInstance *inst)
 {
     SCE_List_Removel (&inst->it);
     inst->group->n_instances--;
+    inst->group = NULL;
 }
 
 /**
