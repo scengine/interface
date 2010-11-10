@@ -90,6 +90,7 @@ success:
 void SCE_SceneEntity_DeleteInstance (SCE_SSceneEntityInstance *einst)
 {
     if (einst) {
+        SCE_List_Remove (&einst->it);
         SCE_Lod_Delete (einst->lod);
         SCE_Instance_Delete (einst->instance);
         SCE_Node_Delete (einst->node);
