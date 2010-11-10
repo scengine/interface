@@ -173,6 +173,8 @@ void SCE_SceneEntity_Delete (SCE_SSceneEntity *entity)
 {
     if (entity) {
         SCE_SceneEntity_RemoveEntity (entity);
+        SCE_List_Remove (&entity->it);
+        SCE_List_Remove (&entity->it2);
         SCE_List_Delete (entity->textures);
         SCE_Instance_DeleteGroup (entity->igroup);
         SCE_free (entity);
