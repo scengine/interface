@@ -162,7 +162,7 @@ struct sce_spickresult {
     SCE_SPlane plane, plane2;
     SCE_SSceneEntityInstance *inst;
     SCEindices index;
-    SCE_TVector3 point;
+    SCE_TVector3 point, scale;
     float distance;
     int sup;
     SCE_TVector3 a, b, c;

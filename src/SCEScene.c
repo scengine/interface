@@ -1108,6 +1108,11 @@ static int ProcessTriangle (SCE_TVector3 a, SCE_TVector3 b, SCE_TVector3 c,
     SCE_TVector3 p;
     SCE_SPickResult *r = data;
 
+    /* apply scaling */
+    SCE_Vector3_Operator1v (a, *=, r->scale);
+    SCE_Vector3_Operator1v (b, *=, r->scale);
+    SCE_Vector3_Operator1v (c, *=, r->scale);
+
     if (SCE_Plane_TriangleLineIntersection (a, b, c, &r->line2, p)) {
         /* check if it is behind the view point */
         if (SCE_Plane_DistanceToPointv (&r->plane2, p) > 0.0f) {
@@ -1144,6 +1149,8 @@ static void UpdateClosest (SCE_SSceneEntityInstance *inst, SCE_SPickResult *r)
 
     node = SCE_SceneEntity_GetInstanceNode (inst);
     SCE_Node_GetFinalMatrixv (node, m);
+    SCE_Matrix4_GetScale (m, r->scale);
+    SCE_Matrix4_NoScaling (m);
     SCE_Matrix4_InverseCopy (m);
 
     entity = SCE_SceneEntity_GetInstanceEntity (inst);
