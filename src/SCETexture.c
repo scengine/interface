@@ -128,7 +128,7 @@ static int SCE_Texture_MakeRender (SCE_STexture *tex, int type)
     if (SCE_RCreateRenderTexture (tex->fb[0], type, 0, 0, 0, w, h) < 0)
         goto failure;
     /* s'il s'agit d'une color, on ajoute un depth buffer */
-    if (type == SCE_ROLOR_BUFFER) {
+    if (type == SCE_COLOR_BUFFER) {
         if (SCE_RAddRenderBuffer (tex->fb[0], SCE_DEPTH_BUFFER, 0, w, h) < 0)
             goto failure;
     }
@@ -181,7 +181,7 @@ static int SCE_Texture_MakeRenderCube (SCE_STexture *tex, int type)
                                tex->tex, 0, SCE_FALSE);
 
         /* s'il s'agit d'une color, on ajoute un depth buffer */
-        if (type == SCE_ROLOR_BUFFER) {
+        if (type == SCE_COLOR_BUFFER) {
             if (SCE_RAddRenderBuffer(tex->fb[i], SCE_DEPTH_BUFFER, 0, w, h) < 0)
                 goto failure;
         }
@@ -223,7 +223,7 @@ SCE_STexture* SCE_Texture_Create (SCEenum type, int w, int h/*, int d*/)
         type = SCE_DEPTH_BUFFER;
     case SCE_RENDER_COLOR:
         if (type == SCE_RENDER_COLOR)
-            type = SCE_ROLOR_BUFFER;
+            type = SCE_COLOR_BUFFER;
         if (SCE_Texture_MakeRender (tex, type) < 0)
             goto failure;
         break;
@@ -232,7 +232,7 @@ SCE_STexture* SCE_Texture_Create (SCEenum type, int w, int h/*, int d*/)
         type = SCE_DEPTH_BUFFER;
     case SCE_RENDER_COLOR_CUBE:
         if (type == SCE_RENDER_COLOR_CUBE)
-            type = SCE_ROLOR_BUFFER;
+            type = SCE_COLOR_BUFFER;
         if (SCE_Texture_MakeRenderCube (tex, type) < 0)
             goto failure;
         break;
@@ -576,7 +576,7 @@ SCE_STexture* SCE_Texture_Load (int type, int w, int h, int d, int force, ...)
 /**
  * \brief Adds a texture as a new render target's
  * \param tex the texture to add a new render texture
- * \param id render target's identifier (SCE_ROLOR_BUFFER, SCE_DEPTH_BUFFER
+ * \param id render target's identifier (SCE_COLOR_BUFFER, SCE_DEPTH_BUFFER
  * or SCE_STENCIL_BUFFER)
  * \param ctex the texture to add as a render target (is a core texture)
  * \returns SCE_ERROR on error, SCE_OK otherwise
@@ -729,7 +729,7 @@ void SCE_Texture_Blitf (SCE_SFloatRect *rdst, SCE_STexture *dst,
             SCEE_LogSrc ();
             return; /* \o/ */
         }
-        SCE_RAddRenderTexture (dst->fb[0], SCE_ROLOR_BUFFER, 0,
+        SCE_RAddRenderTexture (dst->fb[0], SCE_COLOR_BUFFER, 0,
                                dst->tex, 0, SCE_FALSE);
     }
     if (dst) {
