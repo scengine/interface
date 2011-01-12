@@ -689,7 +689,7 @@ static void SCE_Texture_RenderQuad (SCE_SFloatRect *r)
     SCE_RPushMatrix ();
     SCE_RLoadIdentityMatrix ();
 
-    SCE_Quad_DrawDefault ();
+    SCE_Quad_Draw (-1., -1., 2., 2.);
 
     SCE_RPopMatrix ();
     if (r) {
