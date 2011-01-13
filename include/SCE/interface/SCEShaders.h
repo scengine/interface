@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 06/03/2010 */
+   updated: 12/01/2011 */
 
 #ifndef SCESHADERS_H
 #define SCESHADERS_H
@@ -32,13 +32,7 @@
 extern "C" {
 #endif
 
-/* constantes propres a Shaders */
-#define SCE_UNKNOWN_SHADER -1 /* NOTE: hum... */
-#ifdef SCE_USE_CG
- #define SCE_RG_SHADER 0
-#endif
-#define SCE_GLSL_SHADER 1
-
+#define SCE_UNKNOWN_SHADER 0
 #define SCE_SHADER_BAD_INDEX -1
 
 /* :-' */
@@ -57,10 +51,8 @@ struct sce_sshaderparam {
 
 typedef struct sce_sshader SCE_SShader;
 struct sce_sshader {
-    void *v, *p;                 /* vertex/pixel shader */
+    SCE_RShaderGLSL *v, *p;      /* vertex/pixel shader */
     SCE_RProgram *p_glsl;        /* program GLSL */
-
-    int type;                    /* type du shader (langage; GLSL, ASM, Cg) */
 
     char **res[2];               /* ressources */
     char *vs_source, *ps_source; /* sources principales */
@@ -69,9 +61,9 @@ struct sce_sshader {
 
     /* parametres a envoyer a chaque utilisation du shader (automatiques)
        (pointeurs dont les donnees pointees sont susceptibles de changer) */
-    SCE_SList *params_i;         /* entiers */
-    SCE_SList *params_f;         /* flottants */
-    SCE_SList *params_m;         /* matrices */
+    SCE_SList params_i;          /* entiers */
+    SCE_SList params_f;          /* flottants */
+    SCE_SList params_m;          /* matrices */
 
     SCE_SSceneResource s_resource;
 };
@@ -83,15 +75,11 @@ void SCE_Quit_Shader (void);
 int SCE_Shader_GetResourceType (void);
 
 void SCE_Shader_Init (SCE_SShader*);
-SCE_SShader* SCE_Shader_Create (int);
+SCE_SShader* SCE_Shader_Create (void);
 void SCE_Shader_Delete (SCE_SShader*);
 
 SCE_SSceneResource* SCE_Shader_GetSceneResource (SCE_SShader*);
-
-int SCE_Shader_GetLanguage (SCE_SShader*);
-
 int SCE_Shader_GetType (SCE_SShader*);
-
 
 /* charge (char**) un fichier contenant le code du vertex shader
    et/ou le code du pixel shader (prefixes : [Vertex Shader] [Pixel Shader]) */
@@ -112,7 +100,7 @@ int SCE_Shader_AddSource (SCE_SShader*, int, const char*);
 
 
 /* retourne l'index d'une variable de shader */
-int SCE_Shader_GetIndex (SCE_SShader*, int, const char*);
+int SCE_Shader_GetIndex (SCE_SShader*, const char*);
 /* retourne l'index d'une variable d'attribut (fonctionne que pour GLSL) */
 int SCE_Shader_GetAttribIndex (SCE_SShader*, const char*);
 /*
@@ -121,13 +109,13 @@ float SCE_Shader_GetParamf(SCE_SShader*, const char*);
 float* SCE_Shader_GetParamfv(SCE_SShader*, const char*);
 */
 
-void SCE_Shader_Param (int, const char*, int);
-void SCE_Shader_Paramf (int, const char*, float);
+void SCE_Shader_Param (const char*, int);
+void SCE_Shader_Paramf (const char*, float);
 #define SCE_Shader_Paramfv(a, b, c, d) SCE_Shader_Param1fv(a, b, c, d)
-void SCE_Shader_Param1fv (int, const char*, size_t, float*);
-void SCE_Shader_Param2fv (int, const char*, size_t, float*);
-void SCE_Shader_Param3fv (int, const char*, size_t, float*);
-void SCE_Shader_Param4fv (int, const char*, size_t, float*);
+void SCE_Shader_Param1fv (const char*, size_t, float*);
+void SCE_Shader_Param2fv (const char*, size_t, float*);
+void SCE_Shader_Param3fv (const char*, size_t, float*);
+void SCE_Shader_Param4fv (const char*, size_t, float*);
 
 void SCE_Shader_SetParam (int, int);
 void SCE_Shader_SetParamf (int, float);
@@ -138,17 +126,14 @@ void SCE_Shader_SetParam3fv (int, size_t, float*);
 void SCE_Shader_SetParam4fv (int, size_t, float*);
 
 /* ajoute des parametres variables a envoyer a chaque utilisation du shader */
-int SCE_Shader_AddParamv (SCE_SShader*, int, const char*, void*);
-int SCE_Shader_AddParamfv (SCE_SShader*, int, const char*, int, int, void*);
-/*int SCE_Shader_AddParamMatrix (SCE_SShader*, int, const char*, void*);*/
+int SCE_Shader_AddParamv (SCE_SShader*, const char*, void*);
+int SCE_Shader_AddParamfv (SCE_SShader*, const char*, int, int, void*);
+int SCE_Shader_AddMatrix (SCE_SShader*, const char*, int, void*);
 
-/* defini si la modification de shader via Use est possible */
 void SCE_Shader_Active (int);
-/* versions verbeuses */
 void SCE_Shader_Enable (void);
 void SCE_Shader_Disable (void);
 
-/* defini le shader comme etant actif (fonction generique) */
 void SCE_Shader_Use (SCE_SShader*);
 
 /*
