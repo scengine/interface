@@ -617,7 +617,7 @@ SCE_GLSL_SETPARAM_FUNC(3)
 SCE_GLSL_SETPARAM_FUNC(4)
 #undef SCE_GLSL_SETPARAM_FUNC
 
-void SCE_Shader_SetMatrix3 (int index, SCE_TMatrix4 m)
+void SCE_Shader_SetMatrix3 (int index, SCE_TMatrix3 m)
 {
     SCE_RSetProgramMatrix3 (index, 1, m); /* count forced */
 }

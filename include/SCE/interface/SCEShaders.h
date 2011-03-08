@@ -124,6 +124,8 @@ void SCE_Shader_SetParam1fv (int, size_t, float*);
 void SCE_Shader_SetParam2fv (int, size_t, float*);
 void SCE_Shader_SetParam3fv (int, size_t, float*);
 void SCE_Shader_SetParam4fv (int, size_t, float*);
+void SCE_Shader_SetMatrix3 (int, SCE_TMatrix3);
+void SCE_Shader_SetMatrix4 (int, SCE_TMatrix4);
 
 /* ajoute des parametres variables a envoyer a chaque utilisation du shader */
 int SCE_Shader_AddParamv (SCE_SShader*, const char*, void*);
