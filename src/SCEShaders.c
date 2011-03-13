@@ -29,6 +29,7 @@ static int is_init = SCE_FALSE;
 static int resource_source_type = 0;
 static int resource_shader_type = 0;
 
+static int shdlocked = SCE_FALSE;
 static int sce_shd_enabled = SCE_FALSE;
 
 static SCE_SShader *used = NULL;
@@ -758,6 +759,8 @@ static void SCE_Shader_UseGLSL (SCE_SShader *shader)
 }
 void SCE_Shader_Use (SCE_SShader *shader)
 {
+    if (shdlocked)
+        return;
     if (!shader) {
         if (used) {
             SCE_Shader_UseGLSL (NULL);
@@ -770,4 +773,21 @@ void SCE_Shader_Use (SCE_SShader *shader)
         used = shader;        /* before setparams() call */
         SCE_Shader_SetParams (shader);
     }
+}
+
+/**
+ * \brief Any further call to SCE_Shader_Use() is ignored
+ * \sa SCE_Shader_Unlock()
+ */
+void SCE_Shader_Lock (void)
+{
+    shdlocked = SCE_TRUE;
+}
+/**
+ * \brief Further calls to SCE_Shader_Use() are no longer ignored
+ * \sa SCE_Shader_Lock()
+ */
+void SCE_Shader_Unlock (void)
+{
+    shdlocked = SCE_FALSE;
 }

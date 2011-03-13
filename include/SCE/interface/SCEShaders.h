@@ -138,11 +138,8 @@ void SCE_Shader_Disable (void);
 
 void SCE_Shader_Use (SCE_SShader*);
 
-/*
-void SCE_Shader_UsePixelShader(SCE_SShader*);
-
-void SCE_Shader_UseVertexShader(SCE_SShader*);
-*/
+void SCE_Shader_Lock (void);
+void SCE_Shader_Unlock (void);
 
 #ifdef __cplusplus
 } /* extern "C" */
