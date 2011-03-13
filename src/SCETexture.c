@@ -48,6 +48,7 @@ static int resource_type = 0;
 
 static SCE_STexture *textmp = NULL;
 
+static int texlocked = SCE_FALSE;
 static SCE_SList texused;
 #if 0
 static SCE_SListIterator *mark = NULL;
@@ -742,7 +743,6 @@ void SCE_Texture_Blitf (SCE_SFloatRect *rdst, SCE_STexture *dst,
                        SCE_Rectangle_GetWidthf (rdst) * w,
                        SCE_Rectangle_GetHeightf (rdst) * h);
 
-    /* desactivation du test de profondeur */
     SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_FALSE);
     SCE_RActivateDepthBuffer (SCE_FALSE);
     if (src)
@@ -755,7 +755,7 @@ void SCE_Texture_Blitf (SCE_SFloatRect *rdst, SCE_STexture *dst,
     SCE_RActivateDepthBuffer (SCE_TRUE);
     SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_TRUE);
 
-    /* restaure aussi le viewport */
+    /* restores viewport too */
     SCE_Texture_RenderTo (NULL, 0);
 }
 
@@ -775,6 +775,8 @@ static void SCE_Texture_Set (SCE_STexture *tex)
  */
 void SCE_Texture_Use (SCE_STexture *tex)
 {
+    if (texlocked)
+        return;
     if (!tex) {
         if (SCE_List_HasElements (&texused))
             SCE_List_Erase (&texused, SCE_List_GetFirst (&texused));
@@ -793,6 +795,23 @@ void SCE_Texture_Use (SCE_STexture *tex)
             unitused[tex->unit] = tex;
         }
     }
+}
+
+/**
+ * \brief Any further call to SCE_Texture_Use() is ignored
+ * \sa SCE_Texture_Unlock()
+ */
+void SCE_Texture_Lock (void)
+{
+    texlocked = SCE_TRUE;
+}
+/**
+ * \brief Further calls to SCE_Texture_Use() are no longer ignored
+ * \sa SCE_Texture_Lock()
+ */
+void SCE_Texture_Unlock (void)
+{
+    texlocked = SCE_FALSE;
 }
 
 /**

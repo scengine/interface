@@ -140,6 +140,9 @@ void SCE_Texture_Blitf (SCE_SFloatRect*, SCE_STexture*,
 
 void SCE_Texture_Use (SCE_STexture*);
 
+void SCE_Texture_Lock (void);
+void SCE_Texture_Unlock (void);
+
 void SCE_Texture_Flush (void);
 
 void SCE_Texture_BeginLot (void);
