@@ -451,7 +451,7 @@ unsigned int SCE_Model_GetNumLOD (SCE_SModel *mdl, SCEuint num)
  * \brief Gets the required entity
  * \param num the number of the required entity
  * \param level LOD of the required entity
- * \returns the scene entity required, if no on have been found, returns NULL
+ * \returns the scene entity required, if no one has been found, returns NULL
  *
  * If \p level is lesser than 0, then using the latest level of detail.
  */
