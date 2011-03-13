@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 11/03/2007
-   updated: 12/05/2010 */
+   updated: 14/03/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -798,7 +798,8 @@ void SCE_Texture_Use (SCE_STexture *tex)
 }
 
 /**
- * \brief Any further call to SCE_Texture_Use() is ignored
+ * \brief Any further call to SCE_Texture_Use(), SCE_Texture_BeginLot()
+ * or SCE_Texture_EndLot() is ignored
  * \sa SCE_Texture_Unlock()
  */
 void SCE_Texture_Lock (void)
@@ -806,7 +807,8 @@ void SCE_Texture_Lock (void)
     texlocked = SCE_TRUE;
 }
 /**
- * \brief Further calls to SCE_Texture_Use() are no longer ignored
+ * \brief Further calls to SCE_Texture_Use(), SCE_Texture_BeginLot()
+ * or SCE_Texture_EndLot() are no longer ignored
  * \sa SCE_Texture_Lock()
  */
 void SCE_Texture_Unlock (void)
@@ -824,17 +826,21 @@ void SCE_Texture_Flush (void)
 
 void SCE_Texture_BeginLot (void)
 {
-    SCE_SListIterator *it;
-    SCE_List_ForEach (it, &texused)
-        ((SCE_STexture*)SCE_List_GetData (it))->toremove = SCE_TRUE;
+    if (!texlocked) {
+        SCE_SListIterator *it;
+        SCE_List_ForEach (it, &texused)
+            ((SCE_STexture*)SCE_List_GetData (it))->toremove = SCE_TRUE;
+    }
 }
 
 void SCE_Texture_EndLot (void)
 {
-    SCE_SListIterator *it, *pro;
-    SCE_List_ForEachProtected (pro, it, &texused) {
-        if (((SCE_STexture*)SCE_List_GetData (it))->toremove)
-            SCE_List_Erase (&texused, it);
+    if (!texlocked) {
+        SCE_SListIterator *it, *pro;
+        SCE_List_ForEachProtected (pro, it, &texused) {
+            if (((SCE_STexture*)SCE_List_GetData (it))->toremove)
+                SCE_List_Erase (&texused, it);
+        }
     }
 }
 
