@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 03/11/2008 
-   updated: 15/09/2010 */
+   updated: 14/03/2011 */
 
 #ifndef SCESCENEENTITY_H
 #define SCESCENEENTITY_H
@@ -200,6 +200,9 @@ int SCE_SceneEntity_IsInstanceInFrustum (SCE_SSceneEntityInstance*,
 void SCE_SceneEntity_ApplyProperties (SCE_SSceneEntity*);
 
 void SCE_SceneEntity_UseResources (SCE_SSceneEntity*);
+
+void SCE_SceneEntity_Lock (void);
+void SCE_SceneEntity_Unlock (void);
 
 void SCE_SceneEntity_Render (SCE_SSceneEntity*);
 

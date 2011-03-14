@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 03/11/2008
-   updated: 15/09/2010 */
+   updated: 14/03/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -39,6 +39,8 @@
  */
 
 /** @{ */
+
+static int entitylocked = SCE_FALSE;
 
 void SCE_SceneEntity_InitInstance (SCE_SSceneEntityInstance *einst)
 {
@@ -816,6 +818,9 @@ void SCE_SceneEntity_UseResources (SCE_SSceneEntity *entity)
 {
     SCE_SListIterator *it = NULL;
 
+    if (entitylocked)
+        return;
+
     SCE_SceneEntity_ApplyProperties (entity);
 
     if (entity->material)
@@ -832,6 +837,24 @@ void SCE_SceneEntity_UseResources (SCE_SSceneEntity *entity)
     SCE_List_ForEach (it, entity->textures)
         SCE_Texture_Use (SCE_SceneResource_GetResource (SCE_List_GetData (it)));
     SCE_Texture_EndLot ();
+}
+
+
+/**
+ * \brief Any further call to SCE_SceneEntity_UseResources() is ignored
+ * \sa SCE_SceneEntity_Unlock()
+ */
+void SCE_SceneEntity_Lock (void)
+{
+    entitylocked = SCE_TRUE;
+}
+/**
+ * \brief Further calls to SCE_SceneEntity_UseResources() are no longer ignored
+ * \sa SCE_SceneEntity_Lock()
+ */
+void SCE_SceneEntity_Unlock (void)
+{
+    entitylocked = SCE_FALSE;
 }
 
 
