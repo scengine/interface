@@ -94,7 +94,7 @@ static void SCE_Shader_DeleteParam (void *p)
 
 void SCE_Shader_Init (SCE_SShader *shader)
 {
-    shader->v = shader->p = NULL;
+    shader->v = shader->p = shader->g = NULL;
     shader->p_glsl = NULL;
 
     shader->ready = SCE_FALSE;
