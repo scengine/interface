@@ -80,8 +80,7 @@ int SCE_Shader_GetResourceType (void)
 static void SCE_Shader_InitParam (SCE_SShaderParam *sp)
 {
     sp->param = NULL;
-    sp->index = 0; /* TODO: constante nulle pour les indices
-                      de parametres non-definie... */
+    sp->index = -1;
     sp->size = 0;
     sp->setfv = NULL;
     sp->setm = NULL;
@@ -160,9 +159,7 @@ SCE_SSceneResource* SCE_Shader_GetSceneResource (SCE_SShader *shader)
     return &shader->s_resource;
 }
 
-/* NOTE: a deplacer */
-/* positionne le curseur de fp sur la prochaine occurrence a str
-   retourne 1 si la fonction a trouve une occurrence */
+/* NOTE: move this function */
 static int SCE_Shader_SetPosFile (FILE *fp, const char *str, int at_end)
 {
     size_t i = 0;
@@ -179,7 +176,7 @@ static int SCE_Shader_SetPosFile (FILE *fp, const char *str, int at_end)
 
         for (i = 0; i < lenstr; i++) {
             buf[i] = fgetc (fp);
-            if (buf[i] == EOF) { /* fin du fichier */
+            if (buf[i] == EOF) {
                 fseek (fp, curo, SEEK_SET);
                 return 0;
             }
@@ -197,7 +194,6 @@ static int SCE_Shader_SetPosFile (FILE *fp, const char *str, int at_end)
     return 0;
 }
 
-/* charge du texte a partir d'un fichier, jusqu'a end */
 static char* SCE_Shader_LoadSource (FILE *fp, long end)
 {
     char *src = NULL;
@@ -206,15 +202,13 @@ static char* SCE_Shader_LoadSource (FILE *fp, long end)
 
     if (end != EOF) {
         len = end - len;
-    } else { /* on calcul la distance qu'il y a jusqu'a la fin du fichier */
+    } else {
         curpos = len;
         fseek (fp, 0, SEEK_END);
         len = ftell (fp) - len;
         fseek (fp, curpos, SEEK_SET);
     }
 
-    /* dans le cas ou la zone serait vide, aucun code de shader du type prefixe
-       n'est present a cet endroit, mais pas la peine d'en faire un fromage */
     if (len <= 0)
         return NULL;
 
@@ -247,22 +241,18 @@ static void* SCE_Shader_LoadSources (FILE *fp, const char *fname)
         pos[i] = begin[i] = end[i] = EOF;
     }
 
-    /* le fichier contient le code de plusieurs shaders */
-    /* recuperation de la position du code du vertex shader */
     if (SCE_Shader_SetPosFile (fp, "[vertex shader]", SCE_FALSE)) {
         pos[0] = ftell (fp);
         begin[0] = pos[0] + 15; /* 15 = strlen("[vertex shader]"); */
         rewind (fp);
     }
 
-    /* recuperation de la position du code du pixel shader */
     if (SCE_Shader_SetPosFile (fp, "[pixel shader]", SCE_FALSE)) {
         pos[1] = ftell (fp);
         begin[1] = pos[1] + 14; /* 14 = strlen("[pixel shader]"); */
         rewind (fp);
     }
 
-    /* recuperation de la position du code du pixel shader */
     if (SCE_Shader_SetPosFile (fp, "[geometry shader]", SCE_FALSE)) {
         pos[2] = ftell (fp);
         begin[2] = pos[2] + 17; /* 17 = strlen("[geometry shader]"); */
@@ -281,15 +271,12 @@ static void* SCE_Shader_LoadSources (FILE *fp, const char *fname)
         }
     }
 
-    /* lecture du code du vertex shader */
     fseek (fp, begin[0], SEEK_SET);
     srcs[0] = SCE_Shader_LoadSource (fp, end[0]);
 
-    /* lecture du code du pixel shader */
     fseek (fp, begin[1], SEEK_SET);
     srcs[1] = SCE_Shader_LoadSource (fp, end[1]);
 
-    /* lecture du code du geometry shader */
     fseek (fp, begin[2], SEEK_SET);
     srcs[2] = SCE_Shader_LoadSource (fp, end[2]);
 
@@ -318,14 +305,14 @@ void* SCE_Shader_LoadSourceFromFile (FILE *fp, const char *fname, void *uusd)
             size_t len, diff = ptr - srcs[j];
             char *tsrc = NULL;
             char **isrcs = NULL;
-            /* include trouve dans le vertex shader */
-            /* lecture du nom du fichier (forme #include <filename>) */
+
+            /* reading file name (syntax: #include <filename>) */
             memset (buf, '\0', BUFSIZ);
             i = 0;
             while (*ptr++ != '<');
             while (*ptr != '>')
                 buf[i++] = *ptr++;
-            /* lecture des fichiers inclus de maniere recursive */
+            /* recursive load of inclusions */
             /* TODO: include path of fname into buf */
             isrcs = SCE_Resource_Load (resource_source_type, buf, SCE_FALSE,
                                        NULL);
@@ -333,7 +320,6 @@ void* SCE_Shader_LoadSourceFromFile (FILE *fp, const char *fname, void *uusd)
                 SCEE_LogSrc ();
                 return NULL;
             }
-            /* si le fichier contient des donnees du meme type */
             if (isrcs[j]) {
                 len = strlen (srcs[j]) + strlen (isrcs[j]) + 1;
                 tsrc = SCE_malloc (len);
@@ -502,7 +488,6 @@ int SCE_Shader_AddSource (SCE_SShader *shader, int type, const char *src)
     case SCE_GEOMETRY_SHADER: addsrc = shader->gs_addsrc; break;
     }
 
-    /* + 2 car, 1: retour chariot. 2: caractere de fin de chaine */
     realen = strlen (src) + 2;
 
     if (addsrc) {
@@ -515,13 +500,12 @@ int SCE_Shader_AddSource (SCE_SShader *shader, int type, const char *src)
         SCEE_LogSrc ();
         return SCE_ERROR;
     }
-    /* s'il s'agit de la premiere allocation, on initialise le contenu */
+
     if (first_alloc)
         memset (addsrc, '\0', realen);
 
     strcat (addsrc, src);
 
-    /* affectation */
     switch (type) {
     case SCE_VERTEX_SHADER: shader->vs_addsrc = addsrc; break;
     case SCE_PIXEL_SHADER: shader->ps_addsrc = addsrc; break;
@@ -611,6 +595,7 @@ void SCE_Shader_SetMatrix4 (int index, SCE_TMatrix4 m)
  * \param p pointer to the values that will be send
  *
  * Adds a parameter that will be send on each call of SCE_Shader_Use(\p shader).
+ * The shader must have been built.
  *
  * \sa SCE_Shader_AddParamfv()
  */
@@ -624,7 +609,6 @@ int SCE_Shader_AddParamv (SCE_SShader *shader, const char *name, void *p)
     SCE_Shader_InitParam (param);
     SCE_List_Appendl (&shader->params_i, &param->it);
     param->param = p;
-    /* necessite que le shader ait deja ete construit */
     param->index = SCE_Shader_GetIndex (shader, name);
     return SCE_OK;
 }
@@ -638,6 +622,7 @@ int SCE_Shader_AddParamv (SCE_SShader *shader, const char *name, void *p)
  *
  * Adds a floating parameter that will be send on each call of
  * SCE_Shader_Use(\p shader).
+ * The shader must have been built.
  *
  * \sa SCE_Shader_AddParamv()
  */
@@ -661,9 +646,7 @@ int SCE_Shader_AddParamfv (SCE_SShader *shader, const char *name,
 #undef SCE_SHDCASE
     }
     param->size = size;
-    /* necessite que le shader ait deja ete construit */
     param->index = SCE_Shader_GetIndex (shader, name);
-    /* NOTE: et la on ne verifie pas index... ? bof ca fait chier */
     return SCE_OK;
 }
 /**
@@ -672,6 +655,7 @@ int SCE_Shader_AddParamfv (SCE_SShader *shader, const char *name,
  * \param p pointer to the matrix
  *
  * Adds a matrix that will be send on each call of SCE_Shader_Use(\p shader).
+ * The shader must have been built.
  *
  * \sa SCE_Shader_AddParamfv()
  */
@@ -686,7 +670,6 @@ int SCE_Shader_AddMatrix (SCE_SShader *shader, const char *name,
     SCE_Shader_InitParam (param);
     SCE_List_Appendl (&shader->params_m, &param->it);
     param->param = p;
-    /* necessite que le shader ait deja ete construit */
     param->index = SCE_Shader_GetIndex (shader, name);
     if (size == 3)
         param->setm = SCE_Shader_SetMatrix3;
