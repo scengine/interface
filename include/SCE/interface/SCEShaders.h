@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 12/01/2011 */
+   updated: 18/06/2011 */
 
 #ifndef SCESHADERS_H
 #define SCESHADERS_H
@@ -51,12 +51,20 @@ struct sce_sshaderparam {
 
 typedef struct sce_sshader SCE_SShader;
 struct sce_sshader {
-    SCE_RShaderGLSL *v, *p;      /* vertex/pixel shader */
+    SCE_RShaderGLSL *v, *p, *g;  /* vertex/pixel/geometry shaders */
     SCE_RProgram *p_glsl;        /* program GLSL */
 
-    char **res[2];               /* ressources */
-    char *vs_source, *ps_source; /* sources principales */
-    char *vs_addsrc, *ps_addsrc; /* code source additif (defines, ...) */
+    char **res;                  /* ressources */
+
+    /* sources principales */
+    char *vs_source;
+    char *ps_source;
+    char *gs_source;
+
+    /* code source additif (defines, ...) */
+    char *vs_addsrc;
+    char *ps_addsrc;
+    char *gs_addsrc;
     int ready;                   /* true; le shader peut etre utilise */
 
     /* parametres a envoyer a chaque utilisation du shader (automatiques)
@@ -89,7 +97,7 @@ void* SCE_Shader_LoadSourceFromFile (FILE*, const char*, void*);
    vertex shader, le second le code du pixel shader. un des deux fichiers peut
    contenir les deux types de code ensemble */
 /*SCE_SShader* SCE_Shader_CreateFromFile (const char*, const char*);*/
-SCE_SShader* SCE_Shader_Load (const char*, const char*, int);
+SCE_SShader* SCE_Shader_Load (const char*, int);
 
 /* construit un shader */
 int SCE_Shader_Build (SCE_SShader*);
@@ -98,6 +106,9 @@ int SCE_Shader_Build (SCE_SShader*);
    au debut du code source par defaut */
 int SCE_Shader_AddSource (SCE_SShader*, int, const char*);
 
+
+int SCE_Shader_InputPrimitive (SCE_SShader*, SCE_EPrimitiveType, int);
+int SCE_Shader_OutputPrimitive (SCE_SShader*, SCE_EPrimitiveType);
 
 /* retourne l'index d'une variable de shader */
 int SCE_Shader_GetIndex (SCE_SShader*, const char*);

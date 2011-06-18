@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 12/01/2011 */
+   updated: 18/06/2011 */
 
 #include <ctype.h>
 #include <SCE/utils/SCEUtils.h>
@@ -46,7 +46,7 @@ int SCE_Init_Shader (void)
     if (resource_source_type < 0)
         goto fail;
     /* TODO: may fail */
-    SCE_Media_Register (resource_source_type, ".glsl .vert .frag",
+    SCE_Media_Register (resource_source_type, ".glsl",
                         SCE_Shader_LoadSourceFromFile, NULL);
     /* register shader loader */
     resource_shader_type = SCE_Resource_RegisterType (
@@ -99,9 +99,9 @@ void SCE_Shader_Init (SCE_SShader *shader)
     shader->p_glsl = NULL;
 
     shader->ready = SCE_FALSE;
-    shader->res[0] = shader->res[1] = NULL;
-    shader->vs_source = shader->ps_source = NULL;
-    shader->vs_addsrc = shader->ps_addsrc = NULL;
+    shader->res = NULL;
+    shader->vs_source = shader->ps_source = shader->gs_source = NULL;
+    shader->vs_addsrc = shader->ps_addsrc = shader->gs_addsrc = NULL;
 
     SCE_List_Init (&shader->params_i);
     SCE_List_Init (&shader->params_f);
@@ -135,19 +135,16 @@ void SCE_Shader_Delete (SCE_SShader *shader)
         SCE_RDeleteProgram (shader->p_glsl);
         SCE_RDeleteShaderGLSL (shader->v);
         SCE_RDeleteShaderGLSL (shader->p);
+        SCE_RDeleteShaderGLSL (shader->g);
 
         SCE_free (shader->vs_addsrc);
         SCE_free (shader->ps_addsrc);
+        SCE_free (shader->gs_addsrc);
 
-        if (SCE_Resource_Free (shader->res[0])) {
-            SCE_free (shader->res[0][0]);
-            SCE_free (shader->res[0][1]);
+        if (SCE_Resource_Free (shader->res)) {
             SCE_free (shader->res[0]);
-        }
-        if (SCE_Resource_Free (shader->res[1])) {
-            SCE_free (shader->res[1][0]);
-            SCE_free (shader->res[1][1]);
             SCE_free (shader->res[1]);
+            SCE_free (shader->res);
         }
 
         SCE_List_Clear (&shader->params_m);
@@ -162,25 +159,6 @@ SCE_SSceneResource* SCE_Shader_GetSceneResource (SCE_SShader *shader)
 {
     return &shader->s_resource;
 }
-
-/* retourne le type d'un shader d'apres son extension */
-static int SCE_Shader_SearchTypes (const char *ext)
-{
-#define SCE_SHADER_FOR(str, t)                     \
-    if (SCE_String_Cmp (str, ext, SCE_FALSE) == 0) \
-        return t;                                  \
-    else
-
-    SCE_SHADER_FOR (".glsl", SCE_UNKNOWN_SHADER)
-    SCE_SHADER_FOR (".vert", SCE_VERTEX_SHADER)
-    SCE_SHADER_FOR (".frag", SCE_PIXEL_SHADER) {
-        SCEE_Log (SCE_INVALID_ARG);
-        SCEE_LogMsg ("'%s' is not a valid shader source extension", ext);
-        return SCE_UNKNOWN_SHADER;
-    }
-#undef SCE_SHADER_FOR
-}
-
 
 /* NOTE: a deplacer */
 /* positionne le curseur de fp sur la prochaine occurrence a str
@@ -255,46 +233,66 @@ static char* SCE_Shader_LoadSource (FILE *fp, long end)
 static void* SCE_Shader_LoadSources (FILE *fp, const char *fname)
 {
     char **srcs = NULL;
-    long vpos, ppos, vend, pend;
+    long pos[3], begin[3], end[3]; /* mess. */
     int type;
+    int i;
 
-    if (!(srcs = SCE_malloc (2 * sizeof *srcs))) {
+    if (!(srcs = SCE_malloc (3 * sizeof *srcs))) {
         SCEE_LogSrc ();
         return NULL;
     }
-    srcs[0] = srcs[1] = NULL;
 
-    /* recherche du type du shader */
-    type = SCE_Shader_SearchTypes (SCE_String_GetExt ((char*)fname));
-    if (type == SCE_UNKNOWN_SHADER) {
-        /* le fichier contient le code du vertex et du pixel shader */
-        /* recuperation de la position du code du vertex shader */
-        SCE_Shader_SetPosFile (fp, "[vertex shader]", SCE_FALSE);
-        vpos = ftell (fp);
-        vend = vpos + 15;   /* 16 = strlen("[vertex shader]"); */
+    for (i = 0; i < 3; i++) {
+        srcs[i] = NULL;
+        pos[i] = begin[i] = end[i] = EOF;
+    }
+
+    /* le fichier contient le code de plusieurs shaders */
+    /* recuperation de la position du code du vertex shader */
+    if (SCE_Shader_SetPosFile (fp, "[vertex shader]", SCE_FALSE)) {
+        pos[0] = ftell (fp);
+        begin[0] = pos[0] + 15; /* 15 = strlen("[vertex shader]"); */
         rewind (fp);
+    }
 
-        /* recuperation de la position du code du pixel shader */
-        SCE_Shader_SetPosFile (fp, "[pixel shader]", SCE_FALSE);
-        ppos = ftell (fp);
-        pend = ppos + 14;   /* 15 = strlen("[pixel shader]"); */
+    /* recuperation de la position du code du pixel shader */
+    if (SCE_Shader_SetPosFile (fp, "[pixel shader]", SCE_FALSE)) {
+        pos[1] = ftell (fp);
+        begin[1] = pos[1] + 14; /* 14 = strlen("[pixel shader]"); */
+        rewind (fp);
+    }
 
-        /* lecture du code du vertex shader */
-        fseek (fp, vend, SEEK_SET);
-        srcs[0] = SCE_Shader_LoadSource (fp, (vpos > ppos) ? EOF : ppos);
+    /* recuperation de la position du code du pixel shader */
+    if (SCE_Shader_SetPosFile (fp, "[geometry shader]", SCE_FALSE)) {
+        pos[2] = ftell (fp);
+        begin[2] = pos[2] + 17; /* 17 = strlen("[geometry shader]"); */
+        rewind (fp);
+    }
 
-        /* lecture du code du pixel shader */
-        fseek (fp, pend, SEEK_SET);
-        srcs[1] = SCE_Shader_LoadSource (fp, (ppos > vpos) ? EOF : vpos);
-    } else {
-        /* le fichier contient le code de type[1] */
-        srcs[0] = SCE_Shader_LoadSource (fp, EOF);
-
-        if (type == SCE_PIXEL_SHADER) {
-            srcs[1] = srcs[0];
-            srcs[0] = NULL;
+    /* finding blocks (mess) */
+    for (i = 0; i < 3; i++) {
+        int j;
+        for (j = 0; j < 3; j++) {
+            if (j == i) continue;
+            if (pos[j] > pos[i]) {
+                if (end[i] == EOF || (pos[j] < end[i] && pos[j] != EOF))
+                    end[i] = pos[j];
+            }
         }
     }
+
+    /* lecture du code du vertex shader */
+    fseek (fp, begin[0], SEEK_SET);
+    srcs[0] = SCE_Shader_LoadSource (fp, end[0]);
+
+    /* lecture du code du pixel shader */
+    fseek (fp, begin[1], SEEK_SET);
+    srcs[1] = SCE_Shader_LoadSource (fp, end[1]);
+
+    /* lecture du code du geometry shader */
+    fseek (fp, begin[2], SEEK_SET);
+    srcs[2] = SCE_Shader_LoadSource (fp, end[2]);
+
     return srcs;
 }
 
@@ -314,7 +312,7 @@ void* SCE_Shader_LoadSourceFromFile (FILE *fp, const char *fname, void *uusd)
         return NULL;
     }
 
-    for (j = 0; j < 2; j++)
+    for (j = 0; j < 3; j++)
         if (srcs[j] && (ptr = strstr (srcs[j], SCE_SHADER_INCLUDE)))
         {
             size_t len, diff = ptr - srcs[j];
@@ -354,95 +352,36 @@ void* SCE_Shader_LoadSourceFromFile (FILE *fp, const char *fname, void *uusd)
 static void* SCE_Shader_LoadResource (const char *name, int force, void *data)
 {
     SCE_SShader *shader = NULL;
-    char **srcs1 = NULL, **srcs2 = NULL;
-    char *vsource = NULL, *psource = NULL;
-    int ttemp = SCE_UNKNOWN_SHADER;
-    char vnamebuf[256] = {0};   /* TODO: fixed size here */
-    char *vname = NULL, *pname = NULL, *ptr = NULL, *ptr2 = NULL;
-    unsigned int i;
-
-    strcpy (vnamebuf, name);
-    ptr = strchr (vnamebuf, '/');
-    ptr2 = strchr (&ptr[1], '/');
-    if (ptr == vnamebuf) {      /* no vertex shader */
-        pname = &vnamebuf[1];
-    } else {
-        vname = vnamebuf;
-        if (ptr2 != NULL)       /* both */
-            pname = &ptr[1];
-        else                    /* no pixel shader */
-            vname = vnamebuf;
-    }
-    *ptr = 0;
-    if (ptr2)
-        *ptr2 = 0;
+    char **srcs = NULL;
 
     if (force > 0)
         force--;
 
-    if (vname) {
-        srcs1 = SCE_Resource_Load (resource_source_type, vname, force, NULL);
-        if (!srcs1) {
-            SCEE_LogSrc ();
-            return NULL;
-        }
-
-        /* on vient de charger un fichier contenant les deux codes */
-        if (srcs1[0] && srcs1[1])
-            pname = NULL;
-        vsource = srcs1[0];
-        psource = srcs1[1];
-    }
-
-    if (pname) {
-        srcs2 = SCE_Resource_Load (resource_source_type, pname, force, NULL);
-        if (!srcs2) {
-            SCEE_LogSrc ();
-            return NULL;
-        }
-        /* on vient de charger un fichier contenant les deux codes */
-        if (srcs2[0] && srcs2[1])
-            vsource = srcs2[0];
-        psource = srcs2[1];
-    }
-
     shader = SCE_Shader_Create ();
     if (!shader) {
-        if (SCE_Resource_Free (srcs1)) {
-            SCE_free (srcs1[0]);
-            SCE_free (srcs1[1]);
-            SCE_free (srcs1);
-        }
-        if (SCE_Resource_Free (srcs2)) {
-            SCE_free (srcs2[0]);
-            SCE_free (srcs2[1]);
-            SCE_free (srcs2);
-        }
         SCEE_LogSrc ();
         return NULL;
     }
 
-    shader->res[0] = srcs1;
-    shader->res[1] = srcs2;
-    shader->vs_source = vsource;
-    shader->ps_source = psource;
+    srcs = SCE_Resource_Load (resource_source_type, name, force, NULL);
+    if (!srcs) {
+      SCE_Shader_Delete (shader);
+        SCEE_LogSrc ();
+        return NULL;
+    }
+
+    shader->res = srcs;
+    shader->vs_source = srcs[0];
+    shader->ps_source = srcs[1];
+    shader->gs_source = srcs[2];
 
     return shader;
 }
 
 
-SCE_SShader* SCE_Shader_Load (const char *vname, const char *pname, int force)
+SCE_SShader* SCE_Shader_Load (const char *name, int force)
 {
-    char buf[512] = {0};        /* TODO: fixed size here */
-    if (vname)
-        strcpy (buf, vname);
-    /* char '/' used to separate names */
-    if (pname) {
-        strcat (buf, "/");
-        strcat (buf, pname);
-    }
-    strcat (buf, "/resource");
-    return SCE_Resource_Load (resource_shader_type, buf, force, NULL);
+    return SCE_Resource_Load (resource_shader_type, name, force, NULL);
 }
 
 
@@ -476,10 +415,25 @@ static int SCE_Shader_BuildGLSL (SCE_SShader *shader)
         }
     }
 
+    if (shader->gs_source) {
+        shader->g = SCE_RCreateShaderGLSL (SCE_GEOMETRY_SHADER);
+        if (!shader->g) {
+            SCEE_LogSrc ();
+            return SCE_ERROR;
+        }
+        SCE_RSetShaderGLSLSource (shader->g, shader->gs_source);
+        if (SCE_RBuildShaderGLSL (shader->g) < 0) {
+            SCE_RDeleteShaderGLSL (shader->g);
+            SCEE_LogSrc ();
+            return SCE_ERROR;
+        }
+    }
+
     shader->p_glsl = SCE_RCreateProgram ();
     if (!shader->p_glsl) {
-        SCE_RDeleteShaderGLSL (shader->v);
+        SCE_RDeleteShaderGLSL (shader->g);
         SCE_RDeleteShaderGLSL (shader->p);
+        SCE_RDeleteShaderGLSL (shader->v);
         SCEE_LogSrc ();
         return SCE_ERROR;
     }
@@ -487,6 +441,8 @@ static int SCE_Shader_BuildGLSL (SCE_SShader *shader)
         SCE_RSetProgramShader (shader->p_glsl, shader->v, 1);
     if (shader->p)
         SCE_RSetProgramShader (shader->p_glsl, shader->p, 1);
+    if (shader->g)
+        SCE_RSetProgramShader (shader->p_glsl, shader->g, 1);
     if (SCE_RBuildProgram (shader->p_glsl) < 0) {
         SCE_RDeleteProgram (shader->p_glsl);
         SCE_RDeleteShaderGLSL (shader->v);
@@ -513,6 +469,13 @@ int SCE_Shader_Build (SCE_SShader *shader)
             return SCE_ERROR;
         }
     }
+    if (shader->gs_source || shader->gs_addsrc) {
+        shader->gs_source = SCE_String_CatDup (shader->gs_addsrc, shader->gs_source);
+        if (!shader->gs_source) {
+            SCEE_LogSrc ();
+            return SCE_ERROR;
+        }
+    }
 
     if (SCE_Shader_BuildGLSL (shader) < 0) {
         SCEE_LogSrc ();
@@ -533,11 +496,14 @@ int SCE_Shader_AddSource (SCE_SShader *shader, int type, const char *src)
     if (!src)                   /* lol? */
         return SCE_OK;
 
-    addsrc =
-    (type == SCE_PIXEL_SHADER) ? shader->ps_addsrc : shader->vs_addsrc;
+    switch (type) {
+    case SCE_VERTEX_SHADER: addsrc = shader->vs_addsrc; break;
+    case SCE_PIXEL_SHADER: addsrc = shader->ps_addsrc; break;
+    case SCE_GEOMETRY_SHADER: addsrc = shader->gs_addsrc; break;
+    }
 
     /* + 2 car, 1: retour chariot. 2: caractere de fin de chaine */
-    realen = strlen(src) + 2;
+    realen = strlen (src) + 2;
 
     if (addsrc) {
         first_alloc = 0;
@@ -556,12 +522,24 @@ int SCE_Shader_AddSource (SCE_SShader *shader, int type, const char *src)
     strcat (addsrc, src);
 
     /* affectation */
-    if (type == SCE_PIXEL_SHADER)
-        shader->ps_addsrc = addsrc;
-    else
-        shader->vs_addsrc = addsrc;
+    switch (type) {
+    case SCE_VERTEX_SHADER: shader->vs_addsrc = addsrc; break;
+    case SCE_PIXEL_SHADER: shader->ps_addsrc = addsrc; break;
+    case SCE_GEOMETRY_SHADER: shader->gs_addsrc = addsrc; break;
+    }
 
     return SCE_OK;
+}
+
+
+int SCE_Shader_InputPrimitive (SCE_SShader *shader, SCE_EPrimitiveType prim,
+                               int adj)
+{
+    return SCE_RSetProgramInputPrimitive (shader->p_glsl, prim, adj);
+}
+int SCE_Shader_OutputPrimitive (SCE_SShader *shader, SCE_EPrimitiveType prim)
+{
+    return SCE_RSetProgramOutputPrimitive (shader->p_glsl, prim);
 }
 
 
