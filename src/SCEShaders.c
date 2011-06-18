@@ -479,9 +479,6 @@ int SCE_Shader_AddSource (SCE_SShader *shader, int type, const char *src)
     int first_alloc = 1;
     char *addsrc = NULL;
 
-    if (!src)                   /* lol? */
-        return SCE_OK;
-
     switch (type) {
     case SCE_VERTEX_SHADER: addsrc = shader->vs_addsrc; break;
     case SCE_PIXEL_SHADER: addsrc = shader->ps_addsrc; break;
