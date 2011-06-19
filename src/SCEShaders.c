@@ -119,8 +119,15 @@ SCE_SShader* SCE_Shader_Create (void)
     shader = SCE_malloc (sizeof *shader);
     if (!shader)
         SCEE_LogSrc ();
-    else
+    else {
         SCE_Shader_Init (shader);
+        shader->p_glsl = SCE_RCreateProgram ();
+        if (!shader->p_glsl) {
+            SCE_free (shader);
+            SCEE_LogSrc ();
+            return NULL;
+        }
+    }
     return shader;
 }
 
@@ -415,14 +422,6 @@ static int SCE_Shader_BuildGLSL (SCE_SShader *shader)
         }
     }
 
-    shader->p_glsl = SCE_RCreateProgram ();
-    if (!shader->p_glsl) {
-        SCE_RDeleteShaderGLSL (shader->g);
-        SCE_RDeleteShaderGLSL (shader->p);
-        SCE_RDeleteShaderGLSL (shader->v);
-        SCEE_LogSrc ();
-        return SCE_ERROR;
-    }
     if (shader->v)
         SCE_RSetProgramShader (shader->p_glsl, shader->v, 1);
     if (shader->p)
