@@ -102,6 +102,9 @@ SCE_SShader* SCE_Shader_Load (const char*, int);
 /* construit un shader */
 int SCE_Shader_Build (SCE_SShader*);
 
+void SCE_Shader_SetupAttributesMapping (SCE_SShader*);
+void SCE_Shader_ActivateAttributesMapping (SCE_SShader*, int);
+
 /* ajoute un morceau de code source qui sera ajoute
    au debut du code source par defaut */
 int SCE_Shader_AddSource (SCE_SShader*, int, const char*);

@@ -473,6 +473,16 @@ int SCE_Shader_Build (SCE_SShader *shader)
 }
 
 
+void SCE_Shader_SetupAttributesMapping (SCE_SShader *shader)
+{
+    SCE_RSetupProgramAttributesMapping (shader->p_glsl);
+}
+void SCE_Shader_ActivateAttributesMapping (SCE_SShader *shader, int activate)
+{
+    SCE_RActivateProgramAttributesMapping (shader->p_glsl, activate);
+}
+
+
 int SCE_Shader_AddSource (SCE_SShader *shader, int type, const char *src)
 {
     size_t realen;
