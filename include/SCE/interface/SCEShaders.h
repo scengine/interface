@@ -51,27 +51,23 @@ struct sce_sshaderparam {
 
 typedef struct sce_sshader SCE_SShader;
 struct sce_sshader {
-    SCE_RShaderGLSL *v, *p, *g;  /* vertex/pixel/geometry shaders */
-    SCE_RProgram *p_glsl;        /* program GLSL */
+    SCE_RShaderGLSL *v, *p, *g;  /**< Vertex, pixel and geometry shaders */
+    SCE_RProgram *p_glsl;        /**< GLSL program */
 
-    char **res;                  /* ressources */
+    char **res;
 
-    /* sources principales */
     char *vs_source;
     char *ps_source;
     char *gs_source;
 
-    /* code source additif (defines, ...) */
     char *vs_addsrc;
     char *ps_addsrc;
     char *gs_addsrc;
-    int ready;                   /* true; le shader peut etre utilise */
+    int ready;
 
-    /* parametres a envoyer a chaque utilisation du shader (automatiques)
-       (pointeurs dont les donnees pointees sont susceptibles de changer) */
-    SCE_SList params_i;          /* entiers */
-    SCE_SList params_f;          /* flottants */
-    SCE_SList params_m;          /* matrices */
+    SCE_SList params_i;
+    SCE_SList params_f;
+    SCE_SList params_m;
 
     SCE_SSceneResource s_resource;
 };
@@ -89,17 +85,10 @@ void SCE_Shader_Delete (SCE_SShader*);
 SCE_SSceneResource* SCE_Shader_GetSceneResource (SCE_SShader*);
 int SCE_Shader_GetType (SCE_SShader*);
 
-/* charge (char**) un fichier contenant le code du vertex shader
-   et/ou le code du pixel shader (prefixes : [Vertex Shader] [Pixel Shader]) */
 void* SCE_Shader_LoadSourceFromFile (FILE*, const char*, void*);
 
-/* cree un shader a partir de deux fichiers, le premier contient le code du
-   vertex shader, le second le code du pixel shader. un des deux fichiers peut
-   contenir les deux types de code ensemble */
-/*SCE_SShader* SCE_Shader_CreateFromFile (const char*, const char*);*/
 SCE_SShader* SCE_Shader_Load (const char*, int);
 
-/* construit un shader */
 int SCE_Shader_Build (SCE_SShader*);
 
 void SCE_Shader_SetupAttributesMapping (SCE_SShader*);
@@ -108,17 +97,13 @@ void SCE_Shader_ActivateAttributesMapping (SCE_SShader*, int);
 void SCE_Shader_SetupMatricesMapping (SCE_SShader*);
 void SCE_Shader_ActivateMatricesMapping (SCE_SShader*, int);
 
-/* ajoute un morceau de code source qui sera ajoute
-   au debut du code source par defaut */
 int SCE_Shader_AddSource (SCE_SShader*, int, const char*);
 
 
 int SCE_Shader_InputPrimitive (SCE_SShader*, SCE_EPrimitiveType, int);
 int SCE_Shader_OutputPrimitive (SCE_SShader*, SCE_EPrimitiveType);
 
-/* retourne l'index d'une variable de shader */
 int SCE_Shader_GetIndex (SCE_SShader*, const char*);
-/* retourne l'index d'une variable d'attribut (fonctionne que pour GLSL) */
 int SCE_Shader_GetAttribIndex (SCE_SShader*, const char*);
 /*
 int SCE_Shader_GetParam(SCE_SShader*, const char*);
@@ -144,7 +129,6 @@ void SCE_Shader_SetParam4fv (int, size_t, float*);
 void SCE_Shader_SetMatrix3 (int, SCE_TMatrix3);
 void SCE_Shader_SetMatrix4 (int, SCE_TMatrix4);
 
-/* ajoute des parametres variables a envoyer a chaque utilisation du shader */
 int SCE_Shader_AddParamv (SCE_SShader*, const char*, void*);
 int SCE_Shader_AddParamfv (SCE_SShader*, const char*, int, int, void*);
 int SCE_Shader_AddMatrix (SCE_SShader*, const char*, int, void*);
