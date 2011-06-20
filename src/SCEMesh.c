@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 31/07/2009
-   updated: 31/10/2010 */
+   updated: 20/06/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -569,6 +569,7 @@ void SCE_Mesh_Use (SCE_SMesh *mesh)
  */
 void SCE_Mesh_Render (void)
 {
+    SCE_RSetMatrices ();
     render_func (mesh_bound->prim);
 }
 /**
@@ -578,6 +579,7 @@ void SCE_Mesh_Render (void)
  */
 void SCE_Mesh_RenderInstanced (SCEuint n_instances)
 {
+    SCE_RSetMatrices ();
     render_func_instanced (mesh_bound->prim, n_instances);
 }
 /**

@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/04/2008
-   updated: 08/07/2008 */
+   updated: 20/06/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -104,11 +104,9 @@ void SCE_Quad_MakeMatrixFromRectanglef (SCE_TMatrix4 mat, SCE_SFloatRect *r)
 void SCE_Quad_Draw (float x, float y, float w, float h)
 {
     SCE_TMatrix4 mat;
-    SCE_RPushMatrix ();
     SCE_Quad_MakeMatrix (mat, x, y, w, h);
-    SCE_RMultMatrix (mat);
+    SCE_RLoadMatrix (SCE_MAT_OBJECT, mat);
     SCE_Quad_DrawDefault ();
-    SCE_RPopMatrix ();
 }
 
 void SCE_Quad_DrawFromRectangle (SCE_SIntRect *r)

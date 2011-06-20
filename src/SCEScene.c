@@ -1012,10 +1012,8 @@ static void SCE_Scene_UseCamera (SCE_SCamera *cam)
 {
     SCE_RViewport (cam->viewport.x, cam->viewport.y,
                    cam->viewport.w, cam->viewport.h);
-    SCE_RSetActiveMatrix (SCE_MAT_PROJECTION);
-    SCE_RLoadMatrix (cam->proj);  /* NOTE: Load ou Mult ? */
-    SCE_RSetActiveMatrix (SCE_MAT_MODELVIEW);
-    SCE_RLoadMatrix (cam->finalview);  /* Load ou Mult ? */
+    SCE_RLoadMatrix (SCE_MAT_PROJECTION, cam->proj);
+    SCE_RLoadMatrix (SCE_MAT_CAMERA, cam->finalview);
 }
 
 /**
@@ -1050,12 +1048,7 @@ void SCE_Scene_Render (SCE_SScene *scene, SCE_SCamera *cam,
     }
     SCE_Scene_ClearBuffers (scene);
 
-    /* activation de la camera et mise en place des matrices */
-    SCE_RSetActiveMatrix (SCE_MAT_PROJECTION);
-    SCE_RPushMatrix ();
-    SCE_RLoadIdentityMatrix ();
-    SCE_RSetActiveMatrix (SCE_MAT_MODELVIEW);
-    SCE_RPushMatrix ();
+    /* activation de la camera */
     SCE_Scene_UseCamera (cam);
 
     /* render skybox (if any) */
@@ -1078,11 +1071,6 @@ void SCE_Scene_Render (SCE_SScene *scene, SCE_SCamera *cam,
     /* restauration des parametres par defaut */
     SCE_Light_Use (NULL);
     SCE_Light_ActivateLighting (SCE_FALSE);
-
-    SCE_RSetActiveMatrix (SCE_MAT_PROJECTION);
-    SCE_RPopMatrix ();
-    SCE_RSetActiveMatrix (SCE_MAT_MODELVIEW);
-    SCE_RPopMatrix ();
 
     if (rendertarget)
         SCE_Texture_RenderTo (NULL, 0);
@@ -1263,10 +1251,8 @@ static void SCE_Scene_DrawBB (SCE_SBoundingBox *box, SCE_TMatrix4 m)
     SCE_Matrix4_MulCopy (mat, m);
     SCE_Matrix4_MulScalev (mat, dim);
 
-    SCE_RPushMatrix ();
-    SCE_RMultMatrix (mat);
+    SCE_RLoadMatrix (SCE_MAT_OBJECT, mat);
     SCE_Mesh_Render ();
-    SCE_RPopMatrix ();
 }
 
 static void SCE_Scene_DrawInstBB (SCE_SSceneEntityInstance *inst)

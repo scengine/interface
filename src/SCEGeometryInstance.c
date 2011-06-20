@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 25/10/2008
-   updated: 02/11/2009 */
+   updated: 20/06/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -234,26 +234,24 @@ static void SCE_Instance_RenderSimple (SCE_SGeometryInstanceGroup *group)
     SCE_Mesh_Use (group->mesh);
     SCE_List_ForEach (it, &group->instances) {
         inst = SCE_List_GetData (it);
-        SCE_RPushMatrix ();
-        SCE_RMultMatrix (SCE_Node_GetFinalMatrix (inst->node));
+        SCE_RLoadMatrix (SCE_MAT_OBJECT, SCE_Node_GetFinalMatrix (inst->node));
         SCE_Mesh_Render ();
-        SCE_RPopMatrix ();
     }
 }
 
 static void SCE_Instance_RenderPseudo (SCE_SGeometryInstanceGroup *group)
 {
-    SCE_TMatrix4 modelview, final;
+    SCE_TMatrix4 camera, final;
     SCE_SListIterator *it = NULL;
     SCE_SGeometryInstance *inst = NULL;
 
-    SCE_RGetMatrix (SCE_MAT_MODELVIEW, modelview);
+    SCE_RGetMatrix (SCE_MAT_CAMERA, camera);
 
     SCE_Mesh_Use (group->mesh);
     SCE_List_ForEach (it, &group->instances) {
         inst = SCE_List_GetData (it);
         /* combine camera and object matrices */
-        SCE_Matrix4_Mul (modelview, SCE_Node_GetFinalMatrix(inst->node), final);
+        SCE_Matrix4_Mul (camera, SCE_Node_GetFinalMatrix (inst->node), final);
         /* set persistent vertex attributes */ /* TODO: pouha */
         glVertexAttrib4fv (group->attrib1, &final[0]);
         glVertexAttrib4fv (group->attrib2, &final[4]);

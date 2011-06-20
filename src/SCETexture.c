@@ -678,27 +678,14 @@ static void SCE_Texture_RenderQuad (SCE_SFloatRect *r)
     SCE_TMatrix4 mat;
     /* mise en place des matrices */
     if (r) {
-        SCE_RSetActiveMatrix (SCE_MAT_TEXTURE);
-        SCE_RPushMatrix ();
         SCE_Quad_MakeMatrixFromRectanglef (mat, r);
-        SCE_RLoadMatrix (mat);
+        SCE_RLoadMatrix (SCE_MAT_TEXTURE, mat);
     }
-    SCE_RSetActiveMatrix (SCE_MAT_MODELVIEW);
-    SCE_RPushMatrix ();
-    SCE_RLoadIdentityMatrix ();
-    SCE_RSetActiveMatrix (SCE_MAT_PROJECTION);
-    SCE_RPushMatrix ();
-    SCE_RLoadIdentityMatrix ();
+    SCE_RLoadMatrix (SCE_MAT_CAMERA, sce_matrix4_id);
+    SCE_RLoadMatrix (SCE_MAT_OBJECT, sce_matrix4_id);
+    SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
 
     SCE_Quad_Draw (-1., -1., 2., 2.);
-
-    SCE_RPopMatrix ();
-    if (r) {
-        SCE_RSetActiveMatrix (SCE_MAT_TEXTURE);
-        SCE_RPopMatrix ();
-    }
-    SCE_RSetActiveMatrix (SCE_MAT_MODELVIEW);
-    SCE_RPopMatrix ();
 }
 static void SCE_Texture_Set (SCE_STexture*);
 /**
@@ -763,9 +750,8 @@ void SCE_Texture_Blitf (SCE_SFloatRect *rdst, SCE_STexture *dst,
 static void SCE_Texture_Set (SCE_STexture *tex)
 {
     SCE_RUseTexture (tex->tex, tex->unit);
-    SCE_RSetActiveMatrix (SCE_MAT_TEXTURE);
-    SCE_RLoadMatrix (tex->matrix); /* force matrix initialisation */
-    SCE_RSetActiveMatrix (SCE_MAT_MODELVIEW);
+    /* force matrix initialisation */
+    SCE_RLoadMatrix (SCE_MAT_TEXTURE, tex->matrix);
 }
 
 /**
