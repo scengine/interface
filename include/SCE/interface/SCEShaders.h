@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 18/06/2011 */
+   updated: 20/06/2011 */
 
 #ifndef SCESHADERS_H
 #define SCESHADERS_H
@@ -104,6 +104,9 @@ int SCE_Shader_Build (SCE_SShader*);
 
 void SCE_Shader_SetupAttributesMapping (SCE_SShader*);
 void SCE_Shader_ActivateAttributesMapping (SCE_SShader*, int);
+
+void SCE_Shader_SetupMatricesMapping (SCE_SShader*);
+void SCE_Shader_ActivateMatricesMapping (SCE_SShader*, int);
 
 /* ajoute un morceau de code source qui sera ajoute
    au debut du code source par defaut */

@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 18/06/2011 */
+   updated: 20/06/2011 */
 
 #include <ctype.h>
 #include <SCE/utils/SCEUtils.h>
@@ -479,6 +479,15 @@ void SCE_Shader_SetupAttributesMapping (SCE_SShader *shader)
 void SCE_Shader_ActivateAttributesMapping (SCE_SShader *shader, int activate)
 {
     SCE_RActivateProgramAttributesMapping (shader->p_glsl, activate);
+}
+
+void SCE_Shader_SetupMatricesMapping (SCE_SShader *shader)
+{
+    SCE_RSetupProgramMatricesMapping (shader->p_glsl);
+}
+void SCE_Shader_ActivateMatricesMapping (SCE_SShader *shader, int activate)
+{
+    SCE_RActivateProgramMatricesMapping (shader->p_glsl, activate);
 }
 
 
