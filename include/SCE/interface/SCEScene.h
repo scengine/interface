@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2007
-   updated: 06/11/2009 */
+   updated: 24/06/2011 */
 
 #ifndef SCESCENE_H
 #define SCESCENE_H
@@ -154,6 +154,7 @@ int SCE_Scene_SetupDefaultBatching (SCE_SScene*);
 void SCE_Scene_ClearBuffers (SCE_SScene*);
 
 void SCE_Scene_Update (SCE_SScene*, SCE_SCamera*, SCE_STexture*, SCEuint);
+void SCE_Scene_UseCamera (SCE_SCamera*);
 void SCE_Scene_Render (SCE_SScene*, SCE_SCamera*, SCE_STexture*, int);
 
 typedef struct sce_spickresult SCE_SPickResult;

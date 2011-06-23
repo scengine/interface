@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2008
-   updated: 29/02/2010 */
+   updated: 24/06/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -1007,13 +1007,19 @@ static void SCE_Scene_RenderSkybox (SCE_SScene *scene, SCE_SCamera *cam)
     SCE_Texture_Flush ();
     SCE_Shader_Use (NULL);
 }
-/* TODO: cheat. */
-static void SCE_Scene_UseCamera (SCE_SCamera *cam)
+
+
+/**
+ * \brief Setup matrices according to the given camera
+ * \param cam a camera
+ * \sa SCE_RLoadMatrix(), SCE_RViewport()
+ */
+void SCE_Scene_UseCamera (SCE_SCamera *cam)
 {
-    SCE_RViewport (cam->viewport.x, cam->viewport.y,
-                   cam->viewport.w, cam->viewport.h);
-    SCE_RLoadMatrix (SCE_MAT_PROJECTION, cam->proj);
-    SCE_RLoadMatrix (SCE_MAT_CAMERA, cam->finalview);
+    SCE_SViewport *viewport = SCE_Camera_GetViewport (cam);
+    SCE_RViewport (viewport->x, viewport->y, viewport->w, viewport->h);
+    SCE_RLoadMatrix (SCE_MAT_PROJECTION, SCE_Camera_GetProj (cam));
+    SCE_RLoadMatrix (SCE_MAT_CAMERA, SCE_Camera_GetFinalView (cam));
 }
 
 /**
