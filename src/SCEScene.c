@@ -150,7 +150,7 @@ static void SCE_Scene_Init (SCE_SScene *scene)
     scene->octree = NULL;
     scene->contribution_size = 0.01f;
 
-    for (i = 0; i < SCE_SCENE_NUM_RESOURCE_GROUP; i++)
+    for (i = 0; i < SCE_NUM_SCENE_RESOURCE_GROUPS; i++)
         scene->rgroups[i] = NULL;
 
     scene->selected = NULL;
@@ -211,7 +211,7 @@ SCE_SScene* SCE_Scene_Create (void)
         goto failure;
     if (!(scene->octree = SCE_Octree_Create ()))
         goto failure;
-    for (i = 0; i < SCE_SCENE_NUM_RESOURCE_GROUP; i++) {
+    for (i = 0; i < SCE_NUM_SCENE_RESOURCE_GROUPS; i++) {
         if (!(scene->rgroups[i] = SCE_SceneResource_CreateGroup ()))
             goto failure;
         SCE_SceneResource_SetGroupType (scene->rgroups[i], i);
@@ -248,7 +248,7 @@ void SCE_Scene_Delete (SCE_SScene *scene)
         SCE_List_Clear (&scene->cameras);
         SCE_List_Clear (&scene->lights);
         SCE_List_Clear (&scene->entities);
-        for (i = 0; i < SCE_SCENE_NUM_RESOURCE_GROUP; i++)
+        for (i = 0; i < SCE_NUM_SCENE_RESOURCE_GROUPS; i++)
             SCE_SceneResource_DeleteGroup (scene->rgroups[i]);
         SCE_Octree_DeleteRecursive (scene->octree);
         SCE_Node_Delete (scene->rootnode);
@@ -623,16 +623,16 @@ void SCE_Scene_AddCamera (SCE_SScene *scene, SCE_SCamera *camera)
 
 /**
  * \brief Adds a resource to a scene
- * \param scene the scene into which add the resource
- * \param id ID of the scene group into which add the resource (e.g.
- *           SCE_SCENE_MATERIALS_GROUP)
+ * \param scene a scene
+ * \param group resource type of \p res
  * \param res the resource to add
  * \todo remove it, use AddTexture, AddShader, etc.
  * \sa SCE_Scene_RemoveResource()
  */
-void SCE_Scene_AddResource (SCE_SScene *scene, int id, SCE_SSceneResource *res)
+void SCE_Scene_AddResource (SCE_SScene *scene, SCE_ESceneResourceGroup group,
+                            SCE_SSceneResource *res)
 {
-    SCE_SceneResource_AddResource (scene->rgroups[id], res);
+    SCE_SceneResource_AddResource (scene->rgroups[group], res);
 }
 /**
  * \brief Removes a resource from a scene (except that no scene parameter is
@@ -756,7 +756,7 @@ int SCE_Scene_MakeOctree (SCE_SScene *scene, unsigned int rec,
 
 int SCE_Scene_SetupBatching (SCE_SScene *scene, unsigned int n, int *order)
 {
-    if (SCE_Batch_SortEntities (&scene->entities, SCE_SCENE_NUM_RESOURCE_GROUP,
+    if (SCE_Batch_SortEntities (&scene->entities, SCE_NUM_SCENE_RESOURCE_GROUPS,
                                 scene->rgroups, 2, order) < 0) {
         SCEE_LogSrc ();
         return SCE_ERROR;
@@ -767,7 +767,7 @@ int SCE_Scene_SetupBatching (SCE_SScene *scene, unsigned int n, int *order)
 int SCE_Scene_SetupDefaultBatching (SCE_SScene *scene)
 {
     int order[] = {SCE_SCENE_SHADERS_GROUP, SCE_SCENE_TEXTURES0_GROUP};
-    if (SCE_Batch_SortEntities (&scene->entities, SCE_SCENE_NUM_RESOURCE_GROUP,
+    if (SCE_Batch_SortEntities (&scene->entities, SCE_NUM_SCENE_RESOURCE_GROUPS,
                                 scene->rgroups, 2, order) < 0) {
         SCEE_LogSrc ();
         return SCE_ERROR;

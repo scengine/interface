@@ -43,10 +43,12 @@ extern "C" {
  * @{
  */
 
-#define SCE_SCENE_SHADERS_GROUP 0
-#define SCE_SCENE_MATERIALS_GROUP 1
-#define SCE_SCENE_TEXTURES0_GROUP 2
-#define SCE_SCENE_NUM_RESOURCE_GROUP 3
+typedef enum {
+    SCE_SCENE_SHADERS_GROUP = 0,
+    SCE_SCENE_MATERIALS_GROUP,
+    SCE_SCENE_TEXTURES0_GROUP,
+    SCE_NUM_SCENE_RESOURCE_GROUPS
+} SCE_ESceneResourceGroup;
 
 /* default octree size */
 #define SCE_SCENE_OCTREE_SIZE (16384.0)
@@ -84,7 +86,7 @@ struct sce_sscene
     float contribution_size;    /**< Contribution culling size */
 
     /** All the resources of the scene */
-    SCE_SSceneResourceGroup *rgroups[SCE_SCENE_NUM_RESOURCE_GROUP];
+    SCE_SSceneResourceGroup *rgroups[SCE_NUM_SCENE_RESOURCE_GROUPS];
 
     SCE_SList *selected;        /**< Selected instances */
     SCE_SList *selected_join;   /**< Where to join lists */
@@ -137,7 +139,8 @@ void SCE_Scene_RemoveModel (SCE_SScene*, SCE_SModel*);
 void SCE_Scene_AddLight (SCE_SScene*, SCE_SLight*);
 void SCE_Scene_AddCamera (SCE_SScene*, SCE_SCamera*);
 
-void SCE_Scene_AddResource (SCE_SScene*, int, SCE_SSceneResource*);
+void SCE_Scene_AddResource (SCE_SScene*, SCE_ESceneResourceGroup,
+                            SCE_SSceneResource*);
 void SCE_Scene_RemoveResource (SCE_SSceneResource*);
 
 void SCE_Scene_SetSkybox (SCE_SScene*, SCE_SSkybox*);
