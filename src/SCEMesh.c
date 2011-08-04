@@ -569,7 +569,6 @@ void SCE_Mesh_Use (SCE_SMesh *mesh)
  */
 void SCE_Mesh_Render (void)
 {
-    SCE_RSetMatrices ();
     render_func (mesh_bound->prim);
 }
 /**
@@ -579,7 +578,6 @@ void SCE_Mesh_Render (void)
  */
 void SCE_Mesh_RenderInstanced (SCEuint n_instances)
 {
-    SCE_RSetMatrices ();
     render_func_instanced (mesh_bound->prim, n_instances);
 }
 /**
