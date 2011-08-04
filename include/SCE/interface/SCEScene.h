@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2007
-   updated: 24/06/2011 */
+   updated: 04/08/2011 */
 
 #ifndef SCESCENE_H
 #define SCESCENE_H
@@ -33,6 +33,7 @@
 #include "SCE/interface/SCESceneEntity.h"
 #include "SCE/interface/SCEModel.h"
 #include "SCE/interface/SCESkybox.h"
+#include "SCE/interface/SCEDeferred.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -107,6 +108,8 @@ struct sce_sscene
 
     SCE_SMesh *bbmesh;
     SCE_SMesh *bsmesh;
+
+    SCE_SDeferred *deferred;
 };
 
 /** @} */

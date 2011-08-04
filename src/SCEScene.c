@@ -171,8 +171,11 @@ static void SCE_Scene_Init (SCE_SScene *scene)
 
     scene->bbmesh = NULL;
     scene->bsmesh = NULL;
+
+    scene->deferred = NULL;
 }
 
+/* TODO: add bsmesh volume */
 static int SCE_Scene_MakeBoundingVolumes (SCE_SScene *scene)
 {
     SCE_SBox box;
@@ -895,7 +898,7 @@ static void SCE_Scene_FlushEntities (SCE_SScene *scene)
  * \param scene the scene to prepare
  * \param camera the camera used for the render, can be NULL then a default
  *        camera (the same one that SCE_Camera_Create() returns) is used
- * \param rendertarget the render target
+ * \param target the render target
  * \param cubeface if the render target is a cubemap, it is used to determine
  *        which face is the render target. Otherwise, if the render target is
  *        not a cubmap, this parameter is useless.
@@ -909,11 +912,11 @@ static void SCE_Scene_FlushEntities (SCE_SScene *scene)
  * \sa SCE_Scene_Render(), SCE_Texture_RenderTo()
  */
 void SCE_Scene_Update (SCE_SScene *scene, SCE_SCamera *camera,
-                       SCE_STexture *rendertarget, SCEuint cubeface)
+                       SCE_STexture *target, SCEuint cubeface)
 {
     int fc;
 
-    scene->rendertarget = rendertarget;
+    scene->rendertarget = target;
     scene->cubeface = cubeface;
     scene->camera = camera;
 
@@ -1022,42 +1025,22 @@ void SCE_Scene_UseCamera (SCE_SCamera *cam)
     SCE_RLoadMatrix (SCE_MAT_CAMERA, SCE_Camera_GetFinalView (cam));
 }
 
-/**
- * \brief Renders a scene into a render target
- * \param scene a scene
- * \param cam the camera used for the render or NULL to keep the current one.
- * \param rendertarget the render target or NULL to keep the current one. If
- *        both this parameter and the current render targed are NULL, the
- *        default OpenGL's render buffer will be used as the render target.
- * \param cubeface see SCE_Scene_Update()'s cubeface parameter.
- * \see SCE_Scene_Update()
- */
-void SCE_Scene_Render (SCE_SScene *scene, SCE_SCamera *cam,
-                       SCE_STexture *rendertarget, int cubeface)
+
+static void SCE_Scene_ForwardRender (SCE_SScene *scene, SCE_SCamera *cam,
+                                     SCE_STexture *target, int cubeface)
 {
     SCE_SListIterator *it = NULL;
 
-    if (!cam)
-        cam = scene->camera;
-    if (!rendertarget)
-        rendertarget = scene->rendertarget;
-    if (cubeface < 0)
-        cubeface = scene->cubeface;
+    SCE_Texture_RenderTo (target, cubeface);
 
-    /* mise en place du render target */
-    SCE_Texture_RenderTo (rendertarget, cubeface);
-
-    /* preparation des tampons */
     if (scene->skybox) {
         scene->states.clearcolor = SCE_FALSE;
         scene->states.cleardepth = SCE_TRUE;
     }
     SCE_Scene_ClearBuffers (scene);
 
-    /* activation de la camera */
     SCE_Scene_UseCamera (cam);
 
-    /* render skybox (if any) */
     if (scene->skybox) {
         SCE_Light_ActivateLighting (SCE_FALSE);
         SCE_Scene_RenderSkybox (scene, cam);
@@ -1067,21 +1050,46 @@ void SCE_Scene_Render (SCE_SScene *scene, SCE_SCamera *cam,
         SCE_Light_ActivateLighting (SCE_FALSE);
     else {
         SCE_Light_ActivateLighting (SCE_TRUE);
-        /* TODO: activation de toutes les lumières (bourrin & temporaire) */
+        /* TODO: only enable lights "close" (which appear big) to the camera */
         SCE_List_ForEach (it, &scene->lights)
             SCE_Light_Use (SCE_List_GetData (it));
     }
 
     SCE_Scene_RenderEntities (scene);
 
-    /* restauration des parametres par defaut */
     SCE_Light_Use (NULL);
     SCE_Light_ActivateLighting (SCE_FALSE);
 
-    if (rendertarget)
+    if (target)
         SCE_Texture_RenderTo (NULL, 0);
 
     SCE_RFlush ();
+}
+
+/**
+ * \brief Renders a scene into a render target
+ * \param scene a scene
+ * \param cam the camera used for the render or NULL to keep the current one.
+ * \param target the render target or NULL to keep the current one. If
+ *        both this parameter and the current render targed are NULL, the
+ *        default OpenGL's render buffer will be used as the render target.
+ * \param cubeface see SCE_Scene_Update()'s cubeface parameter.
+ * \see SCE_Scene_Update()
+ */
+void SCE_Scene_Render (SCE_SScene *scene, SCE_SCamera *cam,
+                       SCE_STexture *target, int cubeface)
+{
+    if (!cam)
+        cam = scene->camera;
+    if (!target)
+        target = scene->rendertarget;
+    if (cubeface < 0)
+        cubeface = scene->cubeface;
+
+    if (scene->deferred)
+        SCE_Deferred_Render (scene->deferred, scene, cam, target, cubeface);
+    else
+        SCE_Scene_ForwardRender (scene, cam, target, cubeface);
 }
 
 
