@@ -7,6 +7,7 @@ sce_include_interface_HEADERS = SCEBatch.h \
                                 SCEMesh.h \
                                 SCEQuad.h \
                                 SCESceneEntity.h \
+                                SCEDeferred.h \
                                 SCEScene.h \
                                 SCESceneResource.h \
                                 SCESkybox.h \
