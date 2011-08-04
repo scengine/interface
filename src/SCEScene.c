@@ -1056,6 +1056,7 @@ void SCE_Scene_Render (SCE_SScene *scene, SCE_SCamera *cam,
 
     /* activation de la camera */
     SCE_Scene_UseCamera (cam);
+    SCE_RSetMatrices ();
 
     /* render skybox (if any) */
     if (scene->skybox) {
