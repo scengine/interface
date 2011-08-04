@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 20/06/2011 */
+   updated: 01/08/2011 */
 
 #include <ctype.h>
 #include <SCE/utils/SCEUtils.h>
@@ -95,12 +95,15 @@ static void SCE_Shader_DeleteParam (void *p)
 void SCE_Shader_Init (SCE_SShader *shader)
 {
     shader->v = shader->p = shader->g = NULL;
+    shader->e = shader->c = NULL;
     shader->p_glsl = NULL;
 
     shader->ready = SCE_FALSE;
     shader->res = NULL;
     shader->vs_source = shader->ps_source = shader->gs_source = NULL;
+    shader->es_source = shader->cs_source = NULL;
     shader->vs_addsrc = shader->ps_addsrc = shader->gs_addsrc = NULL;
+    shader->es_addsrc = shader->cs_addsrc = NULL;
 
     SCE_List_Init (&shader->params_i);
     SCE_List_Init (&shader->params_f);
@@ -142,14 +145,21 @@ void SCE_Shader_Delete (SCE_SShader *shader)
         SCE_RDeleteShaderGLSL (shader->v);
         SCE_RDeleteShaderGLSL (shader->p);
         SCE_RDeleteShaderGLSL (shader->g);
+        SCE_RDeleteShaderGLSL (shader->e);
+        SCE_RDeleteShaderGLSL (shader->c);
 
         SCE_free (shader->vs_addsrc);
         SCE_free (shader->ps_addsrc);
         SCE_free (shader->gs_addsrc);
+        SCE_free (shader->es_addsrc);
+        SCE_free (shader->cs_addsrc);
 
         if (SCE_Resource_Free (shader->res)) {
             SCE_free (shader->res[0]);
             SCE_free (shader->res[1]);
+            SCE_free (shader->res[2]);
+            SCE_free (shader->res[3]);
+            SCE_free (shader->res[4]);
             SCE_free (shader->res);
         }
 
@@ -234,16 +244,19 @@ static char* SCE_Shader_LoadSource (FILE *fp, long end)
 static void* SCE_Shader_LoadSources (FILE *fp, const char *fname)
 {
     char **srcs = NULL;
-    long pos[3], begin[3], end[3]; /* mess. */
+    /* mess. */
+    long pos[SCE_NUM_SHADER_TYPES];
+    long begin[SCE_NUM_SHADER_TYPES];
+    long end[SCE_NUM_SHADER_TYPES];
     int type;
     int i;
 
-    if (!(srcs = SCE_malloc (3 * sizeof *srcs))) {
+    if (!(srcs = SCE_malloc (SCE_NUM_SHADER_TYPES * sizeof *srcs))) {
         SCEE_LogSrc ();
         return NULL;
     }
 
-    for (i = 0; i < 3; i++) {
+    for (i = 0; i < SCE_NUM_SHADER_TYPES; i++) {
         srcs[i] = NULL;
         pos[i] = begin[i] = end[i] = EOF;
     }
@@ -266,10 +279,22 @@ static void* SCE_Shader_LoadSources (FILE *fp, const char *fname)
         rewind (fp);
     }
 
+    if (SCE_Shader_SetPosFile (fp, "[evaluation shader]", SCE_FALSE)) {
+        pos[3] = ftell (fp);
+        begin[3] = pos[3] + 19; /* 19 = strlen("[evaluation shader]"); */
+        rewind (fp);
+    }
+
+    if (SCE_Shader_SetPosFile (fp, "[control shader]", SCE_FALSE)) {
+        pos[4] = ftell (fp);
+        begin[4] = pos[4] + 16; /* 16 = strlen("[control shader]"); */
+        rewind (fp);
+    }
+
     /* finding blocks (mess) */
-    for (i = 0; i < 3; i++) {
+    for (i = 0; i < SCE_NUM_SHADER_TYPES; i++) {
         int j;
-        for (j = 0; j < 3; j++) {
+        for (j = 0; j < SCE_NUM_SHADER_TYPES; j++) {
             if (j == i) continue;
             if (pos[j] > pos[i]) {
                 if (end[i] == EOF || (pos[j] < end[i] && pos[j] != EOF))
@@ -278,14 +303,10 @@ static void* SCE_Shader_LoadSources (FILE *fp, const char *fname)
         }
     }
 
-    fseek (fp, begin[0], SEEK_SET);
-    srcs[0] = SCE_Shader_LoadSource (fp, end[0]);
-
-    fseek (fp, begin[1], SEEK_SET);
-    srcs[1] = SCE_Shader_LoadSource (fp, end[1]);
-
-    fseek (fp, begin[2], SEEK_SET);
-    srcs[2] = SCE_Shader_LoadSource (fp, end[2]);
+    for (i = 0; i < SCE_NUM_SHADER_TYPES; i++) {
+        fseek (fp, begin[i], SEEK_SET);
+        srcs[i] = SCE_Shader_LoadSource (fp, end[i]);
+    }
 
     return srcs;
 }
@@ -306,9 +327,8 @@ void* SCE_Shader_LoadSourceFromFile (FILE *fp, const char *fname, void *uusd)
         return NULL;
     }
 
-    for (j = 0; j < 3; j++)
-        if (srcs[j] && (ptr = strstr (srcs[j], SCE_SHADER_INCLUDE)))
-        {
+    for (j = 0; j < SCE_NUM_SHADER_TYPES; j++)
+        if (srcs[j] && (ptr = strstr (srcs[j], SCE_SHADER_INCLUDE))) {
             size_t len, diff = ptr - srcs[j];
             char *tsrc = NULL;
             char **isrcs = NULL;
@@ -367,6 +387,8 @@ static void* SCE_Shader_LoadResource (const char *name, int force, void *data)
     shader->vs_source = srcs[0];
     shader->ps_source = srcs[1];
     shader->gs_source = srcs[2];
+    shader->es_source = srcs[3];
+    shader->cs_source = srcs[4];
 
     return shader;
 }
@@ -378,59 +400,56 @@ SCE_SShader* SCE_Shader_Load (const char *name, int force)
 }
 
 
+static int SCE_Shader_BuildShader (SCE_RShaderType type, const char *source,
+                                   SCE_RShaderGLSL **shader)
+{
+    if (source) {
+        *shader = SCE_RCreateShaderGLSL (type);
+        if (!*shader) {
+            SCEE_LogSrc ();
+            return SCE_ERROR;
+        }
+        SCE_RSetShaderGLSLSource (*shader, source);
+        if (SCE_RBuildShaderGLSL (*shader) < 0) {
+            SCE_RDeleteShaderGLSL (*shader);
+            SCEE_LogSrc ();
+            return SCE_ERROR;
+        }
+    }
+    return SCE_OK;
+}
+
 static int SCE_Shader_BuildGLSL (SCE_SShader *shader)
 {
-    if (shader->vs_source) {
-        shader->v = SCE_RCreateShaderGLSL (SCE_VERTEX_SHADER);
-        if (!shader->v) {
-            SCEE_LogSrc ();
-            return SCE_ERROR;
-        }
-        SCE_RSetShaderGLSLSource (shader->v, shader->vs_source);
-        if (SCE_RBuildShaderGLSL (shader->v) < 0) {
-            SCE_RDeleteShaderGLSL (shader->v);
-            SCEE_LogSrc ();
-            return SCE_ERROR;
-        }
-    }
-
-    if (shader->ps_source) {
-        shader->p = SCE_RCreateShaderGLSL (SCE_PIXEL_SHADER);
-        if (!shader->p) {
-            SCEE_LogSrc ();
-            return SCE_ERROR;
-        }
-        SCE_RSetShaderGLSLSource (shader->p, shader->ps_source);
-        if (SCE_RBuildShaderGLSL (shader->p) < 0) {
-            SCE_RDeleteShaderGLSL (shader->p);
-            SCEE_LogSrc ();
-            return SCE_ERROR;
-        }
-    }
-
-    if (shader->gs_source) {
-        shader->g = SCE_RCreateShaderGLSL (SCE_GEOMETRY_SHADER);
-        if (!shader->g) {
-            SCEE_LogSrc ();
-            return SCE_ERROR;
-        }
-        SCE_RSetShaderGLSLSource (shader->g, shader->gs_source);
-        if (SCE_RBuildShaderGLSL (shader->g) < 0) {
-            SCE_RDeleteShaderGLSL (shader->g);
-            SCEE_LogSrc ();
-            return SCE_ERROR;
-        }
-    }
+    if (SCE_Shader_BuildShader (SCE_VERTEX_SHADER, shader->vs_source,
+                                &shader->v) < 0) return SCE_ERROR;
+    if (SCE_Shader_BuildShader (SCE_TESS_CONTROL_SHADER, shader->cs_source,
+                                &shader->c) < 0) return SCE_ERROR;
+    if (SCE_Shader_BuildShader (SCE_TESS_EVALUATION_SHADER, shader->es_source,
+                                &shader->e) < 0) return SCE_ERROR;
+    if (SCE_Shader_BuildShader (SCE_GEOMETRY_SHADER, shader->gs_source,
+                                &shader->g) < 0) return SCE_ERROR;
+    if (SCE_Shader_BuildShader (SCE_PIXEL_SHADER, shader->ps_source,
+                                &shader->p) < 0) return SCE_ERROR;
 
     if (shader->v)
-        SCE_RSetProgramShader (shader->p_glsl, shader->v, 1);
-    if (shader->p)
-        SCE_RSetProgramShader (shader->p_glsl, shader->p, 1);
+        SCE_RSetProgramShader (shader->p_glsl, shader->v, SCE_TRUE);
+    if (shader->c)
+        SCE_RSetProgramShader (shader->p_glsl, shader->c, SCE_TRUE);
+    if (shader->e)
+        SCE_RSetProgramShader (shader->p_glsl, shader->e, SCE_TRUE);
     if (shader->g)
-        SCE_RSetProgramShader (shader->p_glsl, shader->g, 1);
+        SCE_RSetProgramShader (shader->p_glsl, shader->g, SCE_TRUE);
+    if (shader->p)
+        SCE_RSetProgramShader (shader->p_glsl, shader->p, SCE_TRUE);
+
+
     if (SCE_RBuildProgram (shader->p_glsl) < 0) {
         SCE_RDeleteProgram (shader->p_glsl);
         SCE_RDeleteShaderGLSL (shader->v);
+        SCE_RDeleteShaderGLSL (shader->c);
+        SCE_RDeleteShaderGLSL (shader->e);
+        SCE_RDeleteShaderGLSL (shader->g);
         SCE_RDeleteShaderGLSL (shader->p);
         SCEE_LogSrc ();
         return SCE_ERROR;
@@ -457,6 +476,20 @@ int SCE_Shader_Build (SCE_SShader *shader)
     if (shader->gs_source || shader->gs_addsrc) {
         shader->gs_source = SCE_String_CatDup (shader->gs_addsrc, shader->gs_source);
         if (!shader->gs_source) {
+            SCEE_LogSrc ();
+            return SCE_ERROR;
+        }
+    }
+    if (shader->cs_source || shader->cs_addsrc) {
+        shader->cs_source = SCE_String_CatDup (shader->cs_addsrc, shader->cs_source);
+        if (!shader->cs_source) {
+            SCEE_LogSrc ();
+            return SCE_ERROR;
+        }
+    }
+    if (shader->es_source || shader->es_addsrc) {
+        shader->es_source = SCE_String_CatDup (shader->es_addsrc, shader->es_source);
+        if (!shader->es_source) {
             SCEE_LogSrc ();
             return SCE_ERROR;
         }
@@ -488,6 +521,11 @@ void SCE_Shader_SetupMatricesMapping (SCE_SShader *shader)
 void SCE_Shader_ActivateMatricesMapping (SCE_SShader *shader, int activate)
 {
     SCE_RActivateProgramMatricesMapping (shader->p_glsl, activate);
+}
+
+void SCE_Shader_SetPatchVertices (SCE_SShader *shader, int vertices)
+{
+    SCE_RSetProgramPatchVertices (shader->p_glsl, vertices);
 }
 
 
