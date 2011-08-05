@@ -25,13 +25,19 @@
 #include "SCE/interface/SCEScene.h"
 #include "SCE/interface/SCEDeferred.h"
 
+#define SCE_DEFERRED_COLOR_TARGET_NAME "sce_deferred_color_map"
+#define SCE_DEFERRED_DEPTH_TARGET_NAME "sce_deferred_depth_map"
+#define SCE_DEFERRED_NORMAL_TARGET_NAME "sce_deferred_normal_map"
+#define SCE_DEFERRED_SPECULAR_TARGET_NAME "sce_deferred_specular_map"
+#define SCE_DEFERRED_EMISSIVE_TARGET_NAME "sce_deferred_emissive_map"
+
 /* shader uniform's names */
 static const char *sce_deferred_target_names[SCE_NUM_DEFERRED_TARGETS] = {
-    "sce_deferred_color_map",
-    "sce_deferred_depth_map",
-    "sce_deferred_normal_map",
-    "sce_deferred_specular_map",
-    "sce_deferred_emissive_map"
+    SCE_DEFERRED_COLOR_TARGET_NAME,
+    SCE_DEFERRED_DEPTH_TARGET_NAME,
+    SCE_DEFERRED_NORMAL_TARGET_NAME,
+    SCE_DEFERRED_SPECULAR_TARGET_NAME,
+    SCE_DEFERRED_EMISSIVE_TARGET_NAME
 };
 
 
