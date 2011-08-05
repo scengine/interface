@@ -53,6 +53,7 @@ static void SCE_Deferred_Init (SCE_SDeferred *def)
     def->amb_color[0] = def->amb_color[1] = def->amb_color[2] = 0.1;
 
     def->amb_shader = NULL;
+    def->skybox_shader = NULL;
     def->point_shader = NULL;
     def->spot_shader = NULL;
     def->sun_shader = NULL;
@@ -64,6 +65,7 @@ static void SCE_Deferred_Clear (SCE_SDeferred *def)
         SCE_Texture_Delete (def->targets[i]);
 
     SCE_Shader_Delete (def->amb_shader);
+    SCE_Shader_Delete (def->skybox_shader);
     SCE_Shader_Delete (def->point_shader);
     SCE_Shader_Delete (def->spot_shader);
     SCE_Shader_Delete (def->sun_shader);
@@ -109,13 +111,42 @@ static const char *sce_amb_vs =
     "}";
 static const char *sce_amb_ps =
     "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
-    "uniform vec3 sce_deferred_ambient_color;"
+    "uniform vec3 "SCE_DEFERRED_AMBIENT_COLOR_NAME";"
     "varying vec2 tc;"
     "void main (void)"
     "{"
-    "gl_FragColor = vec4 (sce_deferred_ambient_color, 1.0)"
+    "gl_FragColor = vec4 ("SCE_DEFERRED_AMBIENT_COLOR_NAME", 1.0)"
     "               * texture2D ("SCE_DEFERRED_COLOR_TARGET_NAME", tc);"
     "}";
+
+
+static const char *sce_skybox_vs =
+    "uniform mat4 sce_modelviewmatrix;"
+    "uniform mat4 sce_projectionmatrix;"
+    "varying vec3 tc;"
+    "varying vec4 pos;"
+    "void main (void)"
+    "{"
+    "tc = gl_MultiTexCoord0.xyz;"
+    "pos = sce_projectionmatrix * sce_modelviewmatrix * gl_Vertex;"
+    "gl_Position = pos;"
+    "}";
+static const char *sce_skybox_ps =
+    "uniform samplerCube "SCE_DEFERRED_SKYBOX_MAP_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_DEPTH_TARGET_NAME";"
+    "varying vec3 tc;"
+    "varying vec4 pos;"         /* for screen position */
+    "void main (void)"
+    "{"
+    "vec2 coord = pos.xy / (pos.w * 2.0);"
+    "coord += vec2 (0.5);"
+    "float depth = texture2D ("SCE_DEFERRED_DEPTH_TARGET_NAME", coord).x;"
+    "if (depth > 0.9999)"
+    "  gl_FragColor = textureCube ("SCE_DEFERRED_SKYBOX_MAP_NAME", tc);"
+    "else"
+    "  discard;"
+    "}";
+
 
 int SCE_Deferred_Build (SCE_SDeferred *def, const char *fname)
 {
@@ -189,6 +220,24 @@ int SCE_Deferred_Build (SCE_SDeferred *def, const char *fname)
     SCE_Shader_Use (NULL);
     SCE_Shader_SetupMatricesMapping (def->amb_shader);
     SCE_Shader_ActivateMatricesMapping (def->amb_shader, SCE_TRUE);
+
+    /* setup skybox shader */
+    if (!(def->skybox_shader = SCE_Shader_Create ()))
+        goto fail;
+    if (SCE_Shader_AddSource (def->skybox_shader, SCE_VERTEX_SHADER,
+                              sce_skybox_vs) < 0)
+        goto fail;
+    if (SCE_Shader_AddSource (def->skybox_shader, SCE_PIXEL_SHADER,
+                              sce_skybox_ps) < 0)
+        goto fail;
+    if (SCE_Shader_Build (def->skybox_shader) < 0)
+        goto fail;
+    SCE_Shader_Use (def->skybox_shader);
+    for (i = 0; i < def->n_targets; i++)
+        SCE_Shader_Param (sce_deferred_target_names[i], i);
+    SCE_Shader_Use (NULL);
+    SCE_Shader_SetupMatricesMapping (def->skybox_shader);
+    SCE_Shader_ActivateMatricesMapping (def->skybox_shader, SCE_TRUE);
 
     return SCE_OK;
 fail:

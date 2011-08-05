@@ -32,7 +32,8 @@ extern "C" {
 #endif
 
 /* TODO: ugly */
-#define SCE_DEFERRED_AMBIENT_COLOR_NAME "sce_deferred_ambient_color"
+#define SCE_DEFERRED_AMBIENT_COLOR_NAME "sce_ambient_color"
+#define SCE_DEFERRED_SKYBOX_MAP_NAME "sce_skybox_map"
 
 typedef enum {
     SCE_DEFERRED_COLOR_TARGET = 0,
@@ -53,6 +54,7 @@ struct sce_sdeferred {
     float amb_color[3];
 
     SCE_SShader *amb_shader;
+    SCE_SShader *skybox_shader;
     SCE_SShader *point_shader;
     SCE_SShader *spot_shader;
     SCE_SShader *sun_shader;

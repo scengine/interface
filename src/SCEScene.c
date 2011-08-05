@@ -988,7 +988,7 @@ static void SCE_Scene_RenderEntities (SCE_SScene *scene)
 }
 
 
-static void SCE_Scene_RenderSkybox (SCE_SScene *scene, SCE_SCamera *cam)
+static void SCE_Scene_SetupSkybox (SCE_SScene *scene, SCE_SCamera *cam)
 {
     SCE_TVector3 pos;
     float *mat = NULL;
@@ -1002,6 +1002,13 @@ static void SCE_Scene_RenderSkybox (SCE_SScene *scene, SCE_SCamera *cam)
     SCE_Matrix4_Translatev (mat, pos);
     SCE_Matrix4_MulScale (mat, 42.0, 42.0, 42.0);
     SCE_Matrix4_MulTranslate (mat, -0.5, -0.5, -0.5);
+}
+
+static void SCE_Scene_RenderSkybox (SCE_SScene *scene, SCE_SCamera *cam)
+{
+    SCE_SSceneEntity *entity = SCE_Skybox_GetEntity (scene->skybox);
+
+    SCE_Scene_SetupSkybox (scene, cam);
 
     SCE_SceneEntity_UseResources (entity);
     SCE_SceneEntity_Render (entity);
@@ -1089,22 +1096,10 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
     /* setup target */
     SCE_Texture_RenderTo (target, cubeface);
 
-    SCE_RActivateDepthBuffer (SCE_FALSE);
-
-    scene->states.cleardepth = SCE_FALSE;
-    if (scene->skybox)
-        scene->states.clearcolor = SCE_FALSE;
-    else
-        scene->states.clearcolor = SCE_TRUE;
-    SCE_Scene_ClearBuffers (scene);
-
-    /* render skybox */
-    if (scene->skybox)
-        SCE_Scene_RenderSkybox (scene, cam);
-
     /* setup states */
     /* TODO: gl keywords */
     SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_FALSE);
+    SCE_RActivateDepthBuffer (SCE_FALSE);
 
     /* setup textures */
     SCE_Matrix4_Mul (SCE_Camera_GetFinalViewInverse (cam),
@@ -1166,18 +1161,25 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
         SCE_RSetState (GL_BLEND, SCE_FALSE);
     }
 
-    /* debug stuff */
-#if 0
-    SCE_Texture_SetUnit (def->targets[2], 0);
-    SCE_Texture_Blitf (NULL, NULL, NULL, def->targets[2]);
-    SCE_Texture_SetUnit (def->targets[2], 2);
-#endif
+    /* render skybox */
+    if (scene->skybox) {
+        SCE_STexture *tex = SCE_Skybox_GetTexture (scene->skybox);
+        SCE_Texture_SetUnit (tex, 0);
+        SCE_Texture_Use (tex);
+        SCE_Skybox_SetShader (scene->skybox, def->skybox_shader);
+        SCE_Scene_UseCamera (cam);
+        SCE_Shader_Use (def->skybox_shader);
+        SCE_Shader_Param (SCE_DEFERRED_SKYBOX_MAP_NAME, 0);
+        SCE_Texture_Lock ();
+        SCE_Scene_RenderSkybox (scene, cam);
+        SCE_Texture_Unlock ();
+    }
 
     /* reset states */
     SCE_Shader_Use (NULL);
-    SCE_Texture_Use (NULL);
-    SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_TRUE);
+    SCE_Texture_Flush ();
     SCE_RActivateDepthBuffer (SCE_TRUE);
+    SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_TRUE);
 
     if (target)
         SCE_Texture_RenderTo (target, cubeface);
