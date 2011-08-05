@@ -22,6 +22,7 @@
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
 #include "SCE/interface/SCEBatch.h"
+#include "SCE/interface/SCEQuad.h"
 #include "SCE/interface/SCEScene.h"
 
 
@@ -839,7 +840,7 @@ static void SCE_Scene_SelectAllOctreeInstancesRec (SCE_SScene *scene,
     }
 }
 
-
+/* TODO: add SelectOctreeLights() */
 static void SCE_Scene_SelectVisibleOctrees (SCE_SScene *scene,
                                             SCE_SOctree *tree)
 {
@@ -1064,6 +1065,108 @@ static void SCE_Scene_ForwardRender (SCE_SScene *scene, SCE_SCamera *cam,
         SCE_Texture_RenderTo (NULL, 0);
 
     SCE_RFlush ();
+}
+
+void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
+                          SCE_SCamera *cam, SCE_STexture *target, int cubeface)
+{
+    SCE_SListIterator *it = NULL;
+    SCE_SScene *scene = scene_;
+
+    /* Texture_RenderTo() does call glViewport() so setting up the camera
+       before forces the viewport to scale to the G-buffer */
+    SCE_Scene_UseCamera (cam);
+
+    /* fillup G-buffer */
+    SCE_Texture_RenderTo (def->gbuf, 0);
+    scene->states.clearcolor = SCE_TRUE;
+    scene->states.cleardepth = SCE_TRUE;
+    SCE_Scene_ClearBuffers (scene);
+    SCE_Light_ActivateLighting (SCE_FALSE);
+    SCE_Scene_RenderEntities (scene);
+
+    /* setup target */
+    SCE_Texture_RenderTo (target, cubeface);
+    SCE_RActivateDepthBuffer (SCE_FALSE);
+    scene->states.cleardepth = SCE_FALSE;
+    if (scene->skybox)
+        scene->states.clearcolor = SCE_FALSE;
+    else
+        scene->states.clearcolor = SCE_TRUE;
+    SCE_Scene_ClearBuffers (scene);
+
+    /* render skybox */
+    if (scene->skybox)
+        SCE_Scene_RenderSkybox (scene, cam);
+
+#if 0
+    /* TODO: render ambient and emissive terms */
+    /* if (def->use_emissive) */
+    {
+        SCE_Shader_Use (def->ambemi_shader);
+        /* SCE_Shader_Param3fv ("sce_ambient_color", def->ambient_color); */
+
+    }
+#endif
+
+    if (scene->states.lighting) {
+        int i;
+
+        /* setup states */
+        /* TODO: gl keywords */
+        SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_FALSE);
+        SCE_RSetState (GL_BLEND, SCE_TRUE);
+        SCE_RSetBlending (GL_ONE, GL_ONE);
+
+        SCE_Matrix4_Mul (SCE_Camera_GetFinalViewInverse (cam),
+                         SCE_Camera_GetProjInverse (cam),
+                         SCE_Texture_GetMatrix (def->gbuf));
+
+        for (i = 0; i < def->n_targets; i++)
+            SCE_Texture_Use (def->targets[i]);
+
+        SCE_RLoadMatrix (SCE_MAT_CAMERA, sce_matrix4_id);
+        SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
+
+        /* TODO: tip for shadows:
+                 lights inside the view frustum do not need to update the scene
+                 whilst those which are outside can cast shadows from
+                 invisible objects, removed by frustum culling :> */
+
+        SCE_List_ForEach (it, &scene->lights) {
+            SCE_TVector3 pos;
+            SCE_SLight *light = SCE_List_GetData (it);
+
+            switch (SCE_Light_GetType (light)) {
+            case SCE_POINT_LIGHT:
+                SCE_Shader_Use (def->point_shader);
+                SCE_Shader_Paramf ("sce_light_radius",
+                                   SCE_Light_GetRadius (light));
+                SCE_Light_GetPositionv (light, pos);
+                SCE_Shader_Param3fv ("sce_light_position", 1, pos);
+                SCE_Shader_Param3fv ("sce_light_color", 1,
+                                     SCE_Light_GetColor (light));
+                SCE_Quad_Draw (-1.0, -1.0, 2.0, 2.0);
+                break;
+            default:            /* onoes */
+                break;
+            }
+        }
+
+        SCE_Shader_Use (NULL);
+        SCE_Texture_Use (NULL);
+        SCE_RSetState (GL_BLEND, SCE_FALSE);
+        SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_TRUE);
+    }
+
+    /* debug stuff */
+#if 0
+    SCE_Texture_SetUnit (def->targets[2], 0);
+    SCE_Texture_Blitf (NULL, NULL, NULL, def->targets[2]);
+    SCE_Texture_SetUnit (def->targets[2], 2);
+#endif
+
+    SCE_RActivateDepthBuffer (SCE_TRUE);
 }
 
 /**

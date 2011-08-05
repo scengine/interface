@@ -25,6 +25,7 @@
 #include <SCE/core/SCECore.h>
 #include <SCE/renderer/SCERenderer.h>
 #include "SCE/interface/SCETexture.h"
+#include "SCE/interface/SCEShaders.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,13 +45,19 @@ struct sce_sdeferred {
     SCE_STexture *gbuf;
     SCE_STexture *targets[SCE_NUM_DEFERRED_TARGETS]; /**< Render buffers */
     int n_targets;                                   /**< Used targets */
-    int w, h;                   /**< targets' dimensions */
+    SCEuint w, h;               /**< targets' dimensions */
+
+    SCE_SShader *point_shader;
+    SCE_SShader *spot_shader;
+    SCE_SShader *sun_shader;
 };
 
 SCE_SDeferred* SCE_Deferred_Create (void);
 void SCE_Deferred_Delete (SCE_SDeferred*);
 
-int SCE_Deferred_Build (SCE_SDeferred*);
+void SCE_Deferred_SetDimensions (SCE_SDeferred*, SCEuint, SCEuint);
+
+int SCE_Deferred_Build (SCE_SDeferred*, const char*);
 int SCE_Deferred_BuildShader (SCE_SDeferred*, SCE_SShader*);
 
 void SCE_Deferred_Render (SCE_SDeferred*, void*, SCE_SCamera*,

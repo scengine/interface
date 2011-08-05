@@ -43,12 +43,20 @@ static void SCE_Deferred_Init (SCE_SDeferred *def)
         def->targets[i] = NULL;
     def->n_targets = 0;
     def->w = def->h = 64;       /* xd */
+
+    def->point_shader = NULL;
+    def->spot_shader = NULL;
+    def->sun_shader = NULL;
 }
 static void SCE_Deferred_Clear (SCE_SDeferred *def)
 {
     int i;
     for (i = 0; i < SCE_NUM_DEFERRED_TARGETS; i++)
         SCE_Texture_Delete (def->targets[i]);
+
+    SCE_Shader_Delete (def->point_shader);
+    SCE_Shader_Delete (def->spot_shader);
+    SCE_Shader_Delete (def->sun_shader);
 }
 
 SCE_SDeferred* SCE_Deferred_Create (void)
@@ -69,10 +77,27 @@ void SCE_Deferred_Delete (SCE_SDeferred *def)
 }
 
 
-int SCE_Deferred_Build (SCE_SDeferred *def)
+/**
+ * \brief Sets G-buffer dimensions
+ * \param def a deferred renderer
+ * \param w,h dimensions
+ */
+void SCE_Deferred_SetDimensions (SCE_SDeferred *def, SCEuint w, SCEuint h)
+{
+    def->w = w;
+    def->h = h;
+}
+
+static const char *sce_point_vs =
+    "uniform mat4 sce_modelviewmatrix;"
+    "uniform mat4 sce_projectionmatrix;"
+    "void main (void)"
+    "{"
+    "}";
+
+int SCE_Deferred_Build (SCE_SDeferred *def, const char *fname)
 {
     int i;
-    int colorid = 1;
 
 #define SCECREATE(a, b)                                         \
     def->targets[a] = SCE_Texture_Create (b, def->w, def->h)
@@ -104,6 +129,27 @@ int SCE_Deferred_Build (SCE_SDeferred *def)
                                       def->targets[i]);
     }
 
+    /* create shaders */
+#if 0
+    if (!(def->point_shader = SCE_Shader_Create ()))
+        goto fail;
+    if (SCE_Shader_AddSource (def->point_shader, SCE_VERTEX_SHADER,
+                              sce_point_vs) < 0)
+        goto fail;
+    if (SCE_Shader_AddSource (def->point_shader, SCE_PIXEL_SHADER,
+                              sce_point_ps) < 0)
+        goto fail;
+#else
+    if (!(def->point_shader = SCE_Shader_Load (fname, 0)))
+        goto fail;
+#endif
+    if (SCE_Shader_Build (def->point_shader) < 0)
+        goto fail;
+    SCE_Shader_Use (def->point_shader);
+    for (i = 0; i < def->n_targets; i++)
+        SCE_Shader_Param (sce_deferred_target_names[i], i);
+    SCE_Shader_Use (NULL);
+
     return SCE_OK;
 fail:
     SCEE_LogSrc ();
@@ -127,20 +173,8 @@ int SCE_Deferred_BuildShader (SCE_SDeferred *def, SCE_SShader *shader)
 
     if (SCE_Shader_Build (shader) < 0) goto fail;
 
-    SCE_Shader_Use (shader);
-    for (i = 0; i < def->n_targets; i++)
-        SCE_Shader_Param (sce_deferred_target_names[i], i);
-    SCE_Shader_Use (shader);
-
     return SCE_OK;
 fail:
     SCEE_LogSrc ();
     return SCE_ERROR;
-}
-
-
-void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
-                          SCE_SCamera *cam, SCE_STexture *target, int cubeface)
-{
-    SCE_SScene *scene = scene_;
 }
