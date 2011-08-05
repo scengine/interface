@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 17/02/2009
-   updated: 17/02/2009 */
+   updated: 05/08/2011 */
 
 #ifndef SCESKYBOX_H
 #define SCESKYBOX_H
@@ -59,6 +59,9 @@ void SCE_Skybox_SetSize (SCE_SSkybox*, float);
 int SCE_Skybox_SetTexture (SCE_SSkybox*, SCE_STexture*,
                            SCE_EBoxGeomTexCoordMode);
 void SCE_Skybox_SetShader (SCE_SSkybox*, SCE_SShader*);
+
+SCE_STexture* SCE_Skybox_GetTexture (SCE_SSkybox*);
+SCE_SShader* SCE_Skybox_GetShader (SCE_SSkybox*);
 
 SCE_SSceneEntity* SCE_Skybox_GetEntity (SCE_SSkybox*);
 SCE_SSceneEntityInstance* SCE_Skybox_GetInstance (SCE_SSkybox*);

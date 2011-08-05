@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 17/02/2009
-   updated: 18/02/2009 */
+   updated: 05/08/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -158,6 +158,25 @@ void SCE_Skybox_SetShader (SCE_SSkybox *skybox, SCE_SShader *shader)
 {
     SCE_SceneEntity_SetShader (skybox->entity, shader);
     skybox->shader = shader;
+}
+
+/**
+ * \brief Gets the texture associated to the skybox
+ * \param skybox a skybox
+ * \returns the texture associated to the skybox
+ */
+SCE_STexture* SCE_Skybox_GetTexture (SCE_SSkybox *skybox)
+{
+    return skybox->tex;
+}
+/**
+ * \brief Gets the shader associated to the skybox
+ * \param skybox a skybox
+ * \returns the shader associated to the skybox
+ */
+SCE_SShader* SCE_Skybox_GetShader (SCE_SSkybox *skybox)
+{
+    return skybox->shader;
 }
 
 /**
