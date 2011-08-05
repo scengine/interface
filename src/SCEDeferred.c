@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 04/08/2011
-   updated: 04/08/2011 */
+   updated: 05/08/2011 */
 
 #include <SCE/core/SCECore.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -50,6 +50,9 @@ static void SCE_Deferred_Init (SCE_SDeferred *def)
     def->n_targets = 0;
     def->w = def->h = 64;       /* xd */
 
+    def->amb_color[0] = def->amb_color[1] = def->amb_color[2] = 0.1;
+
+    def->amb_shader = NULL;
     def->point_shader = NULL;
     def->spot_shader = NULL;
     def->sun_shader = NULL;
@@ -60,6 +63,7 @@ static void SCE_Deferred_Clear (SCE_SDeferred *def)
     for (i = 0; i < SCE_NUM_DEFERRED_TARGETS; i++)
         SCE_Texture_Delete (def->targets[i]);
 
+    SCE_Shader_Delete (def->amb_shader);
     SCE_Shader_Delete (def->point_shader);
     SCE_Shader_Delete (def->spot_shader);
     SCE_Shader_Delete (def->sun_shader);
@@ -94,11 +98,23 @@ void SCE_Deferred_SetDimensions (SCE_SDeferred *def, SCEuint w, SCEuint h)
     def->h = h;
 }
 
-static const char *sce_point_vs =
+static const char *sce_amb_vs =
     "uniform mat4 sce_modelviewmatrix;"
     "uniform mat4 sce_projectionmatrix;"
+    "varying vec2 tc;"
     "void main (void)"
     "{"
+    "tc = gl_MultiTexCoord0.xy;"
+    "gl_Position = sce_projectionmatrix * sce_modelviewmatrix * gl_Vertex;"
+    "}";
+static const char *sce_amb_ps =
+    "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
+    "uniform vec3 sce_deferred_ambient_color;"
+    "varying vec2 tc;"
+    "void main (void)"
+    "{"
+    "gl_FragColor = vec4 (sce_deferred_ambient_color, 1.0)"
+    "               * texture2D ("SCE_DEFERRED_COLOR_TARGET_NAME", tc);"
     "}";
 
 int SCE_Deferred_Build (SCE_SDeferred *def, const char *fname)
@@ -155,6 +171,24 @@ int SCE_Deferred_Build (SCE_SDeferred *def, const char *fname)
     for (i = 0; i < def->n_targets; i++)
         SCE_Shader_Param (sce_deferred_target_names[i], i);
     SCE_Shader_Use (NULL);
+
+    /* setup ambient lighting shader */
+    if (!(def->amb_shader = SCE_Shader_Create ()))
+        goto fail;
+    if (SCE_Shader_AddSource (def->amb_shader, SCE_VERTEX_SHADER,
+                              sce_amb_vs) < 0)
+        goto fail;
+    if (SCE_Shader_AddSource (def->amb_shader, SCE_PIXEL_SHADER,
+                              sce_amb_ps) < 0)
+        goto fail;
+    if (SCE_Shader_Build (def->amb_shader) < 0)
+        goto fail;
+    SCE_Shader_Use (def->amb_shader);
+    for (i = 0; i < def->n_targets; i++)
+        SCE_Shader_Param (sce_deferred_target_names[i], i);
+    SCE_Shader_Use (NULL);
+    SCE_Shader_SetupMatricesMapping (def->amb_shader);
+    SCE_Shader_ActivateMatricesMapping (def->amb_shader, SCE_TRUE);
 
     return SCE_OK;
 fail:

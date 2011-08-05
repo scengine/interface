@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 04/08/2011
-   updated: 04/08/2011 */
+   updated: 05/08/2011 */
 
 #ifndef SCEDEFERRED_H
 #define SCEDEFERRED_H
@@ -30,6 +30,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* TODO: ugly */
+#define SCE_DEFERRED_AMBIENT_COLOR_NAME "sce_deferred_ambient_color"
 
 typedef enum {
     SCE_DEFERRED_COLOR_TARGET = 0,
@@ -47,6 +50,9 @@ struct sce_sdeferred {
     int n_targets;                                   /**< Used targets */
     SCEuint w, h;               /**< targets' dimensions */
 
+    float amb_color[3];
+
+    SCE_SShader *amb_shader;
     SCE_SShader *point_shader;
     SCE_SShader *spot_shader;
     SCE_SShader *sun_shader;

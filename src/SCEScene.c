@@ -1070,6 +1070,7 @@ static void SCE_Scene_ForwardRender (SCE_SScene *scene, SCE_SCamera *cam,
 void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
                           SCE_SCamera *cam, SCE_STexture *target, int cubeface)
 {
+    int i;
     SCE_SListIterator *it = NULL;
     SCE_SScene *scene = scene_;
 
@@ -1087,7 +1088,9 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
 
     /* setup target */
     SCE_Texture_RenderTo (target, cubeface);
+
     SCE_RActivateDepthBuffer (SCE_FALSE);
+
     scene->states.cleardepth = SCE_FALSE;
     if (scene->skybox)
         scene->states.clearcolor = SCE_FALSE;
@@ -1099,34 +1102,40 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
     if (scene->skybox)
         SCE_Scene_RenderSkybox (scene, cam);
 
-#if 0
-    /* TODO: render ambient and emissive terms */
-    /* if (def->use_emissive) */
-    {
-        SCE_Shader_Use (def->ambemi_shader);
-        /* SCE_Shader_Param3fv ("sce_ambient_color", def->ambient_color); */
+    /* setup states */
+    /* TODO: gl keywords */
+    SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_FALSE);
 
-    }
+    /* setup textures */
+    SCE_Matrix4_Mul (SCE_Camera_GetFinalViewInverse (cam),
+                     SCE_Camera_GetProjInverse (cam),
+                     SCE_Texture_GetMatrix (def->gbuf));
+    for (i = 0; i < def->n_targets; i++)
+        SCE_Texture_Use (def->targets[i]);
+
+    SCE_RLoadMatrix (SCE_MAT_CAMERA, sce_matrix4_id);
+    SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
+
+#if 0
+    if (def->use_emissive) {
+        SCE_Shader_Use (def->ambemi_shader);
+        /* SCE_Shader_Param3fv (SCE_DEFERRED_AMBIENT_COLOR_NAME,
+                                def->amb_color); */
+    } else
 #endif
+    {
+        SCE_Shader_Use (def->amb_shader);
+        SCE_Shader_Param3fv (SCE_DEFERRED_AMBIENT_COLOR_NAME,
+                             1, def->amb_color);
+        SCE_Quad_Draw (-1.0, -1.0, 2.0, 2.0);      
+    }
+
 
     if (scene->states.lighting) {
-        int i;
 
-        /* setup states */
-        /* TODO: gl keywords */
-        SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_FALSE);
+        /* setup additive blending */
         SCE_RSetState (GL_BLEND, SCE_TRUE);
         SCE_RSetBlending (GL_ONE, GL_ONE);
-
-        SCE_Matrix4_Mul (SCE_Camera_GetFinalViewInverse (cam),
-                         SCE_Camera_GetProjInverse (cam),
-                         SCE_Texture_GetMatrix (def->gbuf));
-
-        for (i = 0; i < def->n_targets; i++)
-            SCE_Texture_Use (def->targets[i]);
-
-        SCE_RLoadMatrix (SCE_MAT_CAMERA, sce_matrix4_id);
-        SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
 
         /* TODO: tip for shadows:
                  lights inside the view frustum do not need to update the scene
@@ -1153,10 +1162,8 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
             }
         }
 
-        SCE_Shader_Use (NULL);
-        SCE_Texture_Use (NULL);
+        /* reset blending state */
         SCE_RSetState (GL_BLEND, SCE_FALSE);
-        SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_TRUE);
     }
 
     /* debug stuff */
@@ -1166,7 +1173,14 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
     SCE_Texture_SetUnit (def->targets[2], 2);
 #endif
 
+    /* reset states */
+    SCE_Shader_Use (NULL);
+    SCE_Texture_Use (NULL);
+    SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_TRUE);
     SCE_RActivateDepthBuffer (SCE_TRUE);
+
+    if (target)
+        SCE_Texture_RenderTo (target, cubeface);
 }
 
 /**
