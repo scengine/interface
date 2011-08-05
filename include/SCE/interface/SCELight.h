@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 13/03/2008
-   updated: 28/02/2010 */
+   updated: 05/08/2011 */
 
 #ifndef SCELIGHT_H
 #define SCELIGHT_H
@@ -25,11 +25,16 @@
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
 #include <SCE/renderer/SCERenderer.h>
-#include "SCE/interface/SCEShaders.h" /* wat. */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef enum {
+    SCE_POINT_LIGHT,
+    SCE_SPOT_LIGHT,
+    SCE_SUN_LIGHT
+} SCE_ELightType;
 
 /** \copydoc sce_slight */
 typedef struct sce_slight SCE_SLight;
@@ -39,6 +44,7 @@ typedef struct sce_slight SCE_SLight;
 struct sce_slight {
     /* TODO: make it as non-pointer */
     SCE_RLight *clight; /* lumiere coeur */
+    SCE_ELightType type;
     float intensity;    /* coefficient d'intensite */
     float radius;       /* rayon de portee de la lumiere */
     int activated;      /* defini si la lumiere est active */
@@ -50,7 +56,6 @@ struct sce_slight {
 
 void SCE_Light_Init (SCE_SLight*);
 
-/* cree une lumiere */
 SCE_SLight* SCE_Light_Create (void);
 void SCE_Light_Delete (SCE_SLight*);
 
@@ -59,6 +64,9 @@ void* SCE_Light_GetData (SCE_SLight*);
 
 void SCE_Light_Activate (SCE_SLight*, int);
 int SCE_Light_IsActivated (SCE_SLight*);
+
+void SCE_Light_SetType (SCE_SLight*, SCE_ELightType);
+SCE_ELightType SCE_Light_GetType (SCE_SLight*);
 
 SCE_SNode* SCE_Light_GetNode (SCE_SLight*);
 SCE_SListIterator* SCE_Light_GetIterator (SCE_SLight*);

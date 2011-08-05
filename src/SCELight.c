@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 13/03/2008
-   updated: 15/03/2009 */
+   updated: 05/08/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -30,6 +30,7 @@ static int use_lighting = SCE_TRUE;
 void SCE_Light_Init (SCE_SLight *light)
 {
     light->clight = NULL;       /* TODO: bouh */
+    light->type = SCE_POINT_LIGHT;
     light->intensity = 1.0f;
     light->radius = 16.0f;
     light->activated = SCE_TRUE;
@@ -91,6 +92,16 @@ int SCE_Light_IsActivated (SCE_SLight *light)
 {
     return light->activated;
 }
+
+void SCE_Light_SetType (SCE_SLight *light, SCE_ELightType type)
+{
+    light->type = type;
+}
+SCE_ELightType SCE_Light_GetType (SCE_SLight *light)
+{
+    return light->type;
+}
+
 
 SCE_SNode* SCE_Light_GetNode (SCE_SLight *light)
 {
