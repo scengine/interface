@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 01/08/2011 */
+   updated: 05/08/2011 */
 
 #ifndef SCESHADERS_H
 #define SCESHADERS_H
@@ -52,22 +52,13 @@ struct sce_sshaderparam {
 typedef struct sce_sshader SCE_SShader;
 struct sce_sshader {
     /** Vertex, pixel, geometry, evaluation and control shaders */
-    SCE_RShaderGLSL *v, *p, *g, *e, *c;
+    SCE_RShaderGLSL *shaders[SCE_NUM_SHADER_TYPES];
     SCE_RProgram *p_glsl;        /**< GLSL program */
 
     char **res;
 
-    char *vs_source;
-    char *ps_source;
-    char *gs_source;
-    char *es_source;
-    char *cs_source;
-
-    char *vs_addsrc;
-    char *ps_addsrc;
-    char *gs_addsrc;
-    char *es_addsrc;
-    char *cs_addsrc;
+    char *sources[SCE_NUM_SHADER_TYPES];
+    char *addsrc[SCE_NUM_SHADER_TYPES];
     int ready;
 
     SCE_SList params_i;
@@ -104,7 +95,7 @@ void SCE_Shader_ActivateMatricesMapping (SCE_SShader*, int);
 
 void SCE_Shader_SetPatchVertices (SCE_SShader*, int);
 
-int SCE_Shader_AddSource (SCE_SShader*, int, const char*);
+int SCE_Shader_AddSource (SCE_SShader*, SCE_RShaderType, const char*);
 
 
 int SCE_Shader_InputPrimitive (SCE_SShader*, SCE_EPrimitiveType, int);
