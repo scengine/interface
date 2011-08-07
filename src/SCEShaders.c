@@ -484,31 +484,23 @@ void SCE_Shader_SetPatchVertices (SCE_SShader *shader, int vertices)
 int SCE_Shader_AddSource (SCE_SShader *shader, SCE_RShaderType type,
                           const char *src)
 {
-    size_t realen;
-    int first_alloc = 1;
-    char *addsrc = NULL;
+    char *addsrc = NULL, *newsrc = NULL;
 
     addsrc = shader->addsrc[type];
 
-    realen = strlen (src) + 2;
-
-    if (addsrc) {
-        first_alloc = 0;
-        realen += strlen (addsrc);
+    if (!addsrc) {
+        newsrc = SCE_String_Dup (src);
+    } else {
+        newsrc = SCE_String_CatDup (addsrc, src);
     }
 
-    addsrc = SCE_realloc (addsrc, realen);
-    if (!addsrc) {
+    if (!newsrc) {
         SCEE_LogSrc ();
         return SCE_ERROR;
     }
 
-    if (first_alloc)
-        memset (addsrc, '\0', realen);
-
-    strcat (addsrc, src);
-
-    shader->addsrc[type] = addsrc;
+    SCE_free (addsrc);
+    shader->addsrc[type] = newsrc;
 
     return SCE_OK;
 }
