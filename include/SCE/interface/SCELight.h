@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 13/03/2008
-   updated: 05/08/2011 */
+   updated: 07/08/2011 */
 
 #ifndef SCELIGHT_H
 #define SCELIGHT_H
@@ -33,7 +33,8 @@ extern "C" {
 typedef enum {
     SCE_POINT_LIGHT,
     SCE_SPOT_LIGHT,
-    SCE_SUN_LIGHT
+    SCE_SUN_LIGHT,
+    SCE_NUM_LIGHT_TYPES
 } SCE_ELightType;
 
 /** \copydoc sce_slight */

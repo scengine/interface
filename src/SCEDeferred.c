@@ -54,11 +54,11 @@ static void SCE_Deferred_Init (SCE_SDeferred *def)
 
     def->amb_shader = NULL;
     def->skybox_shader = NULL;
-    def->point_shader = NULL;
-    def->spot_shader = NULL;
-    def->sun_shader = NULL;
 
-    def->point_loc = -1;
+    for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
+        def->shaders[i] = NULL;
+        def->invproj_loc[i] = -1;
+    }
 }
 static void SCE_Deferred_Clear (SCE_SDeferred *def)
 {
@@ -68,9 +68,8 @@ static void SCE_Deferred_Clear (SCE_SDeferred *def)
 
     SCE_Shader_Delete (def->amb_shader);
     SCE_Shader_Delete (def->skybox_shader);
-    SCE_Shader_Delete (def->point_shader);
-    SCE_Shader_Delete (def->spot_shader);
-    SCE_Shader_Delete (def->sun_shader);
+    for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++)
+        SCE_Shader_Delete (def->shaders[i]);
 }
 
 SCE_SDeferred* SCE_Deferred_Create (void)
@@ -149,9 +148,10 @@ static const char *sce_skybox_ps =
     "  discard;"
     "}";
 
-static int SCE_Deferred_BuildFinalShader (SCE_SDeferred*, SCE_SShader*);
+static int SCE_Deferred_BuildFinalShader (SCE_SDeferred*, SCE_ELightType);
 
-int SCE_Deferred_Build (SCE_SDeferred *def, const char *fname)
+int SCE_Deferred_Build (SCE_SDeferred *def,
+                        const char *fnames[SCE_NUM_LIGHT_TYPES])
 {
     int i;
 
@@ -186,25 +186,14 @@ int SCE_Deferred_Build (SCE_SDeferred *def, const char *fname)
     }
 
     /* create shaders */
-#if 0
-    if (!(def->point_shader = SCE_Shader_Create ()))
-        goto fail;
-    if (SCE_Shader_AddSource (def->point_shader, SCE_VERTEX_SHADER,
-                              sce_point_vs) < 0)
-        goto fail;
-    if (SCE_Shader_AddSource (def->point_shader, SCE_PIXEL_SHADER,
-                              sce_point_ps) < 0)
-        goto fail;
-#else
-    if (!(def->point_shader = SCE_Shader_Load (fname, 0)))
-        goto fail;
-#endif
-    if (SCE_Deferred_BuildFinalShader (def, def->point_shader) < 0)
-        goto fail;
-    SCE_Shader_Use (def->point_shader);
-    for (i = 0; i < def->n_targets; i++)
-        SCE_Shader_Param (sce_deferred_target_names[i], i);
-    SCE_Shader_Use (NULL);
+    for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
+        if (!fnames[i])
+            continue;
+        if (!(def->shaders[i] = SCE_Shader_Load (fnames[i], SCE_FALSE)))
+            goto fail;
+        if (SCE_Deferred_BuildFinalShader (def, i) < 0)
+            goto fail;
+    }
 
     /* setup ambient lighting shader */
     if (!(def->amb_shader = SCE_Shader_Create ()))
@@ -358,23 +347,32 @@ static const char *sce_final_uniforms_code =
     "uniform mat4 "SCE_DEFERRED_INVPROJ_NAME";";
 
 
-static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def, SCE_SShader *shader)
+static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def,
+                                          SCE_ELightType type)
 {
-    if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
+    int i;
+
+    /* add unpacking functions' sources */
+    if (SCE_Shader_AddSource (def->shaders[type], SCE_PIXEL_SHADER,
                               sce_final_uniforms_code) < 0) goto fail;
-    if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
+    if (SCE_Shader_AddSource (def->shaders[type], SCE_PIXEL_SHADER,
                               sce_unpack_color_fun) < 0) goto fail;
-    if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
+    if (SCE_Shader_AddSource (def->shaders[type], SCE_PIXEL_SHADER,
                               sce_unpack_normal_fun) < 0) goto fail;
-    if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
+    if (SCE_Shader_AddSource (def->shaders[type], SCE_PIXEL_SHADER,
                               sce_unpack_position_fun) < 0) goto fail;
-    if (SCE_Shader_Build (shader) < 0) goto fail;
-    def->point_loc = SCE_Shader_GetIndex (shader, SCE_DEFERRED_INVPROJ_NAME);
+    if (SCE_Shader_Build (def->shaders[type]) < 0) goto fail;
+
+    /* setup uniforms */
+    def->invproj_loc[type] = SCE_Shader_GetIndex (def->shaders[type],
+                                                  SCE_DEFERRED_INVPROJ_NAME);
+    SCE_Shader_Use (def->shaders[type]);
+    for (i = 0; i < def->n_targets; i++)
+        SCE_Shader_Param (sce_deferred_target_names[i], i);
+    SCE_Shader_Use (NULL);
 
     return SCE_OK;
 fail:
     SCEE_LogSrc ();
     return SCE_ERROR;
 }
-
-

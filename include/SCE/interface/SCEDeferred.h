@@ -55,12 +55,10 @@ struct sce_sdeferred {
 
     SCE_SShader *amb_shader;
     SCE_SShader *skybox_shader;
-    /* TODO: use an array */
-    SCE_SShader *point_shader;
-    SCE_SShader *spot_shader;
-    SCE_SShader *sun_shader;
 
-    int point_loc;              /* location of the inverse projection matrix */
+    SCE_SShader *shaders[SCE_NUM_LIGHT_TYPES];
+    /** locations of the inverse projection matrix */
+    int invproj_loc[SCE_NUM_LIGHT_TYPES];
 };
 
 SCE_SDeferred* SCE_Deferred_Create (void);
@@ -68,7 +66,7 @@ void SCE_Deferred_Delete (SCE_SDeferred*);
 
 void SCE_Deferred_SetDimensions (SCE_SDeferred*, SCEuint, SCEuint);
 
-int SCE_Deferred_Build (SCE_SDeferred*, const char*);
+int SCE_Deferred_Build (SCE_SDeferred*, const char*[SCE_NUM_LIGHT_TYPES]);
 int SCE_Deferred_BuildShader (SCE_SDeferred*, SCE_SShader*);
 
 void SCE_Deferred_Render (SCE_SDeferred*, void*, SCE_SCamera*,

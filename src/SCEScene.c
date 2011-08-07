@@ -1139,8 +1139,9 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
 
         /* setup uniform parameters of shaders */
         /* TODO: do it for the other shaders */
-        SCE_Shader_Use (def->point_shader);
-        SCE_Shader_SetMatrix4 (def->point_loc, SCE_Camera_GetProjInverse (cam));
+        SCE_Shader_Use (def->shaders[SCE_POINT_LIGHT]);
+        SCE_Shader_SetMatrix4 (def->invproj_loc[SCE_POINT_LIGHT],
+                               SCE_Camera_GetProjInverse (cam));
 
         /* TODO: tip for shadows:
                  lights inside the view frustum do not need to update the scene
@@ -1153,7 +1154,7 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
 
             switch (SCE_Light_GetType (light)) {
             case SCE_POINT_LIGHT:
-                SCE_Shader_Use (def->point_shader);
+                SCE_Shader_Use (def->shaders[SCE_POINT_LIGHT]);
                 SCE_Shader_Paramf ("sce_light_radius",
                                    SCE_Light_GetRadius (light));
                 /* get light's position in view space */
