@@ -35,6 +35,12 @@ extern "C" {
 #define SCE_DEFERRED_AMBIENT_COLOR_NAME "sce_ambient_color"
 #define SCE_DEFERRED_SKYBOX_MAP_NAME "sce_skybox_map"
 
+#define SCE_DEFERRED_INVPROJ_NAME "sce_deferred_invproj_matrix"
+
+#define SCE_DEFERRED_LIGHT_POSITION_NAME "sce_light_position"
+#define SCE_DEFERRED_LIGHT_COLOR_NAME "sce_light_color"
+#define SCE_DEFERRED_LIGHT_RADIUS_NAME "sce_light_radius"
+
 typedef enum {
     SCE_DEFERRED_COLOR_TARGET = 0,
     SCE_DEFERRED_DEPTH_TARGET,
@@ -43,6 +49,16 @@ typedef enum {
     SCE_DEFERRED_EMISSIVE_TARGET,
     SCE_NUM_DEFERRED_TARGETS
 } SCE_EDeferredTarget;
+
+
+typedef struct sce_sdeferredlightingshader SCE_SDeferredLightingShader;
+struct sce_sdeferredlightingshader {
+    SCE_SShader *shader;  /**< Lighting shader */
+    int invproj_loc;      /**< Location of the inverse projection matrix */
+    int lightpos_loc;     /**< Location of the light position uniform */
+    int lightcolor_loc;   /**< Location of the light color uniform */
+    int lightradius_loc;  /**< Location of the light radius uniform */
+};
 
 typedef struct sce_sdeferred SCE_SDeferred;
 struct sce_sdeferred {
@@ -56,9 +72,7 @@ struct sce_sdeferred {
     SCE_SShader *amb_shader;
     SCE_SShader *skybox_shader;
 
-    SCE_SShader *shaders[SCE_NUM_LIGHT_TYPES];
-    /** locations of the inverse projection matrix */
-    int invproj_loc[SCE_NUM_LIGHT_TYPES];
+    SCE_SDeferredLightingShader shaders[SCE_NUM_LIGHT_TYPES];
 };
 
 SCE_SDeferred* SCE_Deferred_Create (void);

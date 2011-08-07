@@ -1139,8 +1139,8 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
 
         /* setup uniform parameters of shaders */
         /* TODO: do it for the other shaders */
-        SCE_Shader_Use (def->shaders[SCE_POINT_LIGHT]);
-        SCE_Shader_SetMatrix4 (def->invproj_loc[SCE_POINT_LIGHT],
+        SCE_Shader_Use (def->shaders[SCE_POINT_LIGHT].shader);
+        SCE_Shader_SetMatrix4 (def->shaders[SCE_POINT_LIGHT].invproj_loc,
                                SCE_Camera_GetProjInverse (cam));
 
         /* TODO: tip for shadows:
@@ -1151,18 +1151,20 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
         SCE_List_ForEach (it, &scene->lights) {
             SCE_TVector3 pos;
             SCE_SLight *light = SCE_List_GetData (it);
+            SCE_ELightType type = SCE_Light_GetType (light);
+            SCE_SDeferredLightingShader *shader = &def->shaders[type];
 
-            switch (SCE_Light_GetType (light)) {
+            switch (type) {
             case SCE_POINT_LIGHT:
-                SCE_Shader_Use (def->shaders[SCE_POINT_LIGHT]);
-                SCE_Shader_Paramf ("sce_light_radius",
-                                   SCE_Light_GetRadius (light));
+                SCE_Shader_Use (shader->shader);
+                SCE_Shader_SetParamf (shader->lightradius_loc,
+                                      SCE_Light_GetRadius (light));
                 /* get light's position in view space */
                 SCE_Light_GetPositionv (light, pos);
                 SCE_Matrix4_MulV3Copy (SCE_Camera_GetFinalView (cam), pos);
-                SCE_Shader_Param3fv ("sce_light_position", 1, pos);
-                SCE_Shader_Param3fv ("sce_light_color", 1,
-                                     SCE_Light_GetColor (light));
+                SCE_Shader_SetParam3fv (shader->lightpos_loc, 1, pos);
+                SCE_Shader_SetParam3fv (shader->lightcolor_loc, 1,
+                                        SCE_Light_GetColor (light));
                 SCE_Quad_Draw (-1.0, -1.0, 2.0, 2.0);
                 break;
             default:            /* onoes */
