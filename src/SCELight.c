@@ -45,23 +45,20 @@ void SCE_Light_Init (SCE_SLight *light)
 SCE_SLight* SCE_Light_Create (void)
 {
     SCE_SLight *light = NULL;
-    SCE_btstart ();
     if (!(light = SCE_malloc (sizeof *light)))
-        goto failure;
+        goto fail;
     SCE_Light_Init (light);
     if (!(light->node = SCE_Node_Create ()))
-        goto failure;
+        goto fail;
     if (!(light->clight = SCE_RCreateLight ()))
-        goto failure;
+        goto fail;
     SCE_Node_SetData (light->node, light);
     SCE_Node_GetElement (light->node)->sphere = &light->sphere;
-    goto success;
-failure:
-    SCE_Light_Delete (light), light = NULL;
-    SCEE_LogSrc ();
-success:
-    SCE_btend ();
     return light;
+fail:
+    SCE_Light_Delete (light);
+    SCEE_LogSrc ();
+    return NULL;
 }
 
 void SCE_Light_Delete (SCE_SLight *light)
