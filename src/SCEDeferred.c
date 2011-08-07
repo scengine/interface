@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 04/08/2011
-   updated: 05/08/2011 */
+   updated: 07/08/2011 */
 
 #include <SCE/core/SCECore.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -57,6 +57,8 @@ static void SCE_Deferred_Init (SCE_SDeferred *def)
     def->point_shader = NULL;
     def->spot_shader = NULL;
     def->sun_shader = NULL;
+
+    def->point_loc = -1;
 }
 static void SCE_Deferred_Clear (SCE_SDeferred *def)
 {
@@ -147,6 +149,7 @@ static const char *sce_skybox_ps =
     "  discard;"
     "}";
 
+static int SCE_Deferred_BuildFinalShader (SCE_SDeferred*, SCE_SShader*);
 
 int SCE_Deferred_Build (SCE_SDeferred *def, const char *fname)
 {
@@ -196,7 +199,7 @@ int SCE_Deferred_Build (SCE_SDeferred *def, const char *fname)
     if (!(def->point_shader = SCE_Shader_Load (fname, 0)))
         goto fail;
 #endif
-    if (SCE_Shader_Build (def->point_shader) < 0)
+    if (SCE_Deferred_BuildFinalShader (def, def->point_shader) < 0)
         goto fail;
     SCE_Shader_Use (def->point_shader);
     for (i = 0; i < def->n_targets; i++)
@@ -246,6 +249,75 @@ fail:
 }
 
 
+static const char *sce_pack_color_fun =
+    "void sce_pack_color (in vec3 col)"
+    "{"
+    "  gl_FragData[0].xyz = col;"
+    "}";
+/* TODO: inefficient unpacking: another texture fetch will be required to
+   unpack the alpha channel */
+static const char *sce_unpack_color_fun =
+    "vec3 sce_unpack_color (in vec2 coord)"
+    "{"
+    "  return texture2D ("SCE_DEFERRED_COLOR_TARGET_NAME", coord).xyz;"
+    "}";
+
+#if 0
+static const char *sce_pack_normal_fun =
+    "void sce_pack_normal (in vec3 norm)"
+    "{"
+    "  vec2 nor = (norm.xy + vec2 (1.0)) / 2.0;"
+    "  float x = nor.x * 256.0;"
+    "  float e = floor (x);"
+    "  gl_FragData[1].x = e / 256.0;"
+    "  gl_FragData[1].y = x - e, 1.0;"
+    "  x = nor.y * 256.0;"
+    "  e = floor (x);"
+    "  gl_FragData[1].z = e / 256.0;"
+    "  gl_FragData[1].w = x - e;"
+    "}";
+static const char *sce_unpack_normal_fun =
+    "vec3 sce_unpack_normal (in vec2 coord)"
+    "{"
+    "  vec4 n = texture2D ("SCE_DEFERRED_NORMAL_TARGET_NAME", coord);"
+    "  vec3 nor;"
+    "  nor.x = n.x + n.y / 256.0;"
+    "  nor.y = n.z + n.w / 256.0;"
+    "  nor.xy = nor.xy * 2.0 - vec2 (1.0);"
+    "  nor.z = sqrt (1.0 - nor.x * nor.x - nor.y * nor.y);"
+    "  return normalize (nor);"
+    "}";
+#else
+static const char *sce_pack_normal_fun =
+    "void sce_pack_normal (in vec3 nor)"
+    "{"
+    "  gl_FragData[1].xyz = (nor + vec3 (1.0)) / 2.0;"
+    "}";
+static const char *sce_unpack_normal_fun =
+    "vec3 sce_unpack_normal (in vec2 coord)"
+    "{"
+    "  vec3 n = texture2D ("SCE_DEFERRED_NORMAL_TARGET_NAME", coord).xyz;"
+    "  return normalize (n * 2.0 - vec3 (1.0));"
+    "}";
+#endif
+
+/* TODO: temporary */
+#define SCE_DEFERRED_INVPROJ_NAME "sce_deferred_invproj_matrix"
+static const char *sce_pack_position_fun = NULL;
+/* TODO: same here, possible multiple texture fetches */
+static const char *sce_unpack_position_fun =
+    "vec3 sce_unpack_position (in vec2 coord)"
+    "{"
+    "  float depth = texture2D ("SCE_DEFERRED_DEPTH_TARGET_NAME", coord).x;"
+    "  vec4 pos = vec4 (coord, depth, 1.0);"
+    "  pos *= 2.0;"
+    "  pos -= vec4 (1.0);"
+    "  pos = "SCE_DEFERRED_INVPROJ_NAME" * pos;"
+    "  pos.xyz /= pos.w;"
+    "  return pos.xyz;"
+    "}";
+
+
 /**
  * \brief Shaders factory
  * \param def a deferred renderer
@@ -260,6 +332,10 @@ int SCE_Deferred_BuildShader (SCE_SDeferred *def, SCE_SShader *shader)
 {
     int i;
 
+    if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
+                              sce_pack_color_fun) < 0) goto fail;
+    if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
+                              sce_pack_normal_fun) < 0) goto fail;
     if (SCE_Shader_Build (shader) < 0) goto fail;
 
     return SCE_OK;
@@ -267,3 +343,37 @@ fail:
     SCEE_LogSrc ();
     return SCE_ERROR;
 }
+
+
+static const char *sce_final_uniforms_code =
+    "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_DEPTH_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_NORMAL_TARGET_NAME";"
+    "uniform vec3 sce_light_position;"
+    "uniform vec3 sce_light_color;"
+    "uniform float sce_light_radius;"
+    "uniform mat4 "SCE_DEFERRED_INVPROJ_NAME";";
+
+
+static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def, SCE_SShader *shader)
+{
+    int i;
+
+    if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
+                              sce_final_uniforms_code) < 0) goto fail;
+    if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
+                              sce_unpack_color_fun) < 0) goto fail;
+    if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
+                              sce_unpack_normal_fun) < 0) goto fail;
+    if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
+                              sce_unpack_position_fun) < 0) goto fail;
+    if (SCE_Shader_Build (shader) < 0) goto fail;
+    def->point_loc = SCE_Shader_GetIndex (shader, SCE_DEFERRED_INVPROJ_NAME);
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
+}
+
+

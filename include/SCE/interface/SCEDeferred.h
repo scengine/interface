@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 04/08/2011
-   updated: 05/08/2011 */
+   updated: 07/08/2011 */
 
 #ifndef SCEDEFERRED_H
 #define SCEDEFERRED_H
@@ -58,6 +58,8 @@ struct sce_sdeferred {
     SCE_SShader *point_shader;
     SCE_SShader *spot_shader;
     SCE_SShader *sun_shader;
+
+    int point_loc;              /* location of the inverse projection matrix */
 };
 
 SCE_SDeferred* SCE_Deferred_Create (void);

@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2008
-   updated: 24/06/2011 */
+   updated: 07/08/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -1101,10 +1101,16 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
     SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_FALSE);
     SCE_RActivateDepthBuffer (SCE_FALSE);
 
-    /* setup textures */
+#if 0
     SCE_Matrix4_Mul (SCE_Camera_GetFinalViewInverse (cam),
                      SCE_Camera_GetProjInverse (cam),
                      SCE_Texture_GetMatrix (def->gbuf));
+#elif 0
+    SCE_Matrix_Copy (SCE_Texture_GetMatrix (def->gbuf),
+                     SCE_Camera_GetProjInverse (cam));
+#endif
+
+    /* setup textures */
     for (i = 0; i < def->n_targets; i++)
         SCE_Texture_Use (def->targets[i]);
 
@@ -1125,12 +1131,16 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
         SCE_Quad_Draw (-1.0, -1.0, 2.0, 2.0);      
     }
 
-
     if (scene->states.lighting) {
 
         /* setup additive blending */
         SCE_RSetState (GL_BLEND, SCE_TRUE);
         SCE_RSetBlending (GL_ONE, GL_ONE);
+
+        /* setup uniform parameters of shaders */
+        /* TODO: do it for the other shaders */
+        SCE_Shader_Use (def->point_shader);
+        SCE_Shader_SetMatrix4 (def->point_loc, SCE_Camera_GetProjInverse (cam));
 
         /* TODO: tip for shadows:
                  lights inside the view frustum do not need to update the scene
@@ -1146,7 +1156,9 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
                 SCE_Shader_Use (def->point_shader);
                 SCE_Shader_Paramf ("sce_light_radius",
                                    SCE_Light_GetRadius (light));
+                /* get light's position in view space */
                 SCE_Light_GetPositionv (light, pos);
+                SCE_Matrix4_MulV3Copy (SCE_Camera_GetFinalView (cam), pos);
                 SCE_Shader_Param3fv ("sce_light_position", 1, pos);
                 SCE_Shader_Param3fv ("sce_light_color", 1,
                                      SCE_Light_GetColor (light));
