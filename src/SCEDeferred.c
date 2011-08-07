@@ -50,7 +50,7 @@ static void SCE_Deferred_Init (SCE_SDeferred *def)
     def->n_targets = 0;
     def->w = def->h = 64;       /* xd */
 
-    def->amb_color[0] = def->amb_color[1] = def->amb_color[2] = 0.1;
+    def->amb_color[0] = def->amb_color[1] = def->amb_color[2] = 0.1f;
 
     def->amb_shader = NULL;
     def->skybox_shader = NULL;
@@ -156,7 +156,7 @@ int SCE_Deferred_Build (SCE_SDeferred *def, const char *fname)
     int i;
 
 #define SCECREATE(a, b)                                         \
-    def->targets[a] = SCE_Texture_Create (b, def->w, def->h)
+    def->targets[a] = SCE_Texture_Create (b, (int)def->w, (int)def->h)
     SCECREATE (SCE_DEFERRED_COLOR_TARGET, SCE_RENDER_COLOR);
     SCECREATE (SCE_DEFERRED_DEPTH_TARGET, SCE_RENDER_DEPTH);
     SCECREATE (SCE_DEFERRED_NORMAL_TARGET, SCE_TEX_2D);
@@ -303,7 +303,9 @@ static const char *sce_unpack_normal_fun =
 
 /* TODO: temporary */
 #define SCE_DEFERRED_INVPROJ_NAME "sce_deferred_invproj_matrix"
-static const char *sce_pack_position_fun = NULL;
+
+static const char *sce_pack_position_fun =
+    "void sce_pack_position (in vec4 pos) {}";
 /* TODO: same here, possible multiple texture fetches */
 static const char *sce_unpack_position_fun =
     "vec3 sce_unpack_position (in vec2 coord)"
@@ -330,12 +332,13 @@ static const char *sce_unpack_position_fun =
  */
 int SCE_Deferred_BuildShader (SCE_SDeferred *def, SCE_SShader *shader)
 {
-    int i;
-
+    (void)def;
     if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
                               sce_pack_color_fun) < 0) goto fail;
     if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
                               sce_pack_normal_fun) < 0) goto fail;
+    if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
+                              sce_pack_position_fun) < 0) goto fail;
     if (SCE_Shader_Build (shader) < 0) goto fail;
 
     return SCE_OK;
@@ -357,8 +360,6 @@ static const char *sce_final_uniforms_code =
 
 static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def, SCE_SShader *shader)
 {
-    int i;
-
     if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
                               sce_final_uniforms_code) < 0) goto fail;
     if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,

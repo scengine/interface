@@ -55,6 +55,7 @@ struct sce_sdeferred {
 
     SCE_SShader *amb_shader;
     SCE_SShader *skybox_shader;
+    /* TODO: use an array */
     SCE_SShader *point_shader;
     SCE_SShader *spot_shader;
     SCE_SShader *sun_shader;
