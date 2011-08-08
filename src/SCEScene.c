@@ -1084,6 +1084,65 @@ static void SCE_Scene_ForwardRender (SCE_SScene *scene, SCE_SCamera *cam,
     SCE_RFlush ();
 }
 
+static void SCE_Scene_DrawBS (const SCE_SSphere*, const SCE_TMatrix4);
+
+static void
+SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
+                          SCE_SCamera *cam, SCE_SLight *light)
+{
+    float radius, offset;
+    SCE_TVector3 pos;
+    SCE_SSphere sphere;
+    SCE_SBoundingSphere *bs = NULL;
+    SCE_SNode *node = NULL;
+    SCE_ELightType type = SCE_POINT_LIGHT;
+    SCE_SDeferredLightingShader *shader = &def->shaders[type];
+
+    SCE_Shader_Use (shader->shader);
+    /* get light's position in view space */
+    SCE_Light_GetPositionv (light, pos);
+    SCE_Matrix4_MulV3Copy (SCE_Camera_GetFinalView (cam), pos);
+    SCE_Shader_SetParam3fv (shader->lightpos_loc, 1, pos);
+    SCE_Shader_SetParam3fv (shader->lightcolor_loc, 1,
+                            SCE_Light_GetColor (light));
+    SCE_Shader_SetParamf (shader->lightradius_loc,
+                          SCE_Light_GetRadius (light));
+
+    node = SCE_Light_GetNode (light);
+    bs = SCE_Light_GetBoundingSphere (light);
+    SCE_BoundingSphere_Push (bs, SCE_Node_GetFinalMatrix (node), &sphere);
+    radius = SCE_BoundingSphere_GetRadius (bs);
+    radius += 0.3;              /* because the mesh isn't well formed */
+    /* TODO: threshold for the "near" plane of the camera */
+    radius += 0.1;
+    SCE_Sphere_SetRadius (SCE_BoundingSphere_GetSphere (bs), radius);
+
+    SCE_Camera_GetPositionv (cam, pos);
+    if (SCE_Collide_BSWithPointv (bs, pos)) {
+        SCE_RLoadMatrix (SCE_MAT_CAMERA, sce_matrix4_id);
+        SCE_RLoadMatrix (SCE_MAT_OBJECT, sce_matrix4_id);
+        SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
+        SCE_Quad_Draw (-1.0, -1.0, 2.0, 2.0);
+    } else {
+        SCE_Scene_UseCamera (cam);
+        /* TODO: gl keywords */
+        SCE_RSetState (GL_CULL_FACE, SCE_TRUE);
+        /* remove near plane threshold for rendering, otherwise
+           the mesh could be clipped by the near plane, thus resulting
+           in an huge artifact */
+        radius -= 0.1;
+        SCE_Sphere_SetRadius (SCE_BoundingSphere_GetSphere (bs), radius);
+
+        SCE_Mesh_Use (scene->bsmesh);
+        SCE_Scene_DrawBS (SCE_BoundingSphere_GetSphere (bs),
+                          sce_matrix4_id);
+        SCE_Mesh_Unuse ();
+        SCE_RSetState (GL_CULL_FACE, SCE_FALSE);
+    }
+
+    SCE_BoundingSphere_Pop (bs, &sphere);
+}
+
 void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
                           SCE_SCamera *cam, SCE_STexture *target, int cubeface)
 {
@@ -1159,23 +1218,12 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
                  invisible objects, removed by frustum culling :> */
 
         SCE_List_ForEach (it, &scene->lights) {
-            SCE_TVector3 pos;
             SCE_SLight *light = SCE_List_GetData (it);
             SCE_ELightType type = SCE_Light_GetType (light);
-            SCE_SDeferredLightingShader *shader = &def->shaders[type];
 
             switch (type) {
             case SCE_POINT_LIGHT:
-                SCE_Shader_Use (shader->shader);
-                SCE_Shader_SetParamf (shader->lightradius_loc,
-                                      SCE_Light_GetRadius (light));
-                /* get light's position in view space */
-                SCE_Light_GetPositionv (light, pos);
-                SCE_Matrix4_MulV3Copy (SCE_Camera_GetFinalView (cam), pos);
-                SCE_Shader_SetParam3fv (shader->lightpos_loc, 1, pos);
-                SCE_Shader_SetParam3fv (shader->lightcolor_loc, 1,
-                                        SCE_Light_GetColor (light));
-                SCE_Quad_Draw (-1.0, -1.0, 2.0, 2.0);
+                SCE_Deferred_RenderPoint (def, scene, cam, light);
                 break;
             default:            /* onoes */
                 break;
