@@ -192,6 +192,14 @@ static int SCE_Scene_MakeBoundingVolumes (SCE_SScene *scene)
         goto fail;
     SCE_Mesh_AutoBuild (scene->bbmesh);
 
+    SCE_Sphere_Init (&sphere);
+    SCE_Sphere_SetRadius (&sphere, 1.0f);
+    if (!(geom = SCE_SphereGeom_CreateUV (&sphere, 16, 16)))
+        goto fail;
+    if (!(scene->bsmesh = SCE_Mesh_CreateFrom (geom, SCE_TRUE)))
+        goto fail;
+    SCE_Mesh_AutoBuild (scene->bsmesh);
+
     return SCE_TRUE;
 fail:
     SCE_Geometry_Delete (geom);
@@ -256,6 +264,8 @@ void SCE_Scene_Delete (SCE_SScene *scene)
             SCE_SceneResource_DeleteGroup (scene->rgroups[i]);
         SCE_Octree_DeleteRecursive (scene->octree);
         SCE_Node_Delete (scene->rootnode);
+        SCE_Mesh_Delete (scene->bbmesh);
+        SCE_Mesh_Delete (scene->bsmesh);
         SCE_free (scene);
     }
 }
@@ -1398,6 +1408,22 @@ static void SCE_Scene_DrawBB (SCE_SBoundingBox *box, SCE_TMatrix4 m)
     SCE_Matrix4_Translatev (mat, center);
     SCE_Matrix4_MulCopy (mat, m);
     SCE_Matrix4_MulScalev (mat, dim);
+
+    SCE_RLoadMatrix (SCE_MAT_OBJECT, mat);
+    SCE_Mesh_Render ();
+}
+
+static void SCE_Scene_DrawBS (const SCE_SSphere *s, const SCE_TMatrix4 m)
+{
+    SCE_TVector3 center;
+    float radius;
+    SCE_TMatrix4 mat;
+
+    SCE_Sphere_GetCenterv (s, center);
+    radius = SCE_Sphere_GetRadius (s);
+    SCE_Matrix4_Translatev (mat, center);
+    SCE_Matrix4_MulCopy (mat, m);
+    SCE_Matrix4_MulScale (mat, radius, radius, radius);
 
     SCE_RLoadMatrix (SCE_MAT_OBJECT, mat);
     SCE_Mesh_Render ();
