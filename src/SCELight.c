@@ -99,6 +99,10 @@ SCE_ELightType SCE_Light_GetType (SCE_SLight *light)
     return light->type;
 }
 
+SCE_SBoundingSphere* SCE_Light_GetBoundingSphere (SCE_SLight *light)
+{
+    return &light->sphere;
+}
 
 SCE_SNode* SCE_Light_GetNode (SCE_SLight *light)
 {

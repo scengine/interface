@@ -69,6 +69,8 @@ int SCE_Light_IsActivated (SCE_SLight*);
 void SCE_Light_SetType (SCE_SLight*, SCE_ELightType);
 SCE_ELightType SCE_Light_GetType (SCE_SLight*);
 
+SCE_SBoundingSphere* SCE_Light_GetBoundingSphere (SCE_SLight*);
+
 SCE_SNode* SCE_Light_GetNode (SCE_SLight*);
 SCE_SListIterator* SCE_Light_GetIterator (SCE_SLight*);
 
