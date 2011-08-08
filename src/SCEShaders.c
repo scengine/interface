@@ -391,7 +391,7 @@ SCE_SShader* SCE_Shader_Load (const char *name, int force)
 }
 
 
-static int SCE_Shader_BuildShader (SCE_RShaderType type, const char *source,
+static int SCE_Shader_BuildShader (SCE_RShaderType type, char *source,
                                    SCE_RShaderGLSL **shader)
 {
     if (source) {
