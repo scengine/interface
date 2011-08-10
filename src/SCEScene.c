@@ -1095,7 +1095,7 @@ static void
 SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
                           SCE_SCamera *cam, SCE_SLight *light)
 {
-    float radius, offset;
+    float radius, near;
     SCE_TVector3 pos;
     SCE_SSphere sphere;
     SCE_SBoundingSphere *bs = NULL;
@@ -1117,9 +1117,8 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
     bs = SCE_Light_GetBoundingSphere (light);
     SCE_BoundingSphere_Push (bs, SCE_Node_GetFinalMatrix (node), &sphere);
     radius = SCE_BoundingSphere_GetRadius (bs);
-    radius += 0.3;              /* because the mesh isn't well formed */
-    /* TODO: threshold for the "near" plane of the camera */
-    radius += 0.1;
+    near = SCE_Camera_GetNear (cam) * 2.0;
+    radius += near;
     SCE_Sphere_SetRadius (SCE_BoundingSphere_GetSphere (bs), radius);
 
     SCE_Camera_GetPositionv (cam, pos);
@@ -1135,7 +1134,7 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
         /* remove near plane threshold for rendering, otherwise
            the mesh could be clipped by the near plane, thus resulting
            in an huge artifact */
-        radius -= 0.1;
+        radius -= near;
         SCE_Sphere_SetRadius (SCE_BoundingSphere_GetSphere (bs), radius);
 
         SCE_Mesh_Use (scene->bsmesh);
