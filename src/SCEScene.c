@@ -176,13 +176,15 @@ static void SCE_Scene_Init (SCE_SScene *scene)
     scene->deferred = NULL;
 }
 
-/* TODO: add bsmesh volume */
+#define SCE_SCENE_SPHERE_SUBDIV 16
+
 static int SCE_Scene_MakeBoundingVolumes (SCE_SScene *scene)
 {
     SCE_SBox box;
     SCE_SSphere sphere;
     SCE_SGeometry *geom = NULL;
     SCE_TVector3 v;
+    float x;
 
     SCE_Vector3_Set (v, 0.0, 0.0, 0.0);
     SCE_Box_SetFromCenter (&box, v, 1.0, 1.0, 1.0);
@@ -193,8 +195,11 @@ static int SCE_Scene_MakeBoundingVolumes (SCE_SScene *scene)
     SCE_Mesh_AutoBuild (scene->bbmesh);
 
     SCE_Sphere_Init (&sphere);
-    SCE_Sphere_SetRadius (&sphere, 1.0f);
-    if (!(geom = SCE_SphereGeom_CreateUV (&sphere, 16, 16)))
+    /* offset so that the mesh wraps the sphere */
+    x = 1.0 - cos (M_PI / SCE_SCENE_SPHERE_SUBDIV);
+    SCE_Sphere_SetRadius (&sphere, 1.0f + x / (1.0f - x));
+    if (!(geom = SCE_SphereGeom_CreateUV (&sphere, SCE_SCENE_SPHERE_SUBDIV,
+                                          SCE_SCENE_SPHERE_SUBDIV)))
         goto fail;
     if (!(scene->bsmesh = SCE_Mesh_CreateFrom (geom, SCE_TRUE)))
         goto fail;
