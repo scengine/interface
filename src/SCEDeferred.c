@@ -264,10 +264,17 @@ static const char *sce_unpack_color_fun =
     "}";
 
 #if 0
+/* see http://aras-p.info/texts/CompactNormalStorage.html */
 static const char *sce_pack_normal_fun =
     "void sce_pack_normal (in vec3 norm)"
     "{"
-    "  vec2 nor = (norm.xy + vec2 (1.0)) / 2.0;"
+    /* stereographic projection */
+    "  const float scale = 1.8;"
+
+    "  vec2 nor = norm.xy / (norm.z + 1.0);"
+    "  nor /= scale;"
+    "  nor = nor * 0.5 + vec2 (0.5);"
+    /* precision mess^W stuff */
     "  float x = nor.x * 256.0;"
     "  float e = floor (x);"
     "  gl_FragData[1].x = e / 256.0;"
@@ -280,13 +287,17 @@ static const char *sce_pack_normal_fun =
 static const char *sce_unpack_normal_fun =
     "vec3 sce_unpack_normal (in vec2 coord)"
     "{"
+    /* precision stuff */
     "  vec4 n = texture2D ("SCE_DEFERRED_NORMAL_TARGET_NAME", coord);"
     "  vec3 nor;"
     "  nor.x = n.x + n.y / 256.0;"
     "  nor.y = n.z + n.w / 256.0;"
-    "  nor.xy = nor.xy * 2.0 - vec2 (1.0);"
-    "  nor.z = sqrt (1.0 - nor.x * nor.x - nor.y * nor.y);"
-    "  return normalize (nor);"
+    /* stereographic projection */
+    "  const float scale = 1.8;"
+    "  nor = vec3 (nor.xy * 2.0 * scale, 0.0) + vec3 (-scale, -scale, 1.0);"
+    "  const float g = 2.0 / dot (nor, nor);"
+    "  vec3 nn = vec3 (g * nor.xy, g - 1.0);"
+    "  return nn;"
     "}";
 #else
 static const char *sce_pack_normal_fun =
