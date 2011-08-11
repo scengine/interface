@@ -1147,6 +1147,32 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
     SCE_BoundingSphere_Pop (bs, &sphere);
 }
 
+static void
+SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
+                        SCE_SCamera *cam, SCE_SLight *light)
+{
+    SCE_TVector3 pos;
+    SCE_ELightType type = SCE_SUN_LIGHT;
+    SCE_SDeferredLightingShader *shader = &def->shaders[type];
+
+    SCE_Shader_Use (shader->shader);
+    /* get light's position in view space */
+    SCE_Light_GetPositionv (light, pos);
+    SCE_Matrix4_MulV3Copyw (SCE_Camera_GetFinalView (cam), pos, 0.0);
+    /* direction is -position */
+    SCE_Vector3_Operator1 (pos, *=, -1.0);
+    SCE_Vector3_Normalize (pos); /* just in case */
+    SCE_Shader_SetParam3fv (shader->lightdir_loc, 1, pos);
+    SCE_Shader_SetParam3fv (shader->lightcolor_loc, 1,
+                            SCE_Light_GetColor (light));
+
+    SCE_RLoadMatrix (SCE_MAT_CAMERA, sce_matrix4_id);
+    SCE_RLoadMatrix (SCE_MAT_OBJECT, sce_matrix4_id);
+    SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
+    SCE_Quad_Draw (-1.0, -1.0, 2.0, 2.0);
+}
+
+
 void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
                           SCE_SCamera *cam, SCE_STexture *target, int cubeface)
 {
@@ -1173,15 +1199,6 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
     /* TODO: gl keywords */
     SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_FALSE);
     SCE_RActivateDepthBuffer (SCE_FALSE);
-
-#if 0
-    SCE_Matrix4_Mul (SCE_Camera_GetFinalViewInverse (cam),
-                     SCE_Camera_GetProjInverse (cam),
-                     SCE_Texture_GetMatrix (def->gbuf));
-#elif 0
-    SCE_Matrix_Copy (SCE_Texture_GetMatrix (def->gbuf),
-                     SCE_Camera_GetProjInverse (cam));
-#endif
 
     /* setup textures */
     for (i = 0; i < def->n_targets; i++)
@@ -1211,10 +1228,11 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
         SCE_RSetBlending (GL_ONE, GL_ONE);
 
         /* setup uniform parameters of shaders */
-        /* TODO: do it for the other shaders */
-        SCE_Shader_Use (def->shaders[SCE_POINT_LIGHT].shader);
-        SCE_Shader_SetMatrix4 (def->shaders[SCE_POINT_LIGHT].invproj_loc,
-                               SCE_Camera_GetProjInverse (cam));
+        for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
+            SCE_Shader_Use (def->shaders[i].shader);
+            SCE_Shader_SetMatrix4 (def->shaders[i].invproj_loc,
+                                   SCE_Camera_GetProjInverse (cam));
+        }
 
         /* TODO: tip for shadows:
                  lights inside the view frustum do not need to update the scene
@@ -1228,6 +1246,9 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
             switch (type) {
             case SCE_POINT_LIGHT:
                 SCE_Deferred_RenderPoint (def, scene, cam, light);
+                break;
+            case SCE_SUN_LIGHT:
+                SCE_Deferred_RenderSun (def, scene, cam, light);
                 break;
             default:            /* onoes */
                 break;

@@ -38,6 +38,7 @@ extern "C" {
 #define SCE_DEFERRED_INVPROJ_NAME "sce_deferred_invproj_matrix"
 
 #define SCE_DEFERRED_LIGHT_POSITION_NAME "sce_light_position"
+#define SCE_DEFERRED_LIGHT_DIRECTION_NAME "sce_light_direction"
 #define SCE_DEFERRED_LIGHT_COLOR_NAME "sce_light_color"
 #define SCE_DEFERRED_LIGHT_RADIUS_NAME "sce_light_radius"
 
@@ -56,6 +57,7 @@ struct sce_sdeferredlightingshader {
     SCE_SShader *shader;  /**< Lighting shader */
     int invproj_loc;      /**< Location of the inverse projection matrix */
     int lightpos_loc;     /**< Location of the light position uniform */
+    int lightdir_loc;     /**< Location of the light direction uniform */
     int lightcolor_loc;   /**< Location of the light color uniform */
     int lightradius_loc;  /**< Location of the light radius uniform */
 };

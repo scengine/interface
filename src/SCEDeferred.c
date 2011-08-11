@@ -47,6 +47,7 @@ SCE_Deferred_InitLightingShader (SCE_SDeferredLightingShader *shader)
     shader->shader = NULL;
     shader->invproj_loc = -1;
     shader->lightpos_loc = -1;
+    shader->lightdir_loc = -1;
     shader->lightcolor_loc = -1;
     shader->lightradius_loc = -1;
 }
@@ -363,6 +364,7 @@ static const char *sce_final_uniforms_code =
     "uniform sampler2D "SCE_DEFERRED_NORMAL_TARGET_NAME";"
     "uniform mat4 "SCE_DEFERRED_INVPROJ_NAME";"
     "uniform vec3 "SCE_DEFERRED_LIGHT_POSITION_NAME";"
+    "uniform vec3 "SCE_DEFERRED_LIGHT_DIRECTION_NAME";"
     "uniform vec3 "SCE_DEFERRED_LIGHT_COLOR_NAME";"
     "uniform float "SCE_DEFERRED_LIGHT_RADIUS_NAME";";
 
@@ -394,6 +396,8 @@ static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def,
         SCE_Shader_GetIndex (shader->shader, SCE_DEFERRED_INVPROJ_NAME);
     shader->lightpos_loc =
         SCE_Shader_GetIndex (shader->shader, SCE_DEFERRED_LIGHT_POSITION_NAME);
+    shader->lightdir_loc =
+        SCE_Shader_GetIndex (shader->shader, SCE_DEFERRED_LIGHT_DIRECTION_NAME);
     shader->lightcolor_loc =
         SCE_Shader_GetIndex (shader->shader, SCE_DEFERRED_LIGHT_COLOR_NAME);
     shader->lightradius_loc =
