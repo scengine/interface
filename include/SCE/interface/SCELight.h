@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 13/03/2008
-   updated: 07/08/2011 */
+   updated: 12/08/2011 */
 
 #ifndef SCELIGHT_H
 #define SCELIGHT_H
@@ -49,7 +49,9 @@ struct sce_slight {
     float intensity;    /* coefficient d'intensite */
     float radius;       /* rayon de portee de la lumiere */
     int activated;      /* defini si la lumiere est active */
-    SCE_SBoundingSphere sphere; /**< Bounding sphere (if omnidirectionnal) */
+    SCE_SBoundingSphere sphere; /**< Bounding sphere (if point) */
+    SCE_SCone cone;             /**< Cone (if spot) */
+    float attenuation;          /**< Spot edges attenuation */
     SCE_SNode *node;    /* noeud de la lumiere */
     SCE_SListIterator it;
     void *udata;
@@ -70,6 +72,7 @@ void SCE_Light_SetType (SCE_SLight*, SCE_ELightType);
 SCE_ELightType SCE_Light_GetType (SCE_SLight*);
 
 SCE_SBoundingSphere* SCE_Light_GetBoundingSphere (SCE_SLight*);
+SCE_SCone* SCE_Light_GetCone (SCE_SLight*);
 
 SCE_SNode* SCE_Light_GetNode (SCE_SLight*);
 SCE_SListIterator* SCE_Light_GetIterator (SCE_SLight*);
@@ -81,13 +84,17 @@ void SCE_Light_GetColorv (SCE_SLight*, float*);
 
 void SCE_Light_GetPositionv (SCE_SLight*, float*);
 
-void SCE_Light_GetDirectionv (SCE_SLight*, float*);
+void SCE_Light_SetOrientationv (SCE_SLight*, const SCE_TVector3);
+void SCE_Light_GetOrientationv (SCE_SLight*, SCE_TVector3);
 
 void SCE_Light_Infinite (SCE_SLight*, int);
 int SCE_Light_IsInfinite (SCE_SLight*);
 
 void SCE_Light_SetAngle (SCE_SLight*, float);
-float SCE_Light_GetAngle (SCE_SLight*);
+float SCE_Light_GetAngle (const SCE_SLight*);
+
+void SCE_Light_SetAttenuation (SCE_SLight*, float);
+float SCE_Light_GetAttenuation (const SCE_SLight*);
 
 void SCE_Light_SetIntensity (SCE_SLight*, float);
 float SCE_Light_GetIntensity (SCE_SLight*);

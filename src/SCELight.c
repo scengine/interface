@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 13/03/2008
-   updated: 05/08/2011 */
+   updated: 12/08/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -37,6 +37,8 @@ void SCE_Light_Init (SCE_SLight *light)
     light->node = NULL;
     SCE_BoundingSphere_Init (&light->sphere);
     SCE_BoundingSphere_GetSphere (&light->sphere)->radius = light->radius;
+    SCE_Cone_Init (&light->cone);
+    light->attenuation = 1.0;
     SCE_List_InitIt (&light->it);
     SCE_List_SetData (&light->it, light);
     light->udata = NULL;
@@ -103,6 +105,10 @@ SCE_SBoundingSphere* SCE_Light_GetBoundingSphere (SCE_SLight *light)
 {
     return &light->sphere;
 }
+SCE_SCone* SCE_Light_GetCone (SCE_SLight *light)
+{
+    return &light->cone;
+}
 
 SCE_SNode* SCE_Light_GetNode (SCE_SLight *light)
 {
@@ -133,16 +139,18 @@ void SCE_Light_GetColorv (SCE_SLight *light, float *c)
 
 void SCE_Light_GetPositionv (SCE_SLight *light, float *pos)
 {
-    SCE_Vector3_Set (pos, 0.0f, 0.0f, 0.0f);
-    SCE_Matrix4_MulV3Copy (SCE_Node_GetFinalMatrix (light->node), pos);
+    SCE_Matrix4_GetTranslation (SCE_Node_GetFinalMatrix (light->node), pos);
 }
 
-void SCE_Light_GetDirectionv (SCE_SLight *light, float *dir)
+void SCE_Light_SetOrientationv (SCE_SLight *light, const SCE_TVector3 dir)
 {
-    SCE_TMatrix3 mat;
-    SCE_Vector3_Set (dir, 0.0f, 0.0f, -1.0f);
-    SCE_Matrix3_CopyM4 (mat, SCE_Node_GetFinalMatrix (light->node));
-    SCE_Matrix3_MulV3Copy (mat, dir);
+    SCE_Cone_SetOrientationv (&light->cone, dir);
+}
+void SCE_Light_GetOrientationv (SCE_SLight *light, SCE_TVector3 dir)
+{
+    SCE_Cone_GetOrientationv (&light->cone, dir);
+    SCE_Matrix4_MulV3Copyw (SCE_Node_GetFinalMatrix (light->node), dir, 0.0);
+    SCE_Vector3_Normalize (dir);
 }
 
 void SCE_Light_Infinite (SCE_SLight *light, int inf)
@@ -157,10 +165,20 @@ int SCE_Light_IsInfinite (SCE_SLight *light)
 void SCE_Light_SetAngle (SCE_SLight *light, float a)
 {
     SCE_RSetLightAngle (light->clight, a);
+    SCE_Cone_SetAngle (&light->cone, a);
 }
-float SCE_Light_GetAngle (SCE_SLight *light)
+float SCE_Light_GetAngle (const SCE_SLight *light)
 {
-    return SCE_RGetLightAngle (light->clight);
+    return SCE_Cone_GetAngle (&light->cone);
+}
+
+void SCE_Light_SetAttenuation (SCE_SLight *light, float att)
+{
+    light->attenuation = att;
+}
+float SCE_Light_GetAttenuation (const SCE_SLight *light)
+{
+    return light->attenuation;
 }
 
 void SCE_Light_SetIntensity (SCE_SLight *light, float intensity)
@@ -178,6 +196,8 @@ float SCE_Light_GetIntensity (SCE_SLight *light)
 void SCE_Light_SetRadius (SCE_SLight *light, float radius)
 {
     light->radius = radius;
+    /* :> */
+    SCE_Cone_SetHeight (&light->cone, radius);
     SCE_BoundingSphere_GetSphere (&light->sphere)->radius = light->radius;
     if (radius > 1.0f)                      /* 3 gives good results */
         SCE_RSetLightQuadraticAtt (light->clight, 3.0f/radius);
@@ -207,7 +227,7 @@ void SCE_Light_Use (SCE_SLight *light)
     if (light && light->activated) {
         SCE_TVector3 pos, dir;
         SCE_Light_GetPositionv (light, pos);
-        SCE_Light_GetDirectionv (light, dir);
+        SCE_Light_GetOrientationv (light, dir);
         SCE_RSetLightPositionv (light->clight, pos);
         SCE_RSetLightDirectionv (light->clight, dir);
         SCE_RUseLight (light->clight);
