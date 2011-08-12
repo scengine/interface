@@ -50,6 +50,8 @@ SCE_Deferred_InitLightingShader (SCE_SDeferredLightingShader *shader)
     shader->lightdir_loc = -1;
     shader->lightcolor_loc = -1;
     shader->lightradius_loc = -1;
+    shader->lightangle_loc = -1;
+    shader->lightattenuation_loc = -1;
 }
 static void
 SCE_Deferred_ClearLightingShader (SCE_SDeferredLightingShader *shader)
@@ -366,7 +368,9 @@ static const char *sce_final_uniforms_code =
     "uniform vec3 "SCE_DEFERRED_LIGHT_POSITION_NAME";"
     "uniform vec3 "SCE_DEFERRED_LIGHT_DIRECTION_NAME";"
     "uniform vec3 "SCE_DEFERRED_LIGHT_COLOR_NAME";"
-    "uniform float "SCE_DEFERRED_LIGHT_RADIUS_NAME";";
+    "uniform float "SCE_DEFERRED_LIGHT_RADIUS_NAME";"
+    "uniform float "SCE_DEFERRED_LIGHT_ANGLE_NAME";"
+    "uniform float "SCE_DEFERRED_LIGHT_ATTENUATION_NAME";";
 
 
 static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def,
@@ -402,6 +406,10 @@ static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def,
         SCE_Shader_GetIndex (shader->shader, SCE_DEFERRED_LIGHT_COLOR_NAME);
     shader->lightradius_loc =
         SCE_Shader_GetIndex (shader->shader, SCE_DEFERRED_LIGHT_RADIUS_NAME);
+    shader->lightangle_loc =
+        SCE_Shader_GetIndex (shader->shader, SCE_DEFERRED_LIGHT_ANGLE_NAME);
+    shader->lightattenuation_loc =
+        SCE_Shader_GetIndex(shader->shader,SCE_DEFERRED_LIGHT_ATTENUATION_NAME);
 
     SCE_Shader_Use (shader->shader);
     for (i = 0; i < def->n_targets; i++)

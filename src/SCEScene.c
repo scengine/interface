@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2008
-   updated: 07/08/2011 */
+   updated: 11/08/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -172,6 +172,7 @@ static void SCE_Scene_Init (SCE_SScene *scene)
 
     scene->bbmesh = NULL;
     scene->bsmesh = NULL;
+    scene->bcmesh = NULL;
 
     scene->deferred = NULL;
 }
@@ -182,6 +183,7 @@ static int SCE_Scene_MakeBoundingVolumes (SCE_SScene *scene)
 {
     SCE_SBox box;
     SCE_SSphere sphere;
+    SCE_SCone cone;
     SCE_SGeometry *geom = NULL;
     SCE_TVector3 v;
     float x;
@@ -204,6 +206,15 @@ static int SCE_Scene_MakeBoundingVolumes (SCE_SScene *scene)
     if (!(scene->bsmesh = SCE_Mesh_CreateFrom (geom, SCE_TRUE)))
         goto fail;
     SCE_Mesh_AutoBuild (scene->bsmesh);
+
+    SCE_Cone_Init (&cone);
+    SCE_Cone_SetRadius (&cone, 1.0f + x / (1.0f - x));
+    SCE_Cone_SetHeight (&cone, 1.0f);
+    if (!(geom = SCE_ConeGeom_Create (&cone, SCE_SCENE_SPHERE_SUBDIV)))
+        goto fail;
+    if (!(scene->bcmesh = SCE_Mesh_CreateFrom (geom, SCE_TRUE)))
+        goto fail;
+    SCE_Mesh_AutoBuild (scene->bcmesh);
 
     return SCE_TRUE;
 fail:
@@ -1173,6 +1184,67 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
 }
 
 
+static void SCE_Scene_DrawBC (const SCE_SCone*, const SCE_TMatrix4);
+
+static void
+SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
+                         SCE_SCamera *cam, SCE_SLight *light)
+{
+    float radius, near, angle;
+    SCE_TVector3 pos, dir;
+    SCE_SCone cone;
+    SCE_SNode *node = NULL;
+    SCE_ELightType type = SCE_SPOT_LIGHT;
+    SCE_SDeferredLightingShader *shader = &def->shaders[type];
+
+    SCE_Shader_Use (shader->shader);
+    /* get light's position in view space */
+    SCE_Light_GetPositionv (light, pos);
+    SCE_Matrix4_MulV3Copy (SCE_Camera_GetFinalView (cam), pos);
+    /* orientation also in view space */
+    SCE_Light_GetOrientationv (light, dir);
+    SCE_Matrix4_MulV3Copyw (SCE_Camera_GetFinalView (cam), dir, 0.0);
+    SCE_Shader_SetParam3fv (shader->lightpos_loc, 1, pos);
+    SCE_Shader_SetParam3fv (shader->lightdir_loc, 1, dir);
+    SCE_Shader_SetParam3fv (shader->lightcolor_loc, 1,
+                            SCE_Light_GetColor (light));
+    SCE_Shader_SetParamf (shader->lightradius_loc,
+                          SCE_Light_GetRadius (light));
+    /* cosine of the angle, not radians */
+    angle = SCE_Math_Cosf (SCE_Light_GetAngle (light));
+    SCE_Shader_SetParamf (shader->lightangle_loc, angle);
+    SCE_Shader_SetParamf (shader->lightattenuation_loc,
+                          1.0 / SCE_Light_GetAttenuation (light));
+
+    node = SCE_Light_GetNode (light);
+    SCE_Cone_Copy (&cone, SCE_Light_GetCone (light));
+    SCE_Cone_Push (&cone, SCE_Node_GetFinalMatrix (node), NULL);
+    near = SCE_Camera_GetNear (cam) * 2.0;
+    SCE_Cone_Offset (&cone, near);
+
+    SCE_Camera_GetPositionv (cam, pos);
+    if (SCE_Collide_BCWithPointv (&cone, pos)) {
+        SCE_RLoadMatrix (SCE_MAT_CAMERA, sce_matrix4_id);
+        SCE_RLoadMatrix (SCE_MAT_OBJECT, sce_matrix4_id);
+        SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
+        SCE_Quad_Draw (-1.0, -1.0, 2.0, 2.0);
+    } else {
+        SCE_Scene_UseCamera (cam);
+        /* TODO: gl keywords */
+        SCE_RSetState (GL_CULL_FACE, SCE_TRUE);
+        /* remove near plane threshold for rendering, otherwise
+           the mesh could be clipped by the near plane, thus resulting
+           in an huge artifact */
+        SCE_Cone_Offset (&cone, -near);
+
+        SCE_Mesh_Use (scene->bcmesh);
+        SCE_Scene_DrawBC (&cone, sce_matrix4_id);
+        SCE_Mesh_Unuse ();
+        SCE_RSetState (GL_CULL_FACE, SCE_FALSE);
+    }
+}
+
+
 void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
                           SCE_SCamera *cam, SCE_STexture *target, int cubeface)
 {
@@ -1246,6 +1318,9 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
             switch (type) {
             case SCE_POINT_LIGHT:
                 SCE_Deferred_RenderPoint (def, scene, cam, light);
+                break;
+            case SCE_SPOT_LIGHT:
+                SCE_Deferred_RenderSpot (def, scene, cam, light);
                 break;
             case SCE_SUN_LIGHT:
                 SCE_Deferred_RenderSun (def, scene, cam, light);
@@ -1501,6 +1576,24 @@ static void SCE_Scene_DrawBS (const SCE_SSphere *s, const SCE_TMatrix4 m)
     SCE_RLoadMatrix (SCE_MAT_OBJECT, mat);
     SCE_Mesh_Render ();
 }
+
+static void SCE_Scene_DrawBC (const SCE_SCone *c, const SCE_TMatrix4 m)
+{
+    SCE_TVector3 pos;
+    float radius, height;
+    SCE_TMatrix4 mat;
+
+    SCE_Cone_GetPositionv (c, pos);
+    radius = SCE_Cone_GetRadius (c);
+    height = SCE_Cone_GetHeight (c);
+    SCE_Matrix4_Translatev (mat, pos);
+    SCE_Matrix4_MulCopy (mat, m);
+    SCE_Matrix4_MulScale (mat, radius, radius, height);
+
+    SCE_RLoadMatrix (SCE_MAT_OBJECT, mat);
+    SCE_Mesh_Render ();
+}
+
 
 static void SCE_Scene_DrawInstBB (SCE_SSceneEntityInstance *inst)
 {

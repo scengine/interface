@@ -41,6 +41,8 @@ extern "C" {
 #define SCE_DEFERRED_LIGHT_DIRECTION_NAME "sce_light_direction"
 #define SCE_DEFERRED_LIGHT_COLOR_NAME "sce_light_color"
 #define SCE_DEFERRED_LIGHT_RADIUS_NAME "sce_light_radius"
+#define SCE_DEFERRED_LIGHT_ANGLE_NAME "sce_light_angle"
+#define SCE_DEFERRED_LIGHT_ATTENUATION_NAME "sce_light_attenuation"
 
 typedef enum {
     SCE_DEFERRED_COLOR_TARGET = 0,
@@ -60,6 +62,8 @@ struct sce_sdeferredlightingshader {
     int lightdir_loc;     /**< Location of the light direction uniform */
     int lightcolor_loc;   /**< Location of the light color uniform */
     int lightradius_loc;  /**< Location of the light radius uniform */
+    int lightangle_loc;   /**< Location of the light angle uniform */
+    int lightattenuation_loc; /**< Location of the light attenuation uniform */
 };
 
 typedef struct sce_sdeferred SCE_SDeferred;

@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2007
-   updated: 04/08/2011 */
+   updated: 11/08/2011 */
 
 #ifndef SCESCENE_H
 #define SCESCENE_H
@@ -108,6 +108,7 @@ struct sce_sscene
 
     SCE_SMesh *bbmesh;
     SCE_SMesh *bsmesh;
+    SCE_SMesh *bcmesh;
 
     SCE_SDeferred *deferred;
 };
