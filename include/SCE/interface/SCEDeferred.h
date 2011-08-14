@@ -37,12 +37,31 @@ extern "C" {
 
 #define SCE_DEFERRED_INVPROJ_NAME "sce_deferred_invproj_matrix"
 
+#define SCE_DEFERRED_LIGHT_PROJECTION_NAME "sce_light_proj"
 #define SCE_DEFERRED_LIGHT_POSITION_NAME "sce_light_position"
 #define SCE_DEFERRED_LIGHT_DIRECTION_NAME "sce_light_direction"
 #define SCE_DEFERRED_LIGHT_COLOR_NAME "sce_light_color"
 #define SCE_DEFERRED_LIGHT_RADIUS_NAME "sce_light_radius"
 #define SCE_DEFERRED_LIGHT_ANGLE_NAME "sce_light_angle"
 #define SCE_DEFERRED_LIGHT_ATTENUATION_NAME "sce_light_attenuation"
+
+/* shader light flags */
+#define SCE_DEFERRED_USE_SHADOWS (0x00000001)
+#define SCE_DEFERRED_USE_SOFT_SHADOWS (0x00000002)
+#define SCE_DEFERRED_USE_SPECULAR (0x00000004)
+#define SCE_DEFERRED_USE_IMAGE (0x00000008)
+/* number of flags combinations actually. */
+#define SCE_NUM_DEFERRED_LIGHT_FLAGS ((SCE_DEFERRED_USE_IMAGE << 1) - 1)
+
+/* shader light flags names */
+#define SCE_DEFERRED_POINT_LIGHT "SCE_DEFERRED_POINT_LIGHT"
+#define SCE_DEFERRED_SPOT_LIGHT "SCE_DEFERRED_SPOT_LIGHT"
+#define SCE_DEFERRED_SUN_LIGHT "SCE_DEFERRED_SUN_LIGHT"
+
+#define SCE_DEFERRED_USE_SHADOWS_NAME "SCE_DEFERRED_USE_SHADOWS"
+#define SCE_DEFERRED_USE_SOFT_SHADOWS_NAME "SCE_DEFERRED_USE_SOFT_SHADOWS"
+#define SCE_DEFERRED_USE_SPECULAR_NAME "SCE_DEFERRED_USE_SPECULAR"
+#define SCE_DEFERRED_USE_IMAGE_NAME "SCE_DEFERRED_USE_IMAGE"
 
 typedef enum {
     SCE_DEFERRED_COLOR_TARGET = 0,
@@ -53,11 +72,11 @@ typedef enum {
     SCE_NUM_DEFERRED_TARGETS
 } SCE_EDeferredTarget;
 
-
 typedef struct sce_sdeferredlightingshader SCE_SDeferredLightingShader;
 struct sce_sdeferredlightingshader {
     SCE_SShader *shader;  /**< Lighting shader */
     int invproj_loc;      /**< Location of the inverse projection matrix */
+    int lightproj_loc;    /**< Location of the light projection matrix */
     int lightpos_loc;     /**< Location of the light position uniform */
     int lightdir_loc;     /**< Location of the light direction uniform */
     int lightcolor_loc;   /**< Location of the light color uniform */
@@ -78,7 +97,11 @@ struct sce_sdeferred {
     SCE_SShader *amb_shader;
     SCE_SShader *skybox_shader;
 
-    SCE_SDeferredLightingShader shaders[SCE_NUM_LIGHT_TYPES];
+    SCE_SDeferredLightingShader
+        shaders[SCE_NUM_LIGHT_TYPES][SCE_NUM_DEFERRED_LIGHT_FLAGS];
+    SCE_STexture *shadowmaps[SCE_NUM_LIGHT_TYPES];
+
+    SCE_SCamera *cam;
 };
 
 SCE_SDeferred* SCE_Deferred_Create (void);

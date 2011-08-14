@@ -1104,7 +1104,7 @@ static void SCE_Scene_DrawBS (const SCE_SSphere*, const SCE_TMatrix4);
 
 static void
 SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
-                          SCE_SCamera *cam, SCE_SLight *light)
+                          SCE_SCamera *cam, SCE_SLight *light, int flags)
 {
     float radius, near;
     SCE_TVector3 pos;
@@ -1112,7 +1112,7 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
     SCE_SBoundingSphere *bs = NULL;
     SCE_SNode *node = NULL;
     SCE_ELightType type = SCE_POINT_LIGHT;
-    SCE_SDeferredLightingShader *shader = &def->shaders[type];
+    SCE_SDeferredLightingShader *shader = &def->shaders[type][flags];
 
     SCE_Shader_Use (shader->shader);
     /* get light's position in view space */
@@ -1160,11 +1160,11 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
 
 static void
 SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
-                        SCE_SCamera *cam, SCE_SLight *light)
+                        SCE_SCamera *cam, SCE_SLight *light, int flags)
 {
     SCE_TVector3 pos;
     SCE_ELightType type = SCE_SUN_LIGHT;
-    SCE_SDeferredLightingShader *shader = &def->shaders[type];
+    SCE_SDeferredLightingShader *shader = &def->shaders[type][flags];
 
     SCE_Shader_Use (shader->shader);
     /* get light's position in view space */
@@ -1188,14 +1188,14 @@ static void SCE_Scene_DrawBC (const SCE_SCone*, const SCE_TMatrix4);
 
 static void
 SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
-                         SCE_SCamera *cam, SCE_SLight *light)
+                         SCE_SCamera *cam, SCE_SLight *light, int flags)
 {
-    float radius, near, angle;
+    float near, angle;
     SCE_TVector3 pos, dir;
     SCE_SCone cone;
     SCE_SNode *node = NULL;
     SCE_ELightType type = SCE_SPOT_LIGHT;
-    SCE_SDeferredLightingShader *shader = &def->shaders[type];
+    SCE_SDeferredLightingShader *shader = &def->shaders[type][flags];
 
     SCE_Shader_Use (shader->shader);
     /* get light's position in view space */
@@ -1299,11 +1299,15 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
         SCE_RSetState (GL_BLEND, SCE_TRUE);
         SCE_RSetBlending (GL_ONE, GL_ONE);
 
+        /* TODO: overhead for unused shaders */
         /* setup uniform parameters of shaders */
         for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
-            SCE_Shader_Use (def->shaders[i].shader);
-            SCE_Shader_SetMatrix4 (def->shaders[i].invproj_loc,
-                                   SCE_Camera_GetProjInverse (cam));
+            int j;
+            for (j = 0; j < SCE_NUM_DEFERRED_LIGHT_FLAGS; j++) {
+                SCE_Shader_Use (def->shaders[i][j].shader);
+                SCE_Shader_SetMatrix4 (def->shaders[i][j].invproj_loc,
+                                       SCE_Camera_GetProjInverse (cam));
+            }
         }
 
         /* TODO: tip for shadows:
@@ -1312,18 +1316,19 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
                  invisible objects, removed by frustum culling :> */
 
         SCE_List_ForEach (it, &scene->lights) {
+            int flags = 0;
             SCE_SLight *light = SCE_List_GetData (it);
             SCE_ELightType type = SCE_Light_GetType (light);
 
             switch (type) {
             case SCE_POINT_LIGHT:
-                SCE_Deferred_RenderPoint (def, scene, cam, light);
+                SCE_Deferred_RenderPoint (def, scene, cam, light, flags);
                 break;
             case SCE_SPOT_LIGHT:
-                SCE_Deferred_RenderSpot (def, scene, cam, light);
+                SCE_Deferred_RenderSpot (def, scene, cam, light, flags);
                 break;
             case SCE_SUN_LIGHT:
-                SCE_Deferred_RenderSun (def, scene, cam, light);
+                SCE_Deferred_RenderSun (def, scene, cam, light, flags);
                 break;
             default:            /* onoes */
                 break;
