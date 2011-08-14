@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 05/08/2011 */
+   updated: 14/08/2011 */
 
 #ifndef SCESHADERS_H
 #define SCESHADERS_H
@@ -95,8 +95,9 @@ void SCE_Shader_ActivateMatricesMapping (SCE_SShader*, int);
 
 void SCE_Shader_SetPatchVertices (SCE_SShader*, int);
 
-int SCE_Shader_AddSource (SCE_SShader*, SCE_RShaderType, const char*);
-
+int SCE_Shader_AddSource (SCE_SShader*, SCE_RShaderType, const char*, int);
+int SCE_Shader_Local (SCE_SShader*, SCE_RShaderType, const char*, const char*);
+int SCE_Shader_Global (SCE_SShader*, const char*, const char*);
 
 int SCE_Shader_InputPrimitive (SCE_SShader*, SCE_EPrimitiveType, int);
 int SCE_Shader_OutputPrimitive (SCE_SShader*, SCE_EPrimitiveType);

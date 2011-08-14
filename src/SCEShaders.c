@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 05/08/2011 */
+   updated: 14/08/2011 */
 
 #include <ctype.h>
 #include <SCE/utils/SCEUtils.h>
@@ -482,7 +482,7 @@ void SCE_Shader_SetPatchVertices (SCE_SShader *shader, int vertices)
 
 
 int SCE_Shader_AddSource (SCE_SShader *shader, SCE_RShaderType type,
-                          const char *src)
+                          const char *src, int prepend)
 {
     char *addsrc = NULL, *newsrc = NULL;
 
@@ -491,7 +491,10 @@ int SCE_Shader_AddSource (SCE_SShader *shader, SCE_RShaderType type,
     if (!addsrc) {
         newsrc = SCE_String_Dup (src);
     } else {
-        newsrc = SCE_String_CatDup (addsrc, src);
+        if (prepend)
+            newsrc = SCE_String_CatDup (src, addsrc);
+        else
+            newsrc = SCE_String_CatDup (addsrc, src);
     }
 
     if (!newsrc) {
@@ -502,6 +505,52 @@ int SCE_Shader_AddSource (SCE_SShader *shader, SCE_RShaderType type,
     SCE_free (addsrc);
     shader->addsrc[type] = newsrc;
 
+    return SCE_OK;
+}
+
+int SCE_Shader_Local (SCE_SShader *shader, SCE_RShaderType type,
+                      const char *define, const char *value)
+{
+#define SCE_LOL 256
+    char buf[SCE_LOL] = {0};
+    size_t size;
+
+    size = strlen (define) + 11; /* 11 = strlen ("\n#define \n") + 1 */
+    if (value)
+        size += strlen (value);
+
+    if (size > SCE_LOL) {
+        SCEE_Log (4242);
+        SCEE_LogMsg ("your define string(s) is too long");
+        return SCE_ERROR;
+    }
+#undef SCE_LOL
+
+    strcpy (buf, "\n#define ");
+    strcat (buf, define);
+    if (value)
+        strcat (buf, value);
+    strcat (buf, "\n");
+
+    if (SCE_Shader_AddSource (shader, type, buf, SCE_TRUE) < 0) {
+        SCEE_LogSrc ();
+        return SCE_ERROR;
+    }
+
+    return SCE_OK;
+}
+int SCE_Shader_Global (SCE_SShader *shader, const char *define,
+                       const char *value)
+{
+    int i;
+    for (i = 0; i < SCE_NUM_SHADER_TYPES; i++) {
+        if (shader->sources[i]) {
+            if (SCE_Shader_Local (shader, i, define, value) < 0) {
+                SCEE_LogSrc ();
+                return SCE_ERROR;
+            }
+        }
+    }
     return SCE_OK;
 }
 
