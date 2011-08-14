@@ -456,6 +456,10 @@ int SCE_Shader_Build (SCE_SShader *shader)
     return SCE_OK;
 }
 
+int SCE_Shader_Validate (SCE_SShader *shader)
+{
+    return SCE_RValidateProgram (shader->p_glsl);
+}
 
 void SCE_Shader_SetupAttributesMapping (SCE_SShader *shader)
 {

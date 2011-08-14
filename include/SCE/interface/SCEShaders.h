@@ -86,6 +86,7 @@ void* SCE_Shader_LoadSourceFromFile (FILE*, const char*, void*);
 SCE_SShader* SCE_Shader_Load (const char*, int);
 
 int SCE_Shader_Build (SCE_SShader*);
+int SCE_Shader_Validate (SCE_SShader*);
 
 void SCE_Shader_SetupAttributesMapping (SCE_SShader*);
 void SCE_Shader_ActivateAttributesMapping (SCE_SShader*, int);
