@@ -784,6 +784,13 @@ int SCE_Scene_MakeOctree (SCE_SScene *scene, unsigned int rec,
     return SCE_OK;
 }
 
+void SCE_Scene_SetDeferred (SCE_SScene *scene, SCE_SDeferred *def)
+{
+    scene->deferred = def;
+    SCE_Scene_AddCamera (scene, def->cam);
+}
+
+
 int SCE_Scene_SetupBatching (SCE_SScene *scene, unsigned int n, int *order)
 {
     if (SCE_Batch_SortEntities (&scene->entities, SCE_NUM_SCENE_RESOURCE_GROUPS,
@@ -1018,7 +1025,6 @@ static void SCE_Scene_SetupSkybox (SCE_SScene *scene, SCE_SCamera *cam)
 {
     SCE_TVector3 pos;
     float *mat = NULL;
-    SCE_SSceneEntity *entity = SCE_Skybox_GetEntity (scene->skybox);
     SCE_SSceneEntityInstance *einst = SCE_Skybox_GetInstance (scene->skybox);
     SCE_SNode *node = SCE_SceneEntity_GetInstanceNode (einst);
 
@@ -1197,7 +1203,74 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
     SCE_ELightType type = SCE_SPOT_LIGHT;
     SCE_SDeferredLightingShader *shader = &def->shaders[type][flags];
 
-    SCE_Shader_Use (shader->shader);
+    /* cone angle and height required to make shadow map projection matrix */
+    node = SCE_Light_GetNode (light);
+    SCE_Cone_Copy (&cone, SCE_Light_GetCone (light));
+    SCE_Cone_Push (&cone, SCE_Node_GetFinalMatrix (node), NULL);
+
+    if (!(flags & SCE_DEFERRED_USE_SHADOWS)) {
+        SCE_Shader_Use (shader->shader);
+    } else {
+        SCE_SSkybox *sk = scene->skybox;
+        SCE_STexture *rt = scene->rendertarget;
+        int a, b;
+        float coeff;
+
+        /* render shadow map */
+        SCE_Camera_SetViewport (def->cam, 0, 0, def->sm_w, def->sm_h);
+        SCE_Camera_SetProjectionFromCone (def->cam, &cone, 0.1);
+
+        /* attach the camera to the light :) yes, it's that simple */
+        SCE_Node_Attach (node, SCE_Camera_GetNode (def->cam));
+
+        coeff = 1.0 / SCE_Cone_GetHeight (&cone);
+        SCE_Shader_Use (def->shadow_shaders[type]);
+        if(SCE_Shader_Validate(def->shadow_shaders[type]) < 0)
+            SCEE_Out ();
+        /* TODO: omg ugly, should be named depthfactor_loc and mdr */
+        SCE_Shader_SetParamf (def->factor_loc[type], coeff);
+
+        /* TODO: setup states */
+        SCE_RSetState (GL_BLEND, SCE_FALSE);
+        SCE_Deferred_PopStates (def);
+        SCE_Shader_Lock ();
+        scene->deferred = NULL;
+        scene->states.lighting = SCE_FALSE;
+        scene->skybox = NULL;
+        a = scene->states.clearcolor;
+        b = scene->states.cleardepth;
+        scene->states.clearcolor = SCE_TRUE;
+        scene->states.cleardepth = SCE_TRUE;
+        scene->rendertarget = NULL;
+        /* rendering */
+        SCE_Scene_Update (scene, def->cam, def->shadowmaps[type], 0);
+        SCE_Scene_Render (scene, def->cam, def->shadowmaps[type], 0);
+        /* restore states */
+        scene->rendertarget = rt;
+        scene->camera = cam;
+        scene->skybox = sk;
+        scene->states.lighting = SCE_TRUE;
+        scene->states.cleardepth = b;
+        scene->states.clearcolor = a;
+        scene->deferred = def;
+        SCE_Shader_Unlock ();
+        SCE_Deferred_PushStates (def);
+        SCE_RSetState (GL_BLEND, SCE_TRUE);
+        SCE_RSetBlending (GL_ONE, GL_ONE);
+
+        SCE_Texture_Use (def->shadowmaps[type]);
+        SCE_Shader_Use (shader->shader);
+        {
+            SCE_TMatrix4 mat;
+            SCE_Matrix4_Copy (mat, SCE_Camera_GetFinalViewProj (def->cam));
+            SCE_Matrix4_MulCopy (mat, SCE_Camera_GetFinalViewInverse (cam));
+            /* unpacked positions are in view space, need to put them back
+               in world space */
+            SCE_Shader_SetMatrix4 (shader->lightviewproj_loc, mat);
+        }
+        SCE_Shader_SetParamf (shader->depthfactor_loc, coeff);
+    }
+
     /* get light's position in view space */
     SCE_Light_GetPositionv (light, pos);
     SCE_Matrix4_MulV3Copy (SCE_Camera_GetFinalView (cam), pos);
@@ -1216,9 +1289,6 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
     SCE_Shader_SetParamf (shader->lightattenuation_loc,
                           1.0 / SCE_Light_GetAttenuation (light));
 
-    node = SCE_Light_GetNode (light);
-    SCE_Cone_Copy (&cone, SCE_Light_GetCone (light));
-    SCE_Cone_Push (&cone, SCE_Node_GetFinalMatrix (node), NULL);
     near = SCE_Camera_GetNear (cam) * 2.0;
     SCE_Cone_Offset (&cone, near);
 
@@ -1229,6 +1299,7 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
         SCE_Quad_Draw (-1.0, -1.0, 2.0, 2.0);
     } else {
+        /* TODO: use SCE_Deferred_PopStates() ? */
         SCE_Scene_UseCamera (cam);
         /* TODO: gl keywords */
         SCE_RSetState (GL_CULL_FACE, SCE_TRUE);
@@ -1242,6 +1313,9 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_Mesh_Unuse ();
         SCE_RSetState (GL_CULL_FACE, SCE_FALSE);
     }
+
+    if (flags & SCE_DEFERRED_USE_SHADOWS)
+        SCE_Texture_Use (NULL);
 }
 
 
@@ -1310,6 +1384,9 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
             int flags = 0;
             SCE_SLight *light = SCE_List_GetData (it);
             SCE_ELightType type = SCE_Light_GetType (light);
+
+            if (SCE_Light_GetShadows (light))
+                flags |= SCE_DEFERRED_USE_SHADOWS;
 
             switch (type) {
             case SCE_POINT_LIGHT:

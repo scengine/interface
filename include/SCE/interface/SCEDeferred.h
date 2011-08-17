@@ -34,10 +34,14 @@ extern "C" {
 /* TODO: ugly */
 #define SCE_DEFERRED_AMBIENT_COLOR_NAME "sce_ambient_color"
 #define SCE_DEFERRED_SKYBOX_MAP_NAME "sce_skybox_map"
+#define SCE_DEFERRED_SHADOW_MAP_NAME "sce_shadow_map"
+
+#define SCE_DEFERRED_DEPTH_FACTOR_NAME "sce_depth_factor"
 
 #define SCE_DEFERRED_INVPROJ_NAME "sce_deferred_invproj_matrix"
 
-#define SCE_DEFERRED_LIGHT_PROJECTION_NAME "sce_light_proj"
+/* projection * view matrix of the light camera, used for shadowing */
+#define SCE_DEFERRED_LIGHT_VIEWPROJ_NAME "sce_light_viewproj"
 #define SCE_DEFERRED_LIGHT_POSITION_NAME "sce_light_position"
 #define SCE_DEFERRED_LIGHT_DIRECTION_NAME "sce_light_direction"
 #define SCE_DEFERRED_LIGHT_COLOR_NAME "sce_light_color"
@@ -51,7 +55,7 @@ extern "C" {
 #define SCE_DEFERRED_USE_SPECULAR (0x00000004)
 #define SCE_DEFERRED_USE_IMAGE (0x00000008)
 /* number of flags combinations actually. */
-#define SCE_NUM_DEFERRED_LIGHT_FLAGS ((SCE_DEFERRED_USE_IMAGE << 1) - 1)
+#define SCE_NUM_DEFERRED_LIGHT_FLAGS (SCE_DEFERRED_USE_IMAGE << 1)
 
 /* shader light flags names */
 #define SCE_DEFERRED_POINT_LIGHT "SCE_DEFERRED_POINT_LIGHT"
@@ -76,13 +80,15 @@ typedef struct sce_sdeferredlightingshader SCE_SDeferredLightingShader;
 struct sce_sdeferredlightingshader {
     SCE_SShader *shader;  /**< Lighting shader */
     int invproj_loc;      /**< Location of the inverse projection matrix */
-    int lightproj_loc;    /**< Location of the light projection matrix */
+    int lightviewproj_loc;/**< Location of the light projection * view matrix */
     int lightpos_loc;     /**< Location of the light position uniform */
     int lightdir_loc;     /**< Location of the light direction uniform */
     int lightcolor_loc;   /**< Location of the light color uniform */
     int lightradius_loc;  /**< Location of the light radius uniform */
     int lightangle_loc;   /**< Location of the light angle uniform */
     int lightattenuation_loc; /**< Location of the light attenuation uniform */
+    int depthfactor_loc;  /**< Location of the depth factor for shadows */
+    int camviewproj_loc;  /**< Light's camera viewproj matrix location */
 };
 
 typedef struct sce_sdeferred SCE_SDeferred;
@@ -97,17 +103,37 @@ struct sce_sdeferred {
     SCE_SShader *amb_shader;
     SCE_SShader *skybox_shader;
 
+    SCE_SShader *shadow_shaders[SCE_NUM_LIGHT_TYPES];
+
     SCE_SDeferredLightingShader
         shaders[SCE_NUM_LIGHT_TYPES][SCE_NUM_DEFERRED_LIGHT_FLAGS];
     SCE_STexture *shadowmaps[SCE_NUM_LIGHT_TYPES];
+    SCEuint sm_w, sm_h;
+    /** Location of the factor uniform of shadow shaders */
+    int factor_loc[SCE_NUM_LIGHT_TYPES];
 
     SCE_SCamera *cam;
 };
+
+/*
+ * Texture units convention
+ *
+ * field                        | texture unit
+ * -------------------------------------------
+ * targets[i]                     i
+ * shadowmaps[*]                  n_targets
+ * Per-light images               n_targets + 1
+ *
+ * Since targets[SCE_DEFERRED_COLOR_TARGET] may not be used during
+ * lighting, I suggest targets[i] has texunit i - 1
+ *
+ */
 
 SCE_SDeferred* SCE_Deferred_Create (void);
 void SCE_Deferred_Delete (SCE_SDeferred*);
 
 void SCE_Deferred_SetDimensions (SCE_SDeferred*, SCEuint, SCEuint);
+void SCE_Deferred_SetShadowMapsDimensions (SCE_SDeferred*, SCEuint, SCEuint);
 
 int SCE_Deferred_Build (SCE_SDeferred*, const char*[SCE_NUM_LIGHT_TYPES]);
 int SCE_Deferred_BuildShader (SCE_SDeferred*, SCE_SShader*);

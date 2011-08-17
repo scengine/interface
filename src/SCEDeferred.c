@@ -46,7 +46,7 @@ SCE_Deferred_InitLightingShader (SCE_SDeferredLightingShader *shader)
 {
     shader->shader = NULL;
     shader->invproj_loc = -1;
-    shader->lightproj_loc = -1;
+    shader->lightviewproj_loc = -1;
     shader->lightpos_loc = -1;
     shader->lightdir_loc = -1;
     shader->lightcolor_loc = -1;
@@ -76,10 +76,13 @@ static void SCE_Deferred_Init (SCE_SDeferred *def)
 
     for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
         int j;
+        def->shadow_shaders[i] = NULL;
         def->shadowmaps[i] = NULL;
+        def->factor_loc[i] = -1;
         for (j = 0; j < SCE_NUM_DEFERRED_LIGHT_FLAGS; j++)
             SCE_Deferred_InitLightingShader (&def->shaders[i][j]);
     }
+    def->sm_w = def->sm_h = 128; /* xd */
     def->cam = NULL;
 }
 static void SCE_Deferred_Clear (SCE_SDeferred *def)
@@ -92,6 +95,7 @@ static void SCE_Deferred_Clear (SCE_SDeferred *def)
     SCE_Shader_Delete (def->skybox_shader);
     for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
         int j;
+        SCE_Shader_Delete (def->shadow_shaders[i]);
         SCE_Texture_Delete (def->shadowmaps[i]);
         for (j = 0; j < SCE_NUM_DEFERRED_LIGHT_FLAGS; j++)
             SCE_Deferred_ClearLightingShader (&def->shaders[i][j]);
@@ -108,7 +112,6 @@ SCE_SDeferred* SCE_Deferred_Create (void)
         SCE_Deferred_Init (def);
         if (!(def->cam = SCE_Camera_Create ()))
             goto fail;
-        /* TODO: create shadow maps textures */
     }
     return def;
 fail:
@@ -134,6 +137,19 @@ void SCE_Deferred_SetDimensions (SCE_SDeferred *def, SCEuint w, SCEuint h)
 {
     def->w = w;
     def->h = h;
+}
+
+/**
+ * \brief Sets shadow maps dimensions
+ * \param def a deferred renderer
+ * \param w,h dimensions
+ * \todo make it update the shadow maps if they are already built
+ */
+void SCE_Deferred_SetShadowMapsDimensions (SCE_SDeferred *def, SCEuint w,
+                                           SCEuint h)
+{
+    def->sm_w = w;
+    def->sm_h = h;
 }
 
 static const char *sce_amb_vs =
@@ -183,6 +199,26 @@ static const char *sce_skybox_ps =
     "  discard;"
     "}";
 
+
+static const char *sce_shadow_vs =
+    "uniform mat4 sce_modelviewmatrix;"
+    "uniform mat4 sce_projectionmatrix;"
+    "varying vec4 pos;"
+    "void main (void)"
+    "{"
+    "  vec4 p = sce_modelviewmatrix * gl_Vertex;"
+    "  pos = p;"
+    "  gl_Position = sce_projectionmatrix * p;"
+    "}";
+static const char *sce_shadow_ps =
+    "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
+    "varying vec4 pos;"
+    "void main (void)"
+    "{"
+    "  gl_FragDepth = length (pos) * "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
+    "}";
+
+
 static int SCE_Deferred_BuildFinalShader (SCE_SDeferred*, SCE_ELightType,
                                           const char*);
 
@@ -219,6 +255,19 @@ int SCE_Deferred_Build (SCE_SDeferred *def,
     for (i = 2; i < def->n_targets; i++) {
         SCE_Texture_AddRenderTexture (def->gbuf, SCE_COLOR_BUFFER1 + i - 2,
                                       def->targets[i]);
+    }
+
+    /* create shadow maps */
+    for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
+        /* TODO: we may want to change the shadow maps resolution per
+           light type, also lights may request for a particular resolution
+           (for tiny lights that dont require much) */
+        SCE_STexture *tex = NULL;
+        if (!(tex = SCE_Texture_Create(SCE_RENDER_DEPTH, def->sm_w, def->sm_h)))
+            goto fail;
+        /* NOTE: why is there no need to build the texture?? */
+        SCE_Texture_SetUnit (tex, def->n_targets);
+        def->shadowmaps[i] = tex;
     }
 
     /* create shaders */
@@ -264,6 +313,30 @@ int SCE_Deferred_Build (SCE_SDeferred *def,
     SCE_Shader_Use (NULL);
     SCE_Shader_SetupMatricesMapping (def->skybox_shader);
     SCE_Shader_ActivateMatricesMapping (def->skybox_shader, SCE_TRUE);
+
+    /* setup shadows shaders */
+    for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
+        if (!(def->shadow_shaders[i] = SCE_Shader_Create ()))
+            goto fail;
+        if (SCE_Shader_AddSource (def->shadow_shaders[i], SCE_VERTEX_SHADER,
+                                  sce_shadow_vs/*[i]*/, SCE_FALSE) < 0)
+            goto fail;
+        if (SCE_Shader_AddSource (def->shadow_shaders[i], SCE_PIXEL_SHADER,
+                                  sce_shadow_ps/*[i]*/, SCE_FALSE) < 0)
+            goto fail;
+        /* TODO: do this. */
+#if 0
+        if (SCE_Shader_Global (def->shadow_shaders[i], "lighttype", "1") < 0)
+            goto fail;
+#endif
+        if (SCE_Shader_Build (def->shadow_shaders[i]) < 0)
+            goto fail;
+        def->factor_loc[i] =
+            SCE_Shader_GetIndex (def->shadow_shaders[i],
+                                 SCE_DEFERRED_DEPTH_FACTOR_NAME);
+        SCE_Shader_SetupMatricesMapping (def->shadow_shaders[i]);
+        SCE_Shader_ActivateMatricesMapping (def->shadow_shaders[i], SCE_TRUE);
+    }
 
     return SCE_OK;
 fail:
@@ -361,7 +434,7 @@ static const char *sce_unpack_position_fun =
  * 
  * \returns SCE_ERROR on error, SCE_OK otherwise
  * \deprecated
- * \todo deprecated
+ * \todo deprecated... no it's not deprecated.
  */
 int SCE_Deferred_BuildShader (SCE_SDeferred *def, SCE_SShader *shader)
 {
@@ -385,8 +458,10 @@ static const char *sce_final_uniforms_code =
     "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_DEPTH_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_NORMAL_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_SHADOW_MAP_NAME";"
+    "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
     "uniform mat4 "SCE_DEFERRED_INVPROJ_NAME";"
-    "uniform mat4 "SCE_DEFERRED_LIGHT_PROJECTION_NAME";"
+    "uniform mat4 "SCE_DEFERRED_LIGHT_VIEWPROJ_NAME";"
     "uniform vec3 "SCE_DEFERRED_LIGHT_POSITION_NAME";"
     "uniform vec3 "SCE_DEFERRED_LIGHT_DIRECTION_NAME";"
     "uniform vec3 "SCE_DEFERRED_LIGHT_COLOR_NAME";"
@@ -406,7 +481,6 @@ static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def,
         SCE_DEFERRED_SPOT_LIGHT,
         SCE_DEFERRED_SUN_LIGHT
     };
-
 
     for (i = 0; i < SCE_NUM_DEFERRED_LIGHT_FLAGS; i++) {
         shader = &def->shaders[type][i];
@@ -457,7 +531,8 @@ static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def,
     } while (0)
 
         SCE_DEF_UNI (invproj, SCE_DEFERRED_INVPROJ_NAME);
-        SCE_DEF_UNI (lightproj, SCE_DEFERRED_LIGHT_PROJECTION_NAME);
+        SCE_DEF_UNI (depthfactor, SCE_DEFERRED_DEPTH_FACTOR_NAME);
+        SCE_DEF_UNI (lightviewproj, SCE_DEFERRED_LIGHT_VIEWPROJ_NAME);
         SCE_DEF_UNI (lightpos, SCE_DEFERRED_LIGHT_POSITION_NAME);
         SCE_DEF_UNI (lightdir, SCE_DEFERRED_LIGHT_DIRECTION_NAME);
         SCE_DEF_UNI (lightcolor, SCE_DEFERRED_LIGHT_COLOR_NAME);
@@ -470,6 +545,7 @@ static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def,
         SCE_Shader_Use (shader->shader);
         for (j = 0; j < def->n_targets; j++)
             SCE_Shader_Param (sce_deferred_target_names[j], j);
+        SCE_Shader_Param (SCE_DEFERRED_SHADOW_MAP_NAME, def->n_targets);
         SCE_Shader_Use (NULL);
     }
 

@@ -155,6 +155,8 @@ void SCE_Scene_SetOctreeSize (SCE_SScene*, float, float, float);
 void SCE_Scene_SetOctreeSizev (SCE_SScene*, SCE_TVector3);
 int SCE_Scene_MakeOctree (SCE_SScene*, unsigned int, int, float);
 
+void SCE_Scene_SetDeferred (SCE_SScene*, SCE_SDeferred*);
+
 int SCE_Scene_SetupBatching (SCE_SScene*, unsigned int, int*);
 int SCE_Scene_SetupDefaultBatching (SCE_SScene*);
 
