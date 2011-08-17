@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 13/03/2008
-   updated: 12/08/2011 */
+   updated: 17/08/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -137,19 +137,26 @@ void SCE_Light_GetColorv (SCE_SLight *light, float *c)
     SCE_RGetLightColorv (light->clight, c);
 }
 
-void SCE_Light_GetPositionv (SCE_SLight *light, float *pos)
+void SCE_Light_SetPosition (SCE_SLight *light, float x, float y, float z)
+{
+    SCE_TVector3 pos = {x, y, z};
+    SCE_Light_SetPositionv (light, pos);
+}
+void SCE_Light_SetPositionv (SCE_SLight *light, const SCE_TVector3 pos)
+{
+    float *mat = SCE_Node_GetMatrix (light->node, SCE_NODE_WRITE_MATRIX);
+    SCE_Matrix4_SetTranslation (mat, pos);
+}
+void SCE_Light_GetPositionv (SCE_SLight *light, SCE_TVector3 pos)
 {
     SCE_Matrix4_GetTranslation (SCE_Node_GetFinalMatrix (light->node), pos);
 }
 
-void SCE_Light_SetOrientationv (SCE_SLight *light, const SCE_TVector3 dir)
-{
-    SCE_Cone_SetOrientationv (&light->cone, dir);
-}
 void SCE_Light_GetOrientationv (SCE_SLight *light, SCE_TVector3 dir)
 {
-    SCE_Cone_GetOrientationv (&light->cone, dir);
-    SCE_Matrix4_MulV3Copyw (SCE_Node_GetFinalMatrix (light->node), dir, 0.0);
+    float *mat = SCE_Node_GetFinalMatrix (light->node);
+    SCE_GetMat4C3 (2, mat, dir); /* retrieve 3rd column */
+    SCE_Vector3_Operator1 (dir, *=, -1.0); /* reverse! */
     SCE_Vector3_Normalize (dir);
 }
 

@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 13/03/2008
-   updated: 12/08/2011 */
+   updated: 17/08/2011 */
 
 #ifndef SCELIGHT_H
 #define SCELIGHT_H
@@ -82,9 +82,10 @@ void SCE_Light_SetColorv (SCE_SLight*, float*);
 float* SCE_Light_GetColor (SCE_SLight*);
 void SCE_Light_GetColorv (SCE_SLight*, float*);
 
-void SCE_Light_GetPositionv (SCE_SLight*, float*);
+void SCE_Light_SetPosition (SCE_SLight*, float, float, float);
+void SCE_Light_SetPositionv (SCE_SLight*, const SCE_TVector3);
+void SCE_Light_GetPositionv (SCE_SLight*, SCE_TVector3);
 
-void SCE_Light_SetOrientationv (SCE_SLight*, const SCE_TVector3);
 void SCE_Light_GetOrientationv (SCE_SLight*, SCE_TVector3);
 
 void SCE_Light_Infinite (SCE_SLight*, int);
