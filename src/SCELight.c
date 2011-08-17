@@ -39,6 +39,7 @@ void SCE_Light_Init (SCE_SLight *light)
     SCE_BoundingSphere_GetSphere (&light->sphere)->radius = light->radius;
     SCE_Cone_Init (&light->cone);
     light->attenuation = 1.0;
+    light->cast_shadows = SCE_FALSE;
     SCE_List_InitIt (&light->it);
     SCE_List_SetData (&light->it, light);
     light->udata = NULL;
@@ -186,6 +187,27 @@ void SCE_Light_SetAttenuation (SCE_SLight *light, float att)
 float SCE_Light_GetAttenuation (const SCE_SLight *light)
 {
     return light->attenuation;
+}
+
+/**
+ * \brief Sets 'cast shadows' state of a light, disabled by default
+ * \param light a light
+ * \param cast whether \p light will cast shadows
+ * \sa SCE_Light_GetShadows()
+ */
+void SCE_Light_SetShadows (SCE_SLight *light, int cast)
+{
+    light->cast_shadows = cast;
+}
+/**
+ * \brief Gets a light's 'cast shadows' status
+ * \param light a light
+ * \return SCE_TRUE if \p light is casting shadows, SCE_FALSE otherwise
+ * \sa SCE_Light_SetShadows()
+ */
+int SCE_Light_GetShadows (const SCE_SLight *light)
+{
+    return light->cast_shadows;
 }
 
 void SCE_Light_SetIntensity (SCE_SLight *light, float intensity)
