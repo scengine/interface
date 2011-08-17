@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 04/08/2011
-   updated: 07/08/2011 */
+   updated: 15/08/2011 */
 
 #ifndef SCEDEFERRED_H
 #define SCEDEFERRED_H
@@ -111,6 +111,9 @@ void SCE_Deferred_SetDimensions (SCE_SDeferred*, SCEuint, SCEuint);
 
 int SCE_Deferred_Build (SCE_SDeferred*, const char*[SCE_NUM_LIGHT_TYPES]);
 int SCE_Deferred_BuildShader (SCE_SDeferred*, SCE_SShader*);
+
+void SCE_Deferred_PushStates (SCE_SDeferred*);
+void SCE_Deferred_PopStates (SCE_SDeferred*);
 
 void SCE_Deferred_Render (SCE_SDeferred*, void*, SCE_SCamera*,
                           SCE_STexture*, int);

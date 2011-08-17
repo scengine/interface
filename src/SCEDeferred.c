@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 04/08/2011
-   updated: 07/08/2011 */
+   updated: 15/08/2011 */
 
 #include <SCE/core/SCECore.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -477,4 +477,29 @@ static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def,
 fail:
     SCEE_LogSrc ();
     return SCE_ERROR;
+}
+
+
+void SCE_Deferred_PushStates (SCE_SDeferred *def)
+{
+    int i;
+
+    /* TODO: gl keywords */
+    SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_FALSE);
+    SCE_RActivateDepthBuffer (SCE_FALSE);
+
+    /* setup textures */
+    /* TODO: BeginLot() ? */
+    for (i = 0; i < def->n_targets; i++)
+        SCE_Texture_Use (def->targets[i]);
+
+    SCE_RLoadMatrix (SCE_MAT_CAMERA, sce_matrix4_id);
+    SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
+}
+void SCE_Deferred_PopStates (SCE_SDeferred *def)
+{
+    (void)def;
+    SCE_Texture_Flush ();
+    SCE_RActivateDepthBuffer (SCE_TRUE);
+    SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_TRUE);
 }

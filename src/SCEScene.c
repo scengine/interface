@@ -1268,16 +1268,7 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
     SCE_Texture_RenderTo (target, cubeface);
 
     /* setup states */
-    /* TODO: gl keywords */
-    SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_FALSE);
-    SCE_RActivateDepthBuffer (SCE_FALSE);
-
-    /* setup textures */
-    for (i = 0; i < def->n_targets; i++)
-        SCE_Texture_Use (def->targets[i]);
-
-    SCE_RLoadMatrix (SCE_MAT_CAMERA, sce_matrix4_id);
-    SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
+    SCE_Deferred_PushStates (def);
 
 #if 0
     if (def->use_emissive) {
@@ -1355,9 +1346,7 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
 
     /* reset states */
     SCE_Shader_Use (NULL);
-    SCE_Texture_Flush ();
-    SCE_RActivateDepthBuffer (SCE_TRUE);
-    SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_TRUE);
+    SCE_Deferred_PopStates (def);
 
     if (target)
         SCE_Texture_RenderTo (target, cubeface);
