@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2008
-   updated: 11/08/2011 */
+   updated: 17/08/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -129,6 +129,11 @@ static void SCE_Scene_InitStates (SCE_SSceneStates *states)
     states->frustum_culling = SCE_FALSE;
     states->lighting = SCE_TRUE;
     states->lod = SCE_FALSE;
+    states->deferred = SCE_FALSE;
+    states->camera = NULL;
+    states->rendertarget = NULL;
+    states->cubeface = 0;
+    states->skybox = NULL;
 }
 
 static void SCE_Scene_RemoveLightNode (void *scene, void *light)
@@ -143,7 +148,10 @@ static void SCE_Scene_Init (SCE_SScene *scene)
 {
     unsigned int i;
 
-    SCE_Scene_InitStates (&scene->states);
+    for (i = 0; i < SCE_SCENE_STATES_STACK_SIZE; i++)
+        SCE_Scene_InitStates (&scene->states[i]);
+    scene->state = &scene->states[0];
+    scene->state_id = 0;
 
     scene->rootnode = NULL;
     scene->node_updated = SCE_FALSE;
@@ -163,12 +171,8 @@ static void SCE_Scene_Init (SCE_SScene *scene)
     SCE_List_Init (&scene->cameras);
     SCE_List_SetFreeFunc2 (&scene->cameras, SCE_Scene_RemoveCameraNode, scene);
 
-    scene->skybox = NULL;
     scene->rclear = scene->gclear = scene->bclear = scene->aclear = 0.5;
     scene->dclear = 1.0;
-    scene->rendertarget = NULL;
-    scene->cubeface = 0;
-    scene->camera = NULL;
 
     scene->bbmesh = NULL;
     scene->bsmesh = NULL;
@@ -682,12 +686,12 @@ void SCE_Scene_RemoveResource (SCE_SSceneResource *res)
  */
 void SCE_Scene_SetSkybox (SCE_SScene *scene, SCE_SSkybox *skybox)
 {
-    if (scene->skybox) {
+    if (scene->state->skybox) {
 /*        SCE_Scene_RemoveEntityGroup (scene, SCE_Skybox_GetEntityGroup
           (scene->skybox));*/
 /*        SCE_Scene_RemoveInstance (scene, SCE_Skybox_GetInstance(scene->skybox));*/
     }
-    scene->skybox = skybox;
+    scene->state->skybox = skybox;
     if (skybox) {
 /*        SCE_Scene_AddEntityGroup (scene, SCE_Skybox_GetEntityGroup (skybox));*/
 /*        SCE_Scene_AddInstance (scene, SCE_Skybox_GetInstance(scene->skybox));*/
@@ -835,7 +839,7 @@ static void SCE_Scene_SelectVisibleInstances (SCE_SScene *scene,
     SCE_SSceneEntityInstance *einst = NULL;
     SCE_List_ForEach (it, stree->instances[id]) {
         einst = SCE_List_GetData (it);
-        if (SCE_SceneEntity_IsInstanceInFrustum (einst, scene->camera)) {
+        if (SCE_SceneEntity_IsInstanceInFrustum (einst, scene->state->camera)) {
             SCE_List_Prependl (scene->selected,
                                SCE_SceneEntity_GetInstanceIterator1 (einst));
         }
@@ -851,7 +855,7 @@ static void SCE_Scene_SelectOctreeInstances(SCE_SScene *scene,
     unsigned int i = 0;
     float size = 0.0f;
     SCE_SSceneOctree *stree = SCE_Octree_GetData (tree);
-    size = SCE_Scene_GetOctreeSize (tree, scene->camera);
+    size = SCE_Scene_GetOctreeSize (tree, scene->state->camera);
     selectfun (scene, stree, 0);
     for (i = 0; i < 2; i++) {
         if (omg_coeffs[i] * size < scene->contribution_size)
@@ -906,7 +910,7 @@ static void SCE_Scene_DetermineEntitiesUsingLOD (SCE_SScene *scene)
     SCE_SList *instances = scene->selected;
     SCE_List_ForEach (it, instances) {
         SCE_SceneEntity_DetermineInstanceLOD (SCE_List_GetData (it),
-                                              scene->camera);
+                                              scene->state->camera);
     }
 }
 
@@ -950,13 +954,13 @@ void SCE_Scene_Update (SCE_SScene *scene, SCE_SCamera *camera,
 {
     int fc;
 
-    scene->rendertarget = target;
-    scene->cubeface = cubeface;
-    scene->camera = camera;
+    scene->state->rendertarget = target;
+    scene->state->cubeface = cubeface;
+    scene->state->camera = camera;
 
-    fc = scene->states.frustum_culling;
+    fc = scene->state->frustum_culling;
 
-    if (scene->states.lod || fc)
+    if (scene->state->lod || fc)
         SCE_Scene_FlushEntities (scene);
 
     if (fc) {
@@ -968,15 +972,15 @@ void SCE_Scene_Update (SCE_SScene *scene, SCE_SCamera *camera,
     }
 
     SCE_Node_UpdateRootRecursive (scene->rootnode);
-    SCE_Camera_Update (scene->camera);
+    SCE_Camera_Update (scene->state->camera);
 
     if (fc) {
         SCE_Octree_MarkVisibles (scene->octree,
-                                 SCE_Camera_GetFrustum (scene->camera));
+                                 SCE_Camera_GetFrustum (scene->state->camera));
         SCE_Scene_SelectVisibles (scene);
     }
 
-    if (scene->states.lod)
+    if (scene->state->lod)
         SCE_Scene_DetermineEntitiesUsingLOD (scene);
     else if (fc)
         SCE_Scene_DetermineEntities (scene);
@@ -991,9 +995,9 @@ void SCE_Scene_ClearBuffers (SCE_SScene *scene)
 {
     SCEbitfield depthbuffer = 0;
 
-    if (scene->states.cleardepth)
+    if (scene->state->cleardepth)
         depthbuffer = GL_DEPTH_BUFFER_BIT;
-    if (scene->states.clearcolor)
+    if (scene->state->clearcolor)
         depthbuffer |= GL_COLOR_BUFFER_BIT;
 
     SCE_RClearColor (scene->rclear, scene->gclear, scene->bclear,scene->aclear);
@@ -1025,8 +1029,10 @@ static void SCE_Scene_SetupSkybox (SCE_SScene *scene, SCE_SCamera *cam)
 {
     SCE_TVector3 pos;
     float *mat = NULL;
-    SCE_SSceneEntityInstance *einst = SCE_Skybox_GetInstance (scene->skybox);
-    SCE_SNode *node = SCE_SceneEntity_GetInstanceNode (einst);
+    SCE_SSceneEntityInstance *einst = NULL;
+    SCE_SNode *node = NULL;
+    einst = SCE_Skybox_GetInstance (scene->state->skybox);
+    node = SCE_SceneEntity_GetInstanceNode (einst);
 
     mat = SCE_Camera_GetFinalViewInverse (cam);
     SCE_Matrix4_GetTranslation (mat, pos);
@@ -1038,7 +1044,7 @@ static void SCE_Scene_SetupSkybox (SCE_SScene *scene, SCE_SCamera *cam)
 
 static void SCE_Scene_RenderSkybox (SCE_SScene *scene, SCE_SCamera *cam)
 {
-    SCE_SSceneEntity *entity = SCE_Skybox_GetEntity (scene->skybox);
+    SCE_SSceneEntity *entity = SCE_Skybox_GetEntity (scene->state->skybox);
 
     SCE_Scene_SetupSkybox (scene, cam);
 
@@ -1073,20 +1079,20 @@ static void SCE_Scene_ForwardRender (SCE_SScene *scene, SCE_SCamera *cam,
 
     SCE_Texture_RenderTo (target, cubeface);
 
-    if (scene->skybox) {
-        scene->states.clearcolor = SCE_FALSE;
-        scene->states.cleardepth = SCE_TRUE;
+    if (scene->state->skybox) {
+        scene->state->clearcolor = SCE_FALSE;
+        scene->state->cleardepth = SCE_TRUE;
     }
     SCE_Scene_ClearBuffers (scene);
 
     SCE_Scene_UseCamera (cam);
 
-    if (scene->skybox) {
+    if (scene->state->skybox) {
         SCE_Light_ActivateLighting (SCE_FALSE);
         SCE_Scene_RenderSkybox (scene, cam);
     }
 
-    if (!scene->states.lighting)
+    if (!scene->state->lighting)
         SCE_Light_ActivateLighting (SCE_FALSE);
     else {
         SCE_Light_ActivateLighting (SCE_TRUE);
@@ -1211,8 +1217,8 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
     if (!(flags & SCE_DEFERRED_USE_SHADOWS)) {
         SCE_Shader_Use (shader->shader);
     } else {
-        SCE_SSkybox *sk = scene->skybox;
-        SCE_STexture *rt = scene->rendertarget;
+        SCE_SSkybox *sk = scene->state->skybox;
+        SCE_STexture *rt = scene->state->rendertarget;
         int a, b;
         float coeff;
 
@@ -1233,28 +1239,21 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
         /* TODO: setup states */
         SCE_RSetState (GL_BLEND, SCE_FALSE);
         SCE_Deferred_PopStates (def);
+        SCE_Scene_PushStates (scene);
         SCE_Shader_Lock ();
-        scene->deferred = NULL;
-        scene->states.lighting = SCE_FALSE;
-        scene->skybox = NULL;
-        a = scene->states.clearcolor;
-        b = scene->states.cleardepth;
-        scene->states.clearcolor = SCE_TRUE;
-        scene->states.cleardepth = SCE_TRUE;
-        scene->rendertarget = NULL;
+        scene->state->lighting = SCE_FALSE;
+        scene->state->deferred = SCE_FALSE;
+        scene->state->skybox = NULL;
+        scene->state->clearcolor = SCE_TRUE;
+        scene->state->cleardepth = SCE_TRUE;
+        scene->state->rendertarget = NULL;
         /* rendering */
         SCE_Scene_Update (scene, def->cam, def->shadowmaps[type], 0);
         SCE_Scene_Render (scene, def->cam, def->shadowmaps[type], 0);
-        /* restore states */
-        scene->rendertarget = rt;
-        scene->camera = cam;
-        scene->skybox = sk;
-        scene->states.lighting = SCE_TRUE;
-        scene->states.cleardepth = b;
-        scene->states.clearcolor = a;
-        scene->deferred = def;
         SCE_Shader_Unlock ();
+        SCE_Scene_PopStates (scene);
         SCE_Deferred_PushStates (def);
+        /* TODO: LOL glnames + crap set state */
         SCE_RSetState (GL_BLEND, SCE_TRUE);
         SCE_RSetBlending (GL_ONE, GL_ONE);
 
@@ -1332,8 +1331,8 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
 
     /* fillup G-buffer */
     SCE_Texture_RenderTo (def->gbuf, 0);
-    scene->states.clearcolor = SCE_TRUE;
-    scene->states.cleardepth = SCE_TRUE;
+    scene->state->clearcolor = SCE_TRUE;
+    scene->state->cleardepth = SCE_TRUE;
     SCE_Scene_ClearBuffers (scene);
     SCE_Light_ActivateLighting (SCE_FALSE);
     SCE_Scene_RenderEntities (scene);
@@ -1358,7 +1357,7 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
         SCE_Quad_Draw (-1.0, -1.0, 2.0, 2.0);      
     }
 
-    if (scene->states.lighting) {
+    if (scene->state->lighting) {
 
         /* setup additive blending */
         SCE_RSetState (GL_BLEND, SCE_TRUE);
@@ -1408,11 +1407,11 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
     }
 
     /* render skybox */
-    if (scene->skybox) {
-        SCE_STexture *tex = SCE_Skybox_GetTexture (scene->skybox);
+    if (scene->state->skybox) {
+        SCE_STexture *tex = SCE_Skybox_GetTexture (scene->state->skybox);
         SCE_Texture_SetUnit (tex, 0);
         SCE_Texture_Use (tex);
-        SCE_Skybox_SetShader (scene->skybox, def->skybox_shader);
+        SCE_Skybox_SetShader (scene->state->skybox, def->skybox_shader);
         SCE_Scene_UseCamera (cam);
         SCE_Shader_Use (def->skybox_shader);
         SCE_Shader_Param (SCE_DEFERRED_SKYBOX_MAP_NAME, 0);
@@ -1443,17 +1442,42 @@ void SCE_Scene_Render (SCE_SScene *scene, SCE_SCamera *cam,
                        SCE_STexture *target, int cubeface)
 {
     if (!cam)
-        cam = scene->camera;
+        cam = scene->state->camera;
     if (!target)
-        target = scene->rendertarget;
+        target = scene->state->rendertarget;
     if (cubeface < 0)
-        cubeface = scene->cubeface;
+        cubeface = scene->state->cubeface;
 
-    if (scene->deferred)
+    if (scene->state->deferred)
         SCE_Deferred_Render (scene->deferred, scene, cam, target, cubeface);
     else
         SCE_Scene_ForwardRender (scene, cam, target, cubeface);
 }
+
+
+static void SCE_Scene_CopyStates (SCE_SSceneStates *dst,
+                                  const SCE_SSceneStates *src)
+{
+    memcpy (dst, src, sizeof *src);
+}
+
+void SCE_Scene_PushStates (SCE_SScene *scene)
+{
+    if (scene->state_id < SCE_SCENE_STATES_STACK_SIZE - 1) {
+        unsigned int s = scene->state_id;
+        scene->state = &scene->states[s + 1];
+        SCE_Scene_CopyStates (scene->state, &scene->states[s]);
+        scene->state_id++;
+    }
+}
+void SCE_Scene_PopStates (SCE_SScene *scene)
+{
+    if (scene->state > 0) {
+        scene->state_id--;
+        scene->state = &scene->states[scene->state_id];
+    }
+}
+
 
 
 void SCE_Pick_Init (SCE_SPickResult *r)

@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2007
-   updated: 11/08/2011 */
+   updated: 17/08/2011 */
 
 #ifndef SCESCENE_H
 #define SCESCENE_H
@@ -61,23 +61,33 @@ typedef int (*SCE_FSceneForEachEntityGroupFunc)(SCE_SSceneEntityGroup *g,
 typedef struct sce_sscenestates SCE_SSceneStates;
 /**
  * \brief States of a scene
+ * \todo add contribution_size, clear colors, and other stuff
  */
-struct sce_sscenestates
-{
+struct sce_sscenestates {
     int clearcolor, cleardepth; /**< Clear the buffers? */
     int frustum_culling; /**< Use frustum culling? */
     int lighting;        /**< Use lighting? */
     int lod;             /**< Use LOD? */
+    int deferred;        /**< Use deferred renderer? */
+    SCE_SCamera *camera;        /**< The camera of the current render */
+    SCE_STexture *rendertarget; /**< Scene's render target */
+    SCEuint cubeface;           /**< Face of the cubemap (used if
+                                 * \c rendertarget is a cubemap) */
+    SCE_SSkybox *skybox;        /**< Scene skybox */
 };
+
+
+#define SCE_SCENE_STATES_STACK_SIZE 3
 
 /** \copydoc sce_sscene */
 typedef struct sce_sscene SCE_SScene;
 /**
  * \brief Scene description structure
  */
-struct sce_sscene
-{
-    SCE_SSceneStates states;    /**< Scene's states */
+struct sce_sscene {
+    SCE_SSceneStates states[SCE_SCENE_STATES_STACK_SIZE]; /**< Scene's states */
+    SCE_SSceneStates *state;    /**< Current state */
+    unsigned int state_id;      /**< Current state ID (see \c states) */
     SCE_SNode *rootnode;        /**< Root node */
     int node_updated;           /**< Defines the root node's status */
     unsigned int n_nodes;       /**< Number of nodes attached to \c rootnode */
@@ -96,15 +106,9 @@ struct sce_sscene
     SCE_SList lights;           /**< Scene's lights list */
     SCE_SList cameras;          /**< Cameras in the scene */
 
-    SCE_SSkybox *skybox;        /**< Scene skybox */
-
     /** Color buffer clear values */
     float rclear, gclear, bclear, aclear;
     float dclear;               /**< Depth buffer clear value */
-    SCE_STexture *rendertarget; /**< Scene's render target */
-    SCEuint cubeface;           /**< Face of the cubemap (used if
-                                 * \c rendertarget is a cubemap) */
-    SCE_SCamera *camera;        /**< The camera of the current render */
 
     SCE_SMesh *bbmesh;
     SCE_SMesh *bsmesh;
@@ -165,6 +169,10 @@ void SCE_Scene_ClearBuffers (SCE_SScene*);
 void SCE_Scene_Update (SCE_SScene*, SCE_SCamera*, SCE_STexture*, SCEuint);
 void SCE_Scene_UseCamera (SCE_SCamera*);
 void SCE_Scene_Render (SCE_SScene*, SCE_SCamera*, SCE_STexture*, int);
+
+void SCE_Scene_PushStates (SCE_SScene*);
+void SCE_Scene_PopStates (SCE_SScene*);
+
 
 typedef struct sce_spickresult SCE_SPickResult;
 struct sce_spickresult {
