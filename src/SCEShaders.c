@@ -521,7 +521,7 @@ int SCE_Shader_Local (SCE_SShader *shader, SCE_RShaderType type,
 
     size = strlen (define) + 11; /* 11 = strlen ("\n#define \n") + 1 */
     if (value)
-        size += strlen (value);
+        size += strlen (value) + 1; /* 1 for space between value and macro */
 
     if (size > SCE_LOL) {
         SCEE_Log (4242);
@@ -532,8 +532,10 @@ int SCE_Shader_Local (SCE_SShader *shader, SCE_RShaderType type,
 
     strcpy (buf, "\n#define ");
     strcat (buf, define);
-    if (value)
+    if (value) {
+        strcat (buf, " ");
         strcat (buf, value);
+    }
     strcat (buf, "\n");
 
     if (SCE_Shader_AddSource (shader, type, buf, SCE_TRUE) < 0) {
