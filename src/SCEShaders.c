@@ -253,35 +253,19 @@ static void* SCE_Shader_LoadSources (FILE *fp, const char *fname)
         pos[i] = begin[i] = end[i] = EOF;
     }
 
-    if (SCE_Shader_SetPosFile (fp, "[vertex shader]", SCE_FALSE)) {
-        pos[0] = ftell (fp);
-        begin[0] = pos[0] + 15; /* 15 = strlen("[vertex shader]"); */
-        rewind (fp);
+#define SCE_SETPOS(name, length, id)                                    \
+    if (SCE_Shader_SetPosFile (fp, name, SCE_FALSE)) {                  \
+        pos[id] = ftell (fp);                                           \
+        begin[id] = pos[id] + length; /* assume length = strlen(name); */ \
+        rewind (fp);                                                    \
     }
 
-    if (SCE_Shader_SetPosFile (fp, "[pixel shader]", SCE_FALSE)) {
-        pos[1] = ftell (fp);
-        begin[1] = pos[1] + 14; /* 14 = strlen("[pixel shader]"); */
-        rewind (fp);
-    }
-
-    if (SCE_Shader_SetPosFile (fp, "[geometry shader]", SCE_FALSE)) {
-        pos[2] = ftell (fp);
-        begin[2] = pos[2] + 17; /* 17 = strlen("[geometry shader]"); */
-        rewind (fp);
-    }
-
-    if (SCE_Shader_SetPosFile (fp, "[evaluation shader]", SCE_FALSE)) {
-        pos[3] = ftell (fp);
-        begin[3] = pos[3] + 19; /* 19 = strlen("[evaluation shader]"); */
-        rewind (fp);
-    }
-
-    if (SCE_Shader_SetPosFile (fp, "[control shader]", SCE_FALSE)) {
-        pos[4] = ftell (fp);
-        begin[4] = pos[4] + 16; /* 16 = strlen("[control shader]"); */
-        rewind (fp);
-    }
+    SCE_SETPOS ("[vertex shader]", 15, SCE_VERTEX_SHADER);
+    SCE_SETPOS ("[control shader]", 16, SCE_TESS_CONTROL_SHADER);
+    SCE_SETPOS ("[evaluation shader]", 19, SCE_TESS_EVALUATION_SHADER);
+    SCE_SETPOS ("[geometry shader]", 17, SCE_GEOMETRY_SHADER);
+    SCE_SETPOS ("[pixel shader]", 14, SCE_PIXEL_SHADER);
+#undef SCE_SETPOS
 
     /* finding blocks (mess) */
     for (i = 0; i < SCE_NUM_SHADER_TYPES; i++) {
