@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 11/03/2007
-   updated: 14/03/2011 */
+   updated: 01/09/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -147,19 +147,18 @@ success:
 
 static int SCE_Texture_MakeRenderCube (SCE_STexture *tex, int type)
 {
-    int code = SCE_OK;
     unsigned int i = 0;
     int w = tex->w, h = tex->h/*, d*/;
     SCE_RTexData data;
 
     tex->tex = SCE_RCreateTexture (SCE_TEX_CUBE);
     if (!tex->tex)
-        goto failure;
+        goto fail;
 
     for (i = 0; i < 6; i++) {
         tex->fb[i] = SCE_RCreateFramebuffer ();
         if (!tex->fb[i])
-            goto failure;
+            goto fail;
         SCE_RInitTexData (&data);
 
         /* le target est defini dans AddTextureTexData */
@@ -175,25 +174,29 @@ static int SCE_Texture_MakeRenderCube (SCE_STexture *tex, int type)
             data.fmt = data.pxf = GL_RGBA;
 
         if (SCE_RAddTextureTexDataDup (tex->tex, SCE_TEX_POSX + i, &data) < 0)
-            goto failure;
+            goto fail;
+    }
 
+    if (SCE_RBuildTexture (tex->tex, 0, 0) < 0)
+        goto fail;
+
+    for (i = 0; i < 6; i++) {
         /* ajout de la texture */
-        SCE_RAddRenderTexture (tex->fb[i], type, SCE_TEX_POSX + i,
-                               tex->tex, 0, SCE_FALSE);
+        if (SCE_RAddRenderTexture (tex->fb[i], type, SCE_TEX_POSX + i,
+                                   tex->tex, 0, SCE_FALSE) < 0)
+            goto fail;
 
         /* s'il s'agit d'une color, on ajoute un depth buffer */
         if (type == SCE_COLOR_BUFFER) {
             if (SCE_RAddRenderBuffer(tex->fb[i], SCE_DEPTH_BUFFER, 0, w, h) < 0)
-                goto failure;
+                goto fail;
         }
     }
-    goto success;
 
-failure:
+    return SCE_OK;
+fail:
     SCEE_LogSrc ();
-    code = SCE_ERROR;
-success:
-    return code;
+    return SCE_ERROR;
 }
 
 /**
