@@ -1126,7 +1126,84 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
     SCE_ELightType type = SCE_POINT_LIGHT;
     SCE_SDeferredLightingShader *shader = &def->shaders[type][flags];
 
-    SCE_Shader_Use (shader->shader);
+    node = SCE_Light_GetNode (light);
+
+    if (!(flags & SCE_DEFERRED_USE_SHADOWS)) {
+        SCE_Shader_Use (shader->shader);
+    } else {
+        float coeff;
+        SCE_STexture *sm = def->shadowmaps[type]; /* shadow map */
+        /* TODO: matrix type */
+        float *mat = SCE_Node_GetMatrix (SCE_Camera_GetNode (def->cam),
+                                         SCE_NODE_WRITE_MATRIX);
+
+        /* render shadow map */
+        SCE_Camera_SetViewport (def->cam, 0, 0, def->sm_w, def->sm_h);
+        SCE_Camera_SetProjection (def->cam, M_PI / 2.0, 1.0, 0.001,
+                                  SCE_Light_GetRadius (light) + 0.001);
+
+        /* attach the camera to the light :) yes, it's that simple */
+        SCE_Node_Attach (node, SCE_Camera_GetNode (def->cam));
+
+        coeff = 1.0 / SCE_Light_GetRadius (light);
+        SCE_Shader_Use (def->shadow_shaders[type]);
+        /* TODO: omg ugly, should be named depthfactor_loc and mdr */
+        SCE_Shader_SetParamf (def->factor_loc[type], coeff);
+
+        /* TODO: setup states */
+        SCE_RSetState (GL_BLEND, SCE_FALSE);
+        SCE_Deferred_PopStates (def);
+        SCE_Scene_PushStates (scene);
+        SCE_Shader_Lock ();
+        scene->state->lighting = SCE_FALSE;
+        scene->state->deferred = SCE_FALSE;
+        scene->state->skybox = NULL;
+        scene->state->clearcolor = SCE_TRUE;
+        scene->state->cleardepth = SCE_TRUE;
+        scene->state->rendertarget = NULL;
+
+        /* rendering each face of the cubemap */
+        SCE_Matrix4_RotY (mat, M_PI / 2.0);
+        SCE_Matrix4_MulRotZ (mat, M_PI);
+#define SCE_RDR(f) do {                                         \
+            SCE_Node_HasMoved (SCE_Camera_GetNode (def->cam));  \
+            SCE_Scene_Update (scene, def->cam, sm, f);          \
+            SCE_Scene_Render (scene, def->cam, sm, f);          \
+        } while (0)
+
+        SCE_RDR (SCE_RENDER_POSX);
+
+        SCE_Matrix4_RotY (mat, - M_PI / 2.0);
+        SCE_Matrix4_MulRotZ (mat, M_PI);
+        SCE_RDR (SCE_RENDER_NEGX);
+        SCE_Matrix4_RotX (mat, M_PI / 2.0);
+        SCE_RDR (SCE_RENDER_POSY);
+        SCE_Matrix4_RotX (mat, - M_PI / 2.0);
+        SCE_RDR (SCE_RENDER_NEGY);
+        SCE_Matrix4_RotY (mat, M_PI);
+        SCE_Matrix4_MulRotZ (mat, M_PI);
+        SCE_RDR (SCE_RENDER_POSZ);
+        SCE_Matrix4_RotZ (mat, M_PI);
+        SCE_RDR (SCE_RENDER_NEGZ);
+#undef SCE_RDR
+        /* shadow cube map is now filled!1 */
+
+        SCE_Shader_Unlock ();
+        SCE_Scene_PopStates (scene);
+        SCE_Deferred_PushStates (def);
+        /* TODO: LOL glnames + crap set state */
+        SCE_RSetState (GL_BLEND, SCE_TRUE);
+        SCE_RSetBlending (GL_ONE, GL_ONE);
+
+        SCE_Texture_Use (def->shadowmaps[type]);
+        SCE_Shader_Use (shader->shader);
+        /* do shadow cube map fetch in object space */
+        /* TODO: light's matrix missing: light rotations wont work */
+        SCE_Shader_SetMatrix4 (shader->lightviewproj_loc,
+                               SCE_Camera_GetFinalViewInverse (cam));
+        SCE_Shader_SetParamf (shader->depthfactor_loc, coeff);
+    }
+
     /* get light's position in view space */
     SCE_Light_GetPositionv (light, pos);
     SCE_Matrix4_MulV3Copy (SCE_Camera_GetFinalView (cam), pos);
@@ -1136,7 +1213,6 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
     SCE_Shader_SetParamf (shader->lightradius_loc,
                           SCE_Light_GetRadius (light));
 
-    node = SCE_Light_GetNode (light);
     bs = SCE_Light_GetBoundingSphere (light);
     SCE_BoundingSphere_Push (bs, SCE_Node_GetFinalMatrix (node), &sphere);
     radius = SCE_BoundingSphere_GetRadius (bs);
@@ -1231,8 +1307,6 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
 
         coeff = 1.0 / SCE_Cone_GetHeight (&cone);
         SCE_Shader_Use (def->shadow_shaders[type]);
-        if(SCE_Shader_Validate(def->shadow_shaders[type]) < 0)
-            SCEE_Out ();
         /* TODO: omg ugly, should be named depthfactor_loc and mdr */
         SCE_Shader_SetParamf (def->factor_loc[type], coeff);
 

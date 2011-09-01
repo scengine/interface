@@ -35,6 +35,7 @@ extern "C" {
 #define SCE_DEFERRED_AMBIENT_COLOR_NAME "sce_ambient_color"
 #define SCE_DEFERRED_SKYBOX_MAP_NAME "sce_skybox_map"
 #define SCE_DEFERRED_SHADOW_MAP_NAME "sce_shadow_map"
+#define SCE_DEFERRED_SHADOW_CUBE_MAP_NAME "sce_shadow_cube_map"
 
 #define SCE_DEFERRED_DEPTH_FACTOR_NAME "sce_depth_factor"
 

@@ -263,9 +263,16 @@ int SCE_Deferred_Build (SCE_SDeferred *def,
            light type, also lights may request for a particular resolution
            (for tiny lights that dont require much) */
         SCE_STexture *tex = NULL;
-        if (!(tex = SCE_Texture_Create(SCE_RENDER_DEPTH, def->sm_w, def->sm_h)))
-            goto fail;
-        /* NOTE: why is there no need to build the texture?? */
+        unsigned int w = def->sm_w, h = def->sm_h;
+        if (i == SCE_POINT_LIGHT) {
+            if (!(tex = SCE_Texture_Create (SCE_RENDER_DEPTH_CUBE, w, h)))
+                goto fail;
+        } else {
+            if (!(tex = SCE_Texture_Create (SCE_RENDER_DEPTH, w, h)))
+                goto fail;
+        }
+        /* NOTE: why is there no need to build the texture??
+           BICOZ: render textures are already built dumbass */
         SCE_Texture_SetUnit (tex, def->n_targets);
         def->shadowmaps[i] = tex;
     }
@@ -459,6 +466,7 @@ static const char *sce_final_uniforms_code =
     "uniform sampler2D "SCE_DEFERRED_DEPTH_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_NORMAL_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_SHADOW_MAP_NAME";"
+    "uniform samplerCube "SCE_DEFERRED_SHADOW_CUBE_MAP_NAME";"
     "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
     "uniform mat4 "SCE_DEFERRED_INVPROJ_NAME";"
     "uniform mat4 "SCE_DEFERRED_LIGHT_VIEWPROJ_NAME";"
@@ -546,6 +554,7 @@ static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def,
         for (j = 0; j < def->n_targets; j++)
             SCE_Shader_Param (sce_deferred_target_names[j], j);
         SCE_Shader_Param (SCE_DEFERRED_SHADOW_MAP_NAME, def->n_targets);
+        SCE_Shader_Param (SCE_DEFERRED_SHADOW_CUBE_MAP_NAME, def->n_targets);
         SCE_Shader_Use (NULL);
     }
 
