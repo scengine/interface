@@ -73,6 +73,7 @@ static void SCE_Deferred_Init (SCE_SDeferred *def)
 
     def->amb_shader = NULL;
     def->skybox_shader = NULL;
+    def->lightflags_mask = SCE_DEFERRED_USE_ALL;
 
     for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
         int j;
@@ -150,6 +151,24 @@ void SCE_Deferred_SetShadowMapsDimensions (SCE_SDeferred *def, SCEuint w,
 {
     def->sm_w = w;
     def->sm_h = h;
+}
+
+
+void SCE_Deferred_AddLightFlag (SCE_SDeferred *def, int flag)
+{
+    SCE_FLAG_ADD (def->lightflags_mask, flag);
+}
+void SCE_Deferred_RemoveLightFlag (SCE_SDeferred *def, int flag)
+{
+    SCE_FLAG_REMOVE (def->lightflags_mask, flag);
+}
+void SCE_Deferred_SetLightFlagsMask (SCE_SDeferred *def, int mask)
+{
+    def->lightflags_mask = mask;
+}
+int SCE_Deferred_GetLightFlagsMask (SCE_SDeferred *def)
+{
+    return def->lightflags_mask;
 }
 
 static const char *sce_amb_vs =

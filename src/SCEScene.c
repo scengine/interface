@@ -1461,6 +1461,9 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
             if (SCE_Light_GetShadows (light))
                 flags |= SCE_DEFERRED_USE_SHADOWS;
 
+            /* apply flags mask from the deferred renderer */
+            flags &= def->lightflags_mask;
+
             switch (type) {
             case SCE_POINT_LIGHT:
                 SCE_Deferred_RenderPoint (def, scene, cam, light, flags);

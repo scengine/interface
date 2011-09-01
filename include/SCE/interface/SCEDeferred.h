@@ -57,6 +57,7 @@ extern "C" {
 #define SCE_DEFERRED_USE_IMAGE (0x00000008)
 /* number of flags combinations actually. */
 #define SCE_NUM_DEFERRED_LIGHT_FLAGS (SCE_DEFERRED_USE_IMAGE << 1)
+#define SCE_DEFERRED_USE_ALL (SCE_NUM_DEFERRED_LIGHT_FLAGS - 1)
 
 /* shader light flags names */
 #define SCE_DEFERRED_POINT_LIGHT "SCE_DEFERRED_POINT_LIGHT"
@@ -106,6 +107,7 @@ struct sce_sdeferred {
 
     SCE_SShader *shadow_shaders[SCE_NUM_LIGHT_TYPES];
 
+    int lightflags_mask;
     SCE_SDeferredLightingShader
         shaders[SCE_NUM_LIGHT_TYPES][SCE_NUM_DEFERRED_LIGHT_FLAGS];
     SCE_STexture *shadowmaps[SCE_NUM_LIGHT_TYPES];
@@ -135,6 +137,11 @@ void SCE_Deferred_Delete (SCE_SDeferred*);
 
 void SCE_Deferred_SetDimensions (SCE_SDeferred*, SCEuint, SCEuint);
 void SCE_Deferred_SetShadowMapsDimensions (SCE_SDeferred*, SCEuint, SCEuint);
+
+void SCE_Deferred_AddLightFlag (SCE_SDeferred*, int);
+void SCE_Deferred_RemoveLightFlag (SCE_SDeferred*, int);
+void SCE_Deferred_SetLightFlagsMask (SCE_SDeferred*, int);
+int SCE_Deferred_GetLightFlagsMask (SCE_SDeferred*);
 
 int SCE_Deferred_Build (SCE_SDeferred*, const char*[SCE_NUM_LIGHT_TYPES]);
 int SCE_Deferred_BuildShader (SCE_SDeferred*, SCE_SShader*);
