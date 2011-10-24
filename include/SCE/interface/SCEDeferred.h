@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 04/08/2011
-   updated: 15/08/2011 */
+   updated: 24/10/2011 */
 
 #ifndef SCEDEFERRED_H
 #define SCEDEFERRED_H
@@ -49,6 +49,7 @@ extern "C" {
 #define SCE_DEFERRED_LIGHT_RADIUS_NAME "sce_light_radius"
 #define SCE_DEFERRED_LIGHT_ANGLE_NAME "sce_light_angle"
 #define SCE_DEFERRED_LIGHT_ATTENUATION_NAME "sce_light_attenuation"
+#define SCE_DEFERRED_CSM_NUM_SPLITS_NAME "sce_csm_num_splits"
 
 /* shader light flags */
 #define SCE_DEFERRED_USE_SHADOWS (0x00000001)
@@ -68,6 +69,8 @@ extern "C" {
 #define SCE_DEFERRED_USE_SOFT_SHADOWS_NAME "SCE_DEFERRED_USE_SOFT_SHADOWS"
 #define SCE_DEFERRED_USE_SPECULAR_NAME "SCE_DEFERRED_USE_SPECULAR"
 #define SCE_DEFERRED_USE_IMAGE_NAME "SCE_DEFERRED_USE_IMAGE"
+
+#define SCE_MAX_DEFERRED_CASCADED_SPLITS 16
 
 typedef enum {
     SCE_DEFERRED_COLOR_TARGET = 0,
@@ -89,6 +92,7 @@ struct sce_sdeferredlightingshader {
     int lightradius_loc;  /**< Location of the light radius uniform */
     int lightangle_loc;   /**< Location of the light angle uniform */
     int lightattenuation_loc; /**< Location of the light attenuation uniform */
+    int csmnumsplits_loc;     /**< Used for CSM */
     int depthfactor_loc;  /**< Location of the depth factor for shadows */
     int camviewproj_loc;  /**< Light's camera viewproj matrix location */
 };
@@ -112,6 +116,8 @@ struct sce_sdeferred {
         shaders[SCE_NUM_LIGHT_TYPES][SCE_NUM_DEFERRED_LIGHT_FLAGS];
     SCE_STexture *shadowmaps[SCE_NUM_LIGHT_TYPES];
     SCEuint sm_w, sm_h;
+    SCEuint cascaded_splits;
+    float csm_far;              /* customized far plane for CSM */
     /** Location of the factor uniform of shadow shaders */
     int factor_loc[SCE_NUM_LIGHT_TYPES];
 
@@ -137,6 +143,8 @@ void SCE_Deferred_Delete (SCE_SDeferred*);
 
 void SCE_Deferred_SetDimensions (SCE_SDeferred*, SCEuint, SCEuint);
 void SCE_Deferred_SetShadowMapsDimensions (SCE_SDeferred*, SCEuint, SCEuint);
+void SCE_Deferred_SetCascadedSplits (SCE_SDeferred*, SCEuint);
+void SCE_Deferred_SetCascadedFar (SCE_SDeferred*, float);
 
 void SCE_Deferred_AddLightFlag (SCE_SDeferred*, int);
 void SCE_Deferred_RemoveLightFlag (SCE_SDeferred*, int);

@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 04/08/2011
-   updated: 15/08/2011 */
+   updated: 24/10/2011 */
 
 #include <SCE/core/SCECore.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -84,6 +84,8 @@ static void SCE_Deferred_Init (SCE_SDeferred *def)
             SCE_Deferred_InitLightingShader (&def->shaders[i][j]);
     }
     def->sm_w = def->sm_h = 128; /* xd */
+    def->cascaded_splits = 1;
+    def->csm_far = -1.0;
     def->cam = NULL;
 }
 static void SCE_Deferred_Clear (SCE_SDeferred *def)
@@ -153,6 +155,29 @@ void SCE_Deferred_SetShadowMapsDimensions (SCE_SDeferred *def, SCEuint w,
     def->sm_h = h;
 }
 
+/**
+ * \brief Sets the number of splits for the cascaded shadow maps
+ * \param def a deferred renderer
+ * \param n_splits number of splits (a value less than 5 is highly recommanded),
+ * maximum is defined by SCE_MAX_DEFERRED_CASCADED_SPLITS
+ */
+void SCE_Deferred_SetCascadedSplits (SCE_SDeferred *def, SCEuint n_splits)
+{
+    if (n_splits <= SCE_MAX_DEFERRED_CASCADED_SPLITS)
+        def->cascaded_splits = n_splits;
+}
+
+/**
+ * \brief Sets far plane for CSM
+ * \param def a deferred renderer
+ * \param far customized far plane that will replace camera's, or a negative
+ * number to use camera's (default)
+ */
+void SCE_Deferred_SetCascadedFar (SCE_SDeferred *def, float far)
+{
+    def->csm_far = far;
+}
+
 
 void SCE_Deferred_AddLightFlag (SCE_SDeferred *def, int flag)
 {
@@ -219,7 +244,8 @@ static const char *sce_skybox_ps =
     "}";
 
 
-static const char *sce_shadow_vs =
+static const char *sce_shadow_vs[SCE_NUM_LIGHT_TYPES] = {
+    /* point */
     "uniform mat4 sce_modelviewmatrix;"
     "uniform mat4 sce_projectionmatrix;"
     "varying vec4 pos;"
@@ -228,14 +254,51 @@ static const char *sce_shadow_vs =
     "  vec4 p = sce_modelviewmatrix * gl_Vertex;"
     "  pos = p;"
     "  gl_Position = sce_projectionmatrix * p;"
-    "}";
-static const char *sce_shadow_ps =
+    "}",
+    /* spot */
+    "uniform mat4 sce_modelviewmatrix;"
+    "uniform mat4 sce_projectionmatrix;"
+    "varying vec4 pos;"
+    "void main (void)"
+    "{"
+    "  vec4 p = sce_modelviewmatrix * gl_Vertex;"
+    "  pos = p;"
+    "  gl_Position = sce_projectionmatrix * p;"
+    "}",
+    /* sun */
+    "uniform mat4 sce_modelviewmatrix;"
+    "uniform mat4 sce_projectionmatrix;"
+    "varying float z;"
+    "void main (void)"
+    "{"
+    "  vec4 p = sce_projectionmatrix * sce_modelviewmatrix * gl_Vertex;"
+    "  z = p.z;"
+    "  gl_Position = p;"
+    "}"
+};
+static const char *sce_shadow_ps[SCE_NUM_LIGHT_TYPES] = {
+    /* point */
     "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
     "varying vec4 pos;"
     "void main (void)"
     "{"
     "  gl_FragDepth = length (pos) * "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
-    "}";
+    "}",
+    /* spot */
+    "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
+    "varying vec4 pos;"
+    "void main (void)"
+    "{"
+    "  gl_FragDepth = length (pos) * "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
+    "}",
+    /* sun */
+    "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
+    "varying float z;"
+    "void main (void)"
+    "{"
+    "  gl_FragDepth = z;"
+    "}"
+};
 
 
 static int SCE_Deferred_BuildFinalShader (SCE_SDeferred*, SCE_ELightType,
@@ -277,24 +340,22 @@ int SCE_Deferred_Build (SCE_SDeferred *def,
     }
 
     /* create shadow maps */
-    for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
-        /* TODO: we may want to change the shadow maps resolution per
-           light type, also lights may request for a particular resolution
-           (for tiny lights that dont require much) */
-        SCE_STexture *tex = NULL;
-        unsigned int w = def->sm_w, h = def->sm_h;
-        if (i == SCE_POINT_LIGHT) {
-            if (!(tex = SCE_Texture_Create (SCE_RENDER_DEPTH_CUBE, w, h)))
-                goto fail;
-        } else {
-            if (!(tex = SCE_Texture_Create (SCE_RENDER_DEPTH, w, h)))
-                goto fail;
-        }
-        /* NOTE: why is there no need to build the texture??
-           BICOZ: render textures are already built dumbass */
-        SCE_Texture_SetUnit (tex, def->n_targets);
-        def->shadowmaps[i] = tex;
-    }
+    /* TODO: we may want to change the shadow maps resolution per
+       light type, also lights may request for a particular resolution
+       (for tiny lights that dont require much) */
+    if (!(def->shadowmaps[SCE_POINT_LIGHT] =
+          SCE_Texture_Create (SCE_RENDER_DEPTH_CUBE, def->sm_w, def->sm_h)))
+        goto fail;
+    if (!(def->shadowmaps[SCE_SPOT_LIGHT] =
+          SCE_Texture_Create (SCE_RENDER_DEPTH, def->sm_w, def->sm_h)))
+        goto fail;
+    if (!(def->shadowmaps[SCE_SUN_LIGHT] =
+          SCE_Texture_Create (SCE_RENDER_DEPTH,
+                              def->sm_w * def->cascaded_splits, def->sm_h)))
+        goto fail;
+
+    for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++)
+        SCE_Texture_SetUnit (def->shadowmaps[i], def->n_targets);
 
     /* create shaders */
     for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
@@ -345,10 +406,10 @@ int SCE_Deferred_Build (SCE_SDeferred *def,
         if (!(def->shadow_shaders[i] = SCE_Shader_Create ()))
             goto fail;
         if (SCE_Shader_AddSource (def->shadow_shaders[i], SCE_VERTEX_SHADER,
-                                  sce_shadow_vs/*[i]*/, SCE_FALSE) < 0)
+                                  sce_shadow_vs[i], SCE_FALSE) < 0)
             goto fail;
         if (SCE_Shader_AddSource (def->shadow_shaders[i], SCE_PIXEL_SHADER,
-                                  sce_shadow_ps/*[i]*/, SCE_FALSE) < 0)
+                                  sce_shadow_ps[i], SCE_FALSE) < 0)
             goto fail;
         /* TODO: do this. */
 #if 0
@@ -480,7 +541,8 @@ fail:
 }
 
 
-static const char *sce_final_uniforms_code =
+static const char *sce_final_uniforms_code[SCE_NUM_LIGHT_TYPES] = {
+    /* point */
     "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_DEPTH_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_NORMAL_TARGET_NAME";"
@@ -494,7 +556,35 @@ static const char *sce_final_uniforms_code =
     "uniform vec3 "SCE_DEFERRED_LIGHT_COLOR_NAME";"
     "uniform float "SCE_DEFERRED_LIGHT_RADIUS_NAME";"
     "uniform float "SCE_DEFERRED_LIGHT_ANGLE_NAME";"
-    "uniform float "SCE_DEFERRED_LIGHT_ATTENUATION_NAME";";
+    "uniform float "SCE_DEFERRED_LIGHT_ATTENUATION_NAME";",
+    /* spot */
+    "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_DEPTH_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_NORMAL_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_SHADOW_MAP_NAME";"
+    "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
+    "uniform mat4 "SCE_DEFERRED_INVPROJ_NAME";"
+    "uniform mat4 "SCE_DEFERRED_LIGHT_VIEWPROJ_NAME";"
+    "uniform vec3 "SCE_DEFERRED_LIGHT_POSITION_NAME";"
+    "uniform vec3 "SCE_DEFERRED_LIGHT_DIRECTION_NAME";"
+    "uniform vec3 "SCE_DEFERRED_LIGHT_COLOR_NAME";"
+    "uniform float "SCE_DEFERRED_LIGHT_RADIUS_NAME";"
+    "uniform float "SCE_DEFERRED_LIGHT_ANGLE_NAME";"
+    "uniform float "SCE_DEFERRED_LIGHT_ATTENUATION_NAME";",
+    /* sun */
+    "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_DEPTH_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_NORMAL_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_SHADOW_MAP_NAME";"
+    "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
+    "uniform mat4 "SCE_DEFERRED_INVPROJ_NAME";"
+    /* we should use SCE_MAX_DEFERRED_CASCADED_SPLITS */
+    "uniform mat4 "SCE_DEFERRED_LIGHT_VIEWPROJ_NAME"[8];"
+    "uniform int "SCE_DEFERRED_CSM_NUM_SPLITS_NAME";"
+    "uniform vec3 "SCE_DEFERRED_LIGHT_POSITION_NAME";"
+    "uniform vec3 "SCE_DEFERRED_LIGHT_DIRECTION_NAME";"
+    "uniform vec3 "SCE_DEFERRED_LIGHT_COLOR_NAME";"
+};
 
 
 static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def,
@@ -523,7 +613,7 @@ static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def,
     } while (0)
 
         /* uniforms */
-        SCE_DEF_ADDSRC (sce_final_uniforms_code, SCE_PIXEL_SHADER);
+        SCE_DEF_ADDSRC (sce_final_uniforms_code[type], SCE_PIXEL_SHADER);
         /* add unpacking functions' sources */
         SCE_DEF_ADDSRC (sce_unpack_color_fun, SCE_PIXEL_SHADER);
         SCE_DEF_ADDSRC (sce_unpack_normal_fun, SCE_PIXEL_SHADER);
@@ -566,6 +656,7 @@ static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def,
         SCE_DEF_UNI (lightradius, SCE_DEFERRED_LIGHT_RADIUS_NAME);
         SCE_DEF_UNI (lightangle, SCE_DEFERRED_LIGHT_ANGLE_NAME);
         SCE_DEF_UNI (lightattenuation, SCE_DEFERRED_LIGHT_ATTENUATION_NAME);
+        SCE_DEF_UNI (csmnumsplits, SCE_DEFERRED_CSM_NUM_SPLITS_NAME);
 #undef SCE_DEF_UNI
 
         /* constant uniforms */
