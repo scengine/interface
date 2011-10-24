@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 14/08/2011 */
+   updated: 24/10/2011 */
 
 #ifndef SCESHADERS_H
 #define SCESHADERS_H
@@ -127,7 +127,9 @@ void SCE_Shader_SetParam2fv (int, size_t, float*);
 void SCE_Shader_SetParam3fv (int, size_t, float*);
 void SCE_Shader_SetParam4fv (int, size_t, float*);
 void SCE_Shader_SetMatrix3 (int, SCE_TMatrix3);
+void SCE_Shader_SetMatrix3v (int, const float*, size_t);
 void SCE_Shader_SetMatrix4 (int, SCE_TMatrix4);
+void SCE_Shader_SetMatrix4v (int, const float*, size_t);
 
 int SCE_Shader_AddParamv (SCE_SShader*, const char*, void*);
 int SCE_Shader_AddParamfv (SCE_SShader*, const char*, int, int, void*);

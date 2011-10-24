@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 14/08/2011 */
+   updated: 24/10/2011 */
 
 #include <ctype.h>
 #include <SCE/utils/SCEUtils.h>
@@ -613,9 +613,18 @@ void SCE_Shader_SetMatrix3 (int index, SCE_TMatrix3 m)
 {
     SCE_RSetProgramMatrix3 (index, 1, m); /* count forced */
 }
+void SCE_Shader_SetMatrix3v (int index, const float *m, size_t num)
+{
+    SCE_RSetProgramMatrix3 (index, num, m);
+}
+
 void SCE_Shader_SetMatrix4 (int index, SCE_TMatrix4 m)
 {
     SCE_RSetProgramMatrix4 (index, 1, m); /* count forced */
+}
+void SCE_Shader_SetMatrix4v (int index, const float *m, size_t num)
+{
+    SCE_RSetProgramMatrix4 (index, num, m);
 }
 
 /**
