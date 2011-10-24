@@ -1077,15 +1077,16 @@ static void SCE_Scene_ForwardRender (SCE_SScene *scene, SCE_SCamera *cam,
 {
     SCE_SListIterator *it = NULL;
 
+    /* RenderTo() does call glViewport(), as does UseCamera(); in our case
+       we want the camera viewport to take over target's */
     SCE_Texture_RenderTo (target, cubeface);
+    SCE_Scene_UseCamera (cam);
 
     if (scene->state->skybox) {
         scene->state->clearcolor = SCE_FALSE;
         scene->state->cleardepth = SCE_TRUE;
     }
     SCE_Scene_ClearBuffers (scene);
-
-    SCE_Scene_UseCamera (cam);
 
     if (scene->state->skybox) {
         SCE_Light_ActivateLighting (SCE_FALSE);
