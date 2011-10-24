@@ -1248,6 +1248,29 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
     SCE_BoundingSphere_Pop (bs, &sphere);
 }
 
+
+/**
+ * \brief Computes splitting planes for Cascaded Shadow Maps
+ * \param lambda
+ * \param near
+ * \param far
+ * \param splits
+ * \param n_splits
+ */
+static void SCE_Deferred_CSMSplits (float lambda, float near, float far,
+                                    float *splits, size_t n_splits)
+{
+    size_t i;
+
+    for (i = 0; i < n_splits; i++) {
+        /* logarithmic split */
+        float slog = near * pow (far / near, (double)i / n_splits);
+        /* linear split */
+        float slin = near + i * (far - near) / n_splits;
+        splits[i] = lambda * slog + (1.0 - lambda) * slin;
+    }
+}
+
 static void
 SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
                         SCE_SCamera *cam, SCE_SLight *light, int flags)
@@ -1256,7 +1279,89 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
     SCE_ELightType type = SCE_SUN_LIGHT;
     SCE_SDeferredLightingShader *shader = &def->shaders[type][flags];
 
-    SCE_Shader_Use (shader->shader);
+    if (!(flags & SCE_DEFERRED_USE_SHADOWS)) {
+        SCE_Shader_Use (shader->shader);
+    } else {
+        SCE_TVector3 dir;
+        int i;
+        SCE_STexture *sm = def->shadowmaps[type]; /* shadow map */
+        float dist;
+        float splits[SCE_MAX_DEFERRED_CASCADED_SPLITS + 1];
+        SCE_TMatrix4 matrices[SCE_MAX_DEFERRED_CASCADED_SPLITS];
+        float far;
+
+        dist = 10000.0;  /* TODO: use octree's size to setup the distance */
+
+        SCE_Light_GetPositionv (light, dir);
+        SCE_Vector3_Operator1 (dir, *=, -1.0);
+        SCE_Vector3_Normalize (dir);
+
+        SCE_Shader_Use (def->shadow_shaders[type]);
+
+        /* TODO: setup states */
+        SCE_RSetState (GL_BLEND, SCE_FALSE);
+        SCE_Deferred_PopStates (def);
+        SCE_Scene_PushStates (scene);
+        SCE_Shader_Lock ();
+        scene->state->lighting = SCE_FALSE;
+        scene->state->deferred = SCE_FALSE;
+        scene->state->skybox = NULL;
+        scene->state->clearcolor = SCE_TRUE;
+        scene->state->cleardepth = SCE_TRUE;
+        scene->state->rendertarget = NULL;
+
+        /* setup splits */
+        far = def->csm_far > 0.0 ? def->csm_far : SCE_Camera_GetFar (cam);
+        /* TODO: make lambda modifiable by the user */
+        SCE_Deferred_CSMSplits (0.5, SCE_Camera_GetNear (cam), far, splits,
+                                def->cascaded_splits + 1);
+
+        /* rendering each split */
+        for (i = 0; i < def->cascaded_splits; i++) {
+            /* render shadow map */
+            SCE_Camera_SetViewport (def->cam, def->sm_w * i, 0,
+                                    def->sm_w, def->sm_h);
+            /* TODO: configure slices */
+            SCE_Frustum_Slice (SCE_Camera_GetFrustum (cam), splits[i],
+                               splits[i + 1], dir, dist,
+                               SCE_Camera_GetProj (def->cam),
+                               SCE_Node_GetMatrix(SCE_Camera_GetNode(def->cam),
+                                                  SCE_NODE_WRITE_MATRIX));
+
+            SCE_Node_HasMoved (SCE_Camera_GetNode (def->cam));
+            SCE_Scene_Update (scene, def->cam, sm, 0);
+            SCE_Scene_Render (scene, def->cam, sm, 0);
+
+            /* dont clear the shadow map for further renders */
+            scene->state->clearcolor = SCE_FALSE;
+            scene->state->cleardepth = SCE_FALSE;
+
+            /* store modelview projection matrix of the current camera */
+            SCE_Matrix4_Copy (matrices[i],
+                              SCE_Camera_GetFinalViewProj (def->cam));
+            /* unpacked positions are in view space, need to put them back
+               in world space */
+            SCE_Matrix4_MulCopy (matrices[i],
+                                 SCE_Camera_GetFinalViewInverse (cam));
+        }
+        /* shadow map is now filled!1 */
+
+        SCE_Shader_Unlock ();
+        SCE_Scene_PopStates (scene);
+        SCE_Deferred_PushStates (def);
+
+        /* TODO: LOL glnames + crap set state */
+        SCE_RSetState (GL_BLEND, SCE_TRUE);
+        SCE_RSetBlending (GL_ONE, GL_ONE);
+
+        SCE_Texture_Use (def->shadowmaps[type]);
+        SCE_Shader_Use (shader->shader);
+
+        SCE_Shader_SetMatrix4v (shader->lightviewproj_loc, matrices,
+                                def->cascaded_splits);
+        SCE_Shader_SetParam (shader->csmnumsplits_loc, def->cascaded_splits);
+    }
+
     /* get light's position in view space */
     SCE_Light_GetPositionv (light, pos);
     SCE_Matrix4_MulV3Copyw (SCE_Camera_GetFinalView (cam), pos, 0.0);
