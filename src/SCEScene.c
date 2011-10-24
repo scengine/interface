@@ -1174,6 +1174,7 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
 
         SCE_RDR (SCE_RENDER_POSX);
 
+        /* TODO: function SCE_ERenderFace -> Matrix */
         SCE_Matrix4_RotY (mat, - M_PI / 2.0);
         SCE_Matrix4_MulRotZ (mat, M_PI);
         SCE_RDR (SCE_RENDER_NEGX);
