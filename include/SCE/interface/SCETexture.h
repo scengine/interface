@@ -59,13 +59,13 @@ extern "C" {
 #define SCE_RENDER_DEPTH 3
 #define SCE_RENDER_DEPTH_CUBE 4
 
-/* defini la face de la cubemap sur laquelle rendre */
-#define SCE_RENDER_POSX 0
-#define SCE_RENDER_NEGX 1
-#define SCE_RENDER_POSY 2
-#define SCE_RENDER_NEGY 3
-#define SCE_RENDER_POSZ 4
-#define SCE_RENDER_NEGZ 5
+/* some aliases for compatibility */
+#define SCE_RENDER_POSX SCE_BOX_POSX
+#define SCE_RENDER_NEGX SCE_BOX_NEGX
+#define SCE_RENDER_POSY SCE_BOX_POSY
+#define SCE_RENDER_NEGY SCE_BOX_NEGY
+#define SCE_RENDER_POSZ SCE_BOX_POSZ
+#define SCE_RENDER_NEGZ SCE_BOX_NEGZ
 
 #define SCE_MAX_TEXTURE_UNITS 32
 
