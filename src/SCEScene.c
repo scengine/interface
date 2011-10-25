@@ -427,6 +427,7 @@ void SCE_Scene_AddNode (SCE_SScene *scene, SCE_SNode *node)
  * This function calls SCE_Scene_AddNode() under \p node and also calls
  * SCE_Scene_AddNodeRecursive() for each child of \p node.
  * \sa SCE_Scene_AddNode()
+ * \todo this function is truely stupid.
  */
 void SCE_Scene_AddNodeRecursive (SCE_SScene *scene, SCE_SNode *node)
 {
@@ -1175,6 +1176,7 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_RDR (SCE_RENDER_POSX);
 
         /* TODO: function SCE_ERenderFace -> Matrix */
+        /* TODO: Node_GetMatrix() MUST be recalled */
         SCE_Matrix4_RotY (mat, - M_PI / 2.0);
         SCE_Matrix4_MulRotZ (mat, M_PI);
         SCE_RDR (SCE_RENDER_NEGX);
@@ -1516,6 +1518,7 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
 
     /* fillup G-buffer */
     SCE_Texture_RenderTo (def->gbuf, 0);
+    /* TODO: make it parameterizable, forcing to clear the buffer is bad */
     scene->state->clearcolor = SCE_TRUE;
     scene->state->cleardepth = SCE_TRUE;
     SCE_Scene_ClearBuffers (scene);
@@ -1612,6 +1615,7 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
     SCE_Shader_Use (NULL);
     SCE_Deferred_PopStates (def);
 
+    /* TODO: lol fix this, should be RenderTo (NULL, ..) */
     if (target)
         SCE_Texture_RenderTo (target, cubeface);
 }
