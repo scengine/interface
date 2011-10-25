@@ -1166,29 +1166,20 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
         scene->state->rendertarget = NULL;
 
         /* rendering each face of the cubemap */
-        SCE_Matrix4_RotY (mat, M_PI / 2.0);
-        SCE_Matrix4_MulRotZ (mat, M_PI);
-#define SCE_RDR(f) do {                                         \
-            SCE_Node_HasMoved (SCE_Camera_GetNode (def->cam));  \
-            SCE_Scene_Update (scene, def->cam, sm, f);          \
-            SCE_Scene_Render (scene, def->cam, sm, f);          \
+#define SCE_RDR(f) do {                                                 \
+            mat = SCE_Node_GetMatrix (SCE_Camera_GetNode (def->cam),    \
+                                      SCE_NODE_WRITE_MATRIX);           \
+            SCE_Box_FaceOrientation (f, mat);                           \
+            SCE_Node_HasMoved (SCE_Camera_GetNode (def->cam));          \
+            SCE_Scene_Update (scene, def->cam, sm, f);                  \
+            SCE_Scene_Render (scene, def->cam, sm, f);                  \
         } while (0)
 
         SCE_RDR (SCE_RENDER_POSX);
-
-        /* TODO: function SCE_ERenderFace -> Matrix */
-        /* TODO: Node_GetMatrix() MUST be recalled */
-        SCE_Matrix4_RotY (mat, - M_PI / 2.0);
-        SCE_Matrix4_MulRotZ (mat, M_PI);
         SCE_RDR (SCE_RENDER_NEGX);
-        SCE_Matrix4_RotX (mat, M_PI / 2.0);
         SCE_RDR (SCE_RENDER_POSY);
-        SCE_Matrix4_RotX (mat, - M_PI / 2.0);
         SCE_RDR (SCE_RENDER_NEGY);
-        SCE_Matrix4_RotY (mat, M_PI);
-        SCE_Matrix4_MulRotZ (mat, M_PI);
         SCE_RDR (SCE_RENDER_POSZ);
-        SCE_Matrix4_RotZ (mat, M_PI);
         SCE_RDR (SCE_RENDER_NEGZ);
 #undef SCE_RDR
         /* shadow cube map is now filled!1 */
