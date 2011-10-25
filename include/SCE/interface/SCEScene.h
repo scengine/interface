@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2007
-   updated: 17/08/2011 */
+   updated: 25/10/2011 */
 
 #ifndef SCESCENE_H
 #define SCESCENE_H
@@ -71,7 +71,7 @@ struct sce_sscenestates {
     int deferred;        /**< Use deferred renderer? */
     SCE_SCamera *camera;        /**< The camera of the current render */
     SCE_STexture *rendertarget; /**< Scene's render target */
-    SCEuint cubeface;           /**< Face of the cubemap (used if
+    SCE_EBoxFace cubeface;      /**< Face of the cubemap (used if
                                  * \c rendertarget is a cubemap) */
     SCE_SSkybox *skybox;        /**< Scene skybox */
 };
@@ -166,9 +166,9 @@ int SCE_Scene_SetupDefaultBatching (SCE_SScene*);
 
 void SCE_Scene_ClearBuffers (SCE_SScene*);
 
-void SCE_Scene_Update (SCE_SScene*, SCE_SCamera*, SCE_STexture*, SCEuint);
+void SCE_Scene_Update (SCE_SScene*, SCE_SCamera*, SCE_STexture*, SCE_EBoxFace);
 void SCE_Scene_UseCamera (SCE_SCamera*);
-void SCE_Scene_Render (SCE_SScene*, SCE_SCamera*, SCE_STexture*, int);
+void SCE_Scene_Render (SCE_SScene*, SCE_SCamera*, SCE_STexture*, SCE_EBoxFace);
 
 void SCE_Scene_PushStates (SCE_SScene*);
 void SCE_Scene_PopStates (SCE_SScene*);

@@ -153,7 +153,7 @@ void SCE_Texture_Mark (void);
 void SCE_Texture_Restore (void);
 #endif
 
-void SCE_Texture_RenderTo (SCE_STexture*, SCEuint);
+void SCE_Texture_RenderTo (SCE_STexture*, SCE_EBoxFace);
 
 #ifdef __cplusplus
 } /* extern "C" */

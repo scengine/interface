@@ -158,7 +158,7 @@ void SCE_Deferred_PushStates (SCE_SDeferred*);
 void SCE_Deferred_PopStates (SCE_SDeferred*);
 
 void SCE_Deferred_Render (SCE_SDeferred*, void*, SCE_SCamera*,
-                          SCE_STexture*, int);
+                          SCE_STexture*, SCE_EBoxFace);
 
 #ifdef __cplusplus
 } /* extern "C" */

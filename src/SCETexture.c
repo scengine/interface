@@ -874,7 +874,7 @@ void SCE_Texture_Restore (void)
  * SCE_RUseFramebuffer (NULL, NULL).
  * \sa SCE_RUseFramebuffer()
  */
-void SCE_Texture_RenderTo (SCE_STexture *tex, SCEuint cubeface)
+void SCE_Texture_RenderTo (SCE_STexture *tex, SCE_EBoxFace cubeface)
 {
     if (tex) {
         if (SCE_RGetTextureTarget (tex->tex) == SCE_TEX_CUBE)

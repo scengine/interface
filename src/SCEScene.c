@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2008
-   updated: 17/08/2011 */
+   updated: 25/10/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -951,7 +951,7 @@ static void SCE_Scene_FlushEntities (SCE_SScene *scene)
  * \sa SCE_Scene_Render(), SCE_Texture_RenderTo()
  */
 void SCE_Scene_Update (SCE_SScene *scene, SCE_SCamera *camera,
-                       SCE_STexture *target, SCEuint cubeface)
+                       SCE_STexture *target, SCE_EBoxFace cubeface)
 {
     int fc;
 
@@ -1074,7 +1074,8 @@ void SCE_Scene_UseCamera (SCE_SCamera *cam)
 
 
 static void SCE_Scene_ForwardRender (SCE_SScene *scene, SCE_SCamera *cam,
-                                     SCE_STexture *target, int cubeface)
+                                     SCE_STexture *target,
+                                     SCE_EBoxFace cubeface)
 {
     SCE_SListIterator *it = NULL;
 
@@ -1506,7 +1507,8 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
 
 
 void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
-                          SCE_SCamera *cam, SCE_STexture *target, int cubeface)
+                          SCE_SCamera *cam, SCE_STexture *target,
+                          SCE_EBoxFace cubeface)
 {
     int i;
     SCE_SListIterator *it = NULL;
@@ -1631,7 +1633,7 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
  * \see SCE_Scene_Update()
  */
 void SCE_Scene_Render (SCE_SScene *scene, SCE_SCamera *cam,
-                       SCE_STexture *target, int cubeface)
+                       SCE_STexture *target, SCE_EBoxFace cubeface)
 {
     if (!cam)
         cam = scene->state->camera;
