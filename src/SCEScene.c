@@ -1190,6 +1190,10 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
 #undef SCE_RDR
         /* shadow cube map is now filled!1 */
 
+        /* reset camera */
+        SCE_Node_Detach (SCE_Camera_GetNode (def->cam));
+        SCE_Scene_AddNode (scene, SCE_Camera_GetNode (def->cam));
+
         SCE_Shader_Unlock ();
         SCE_Scene_PopStates (scene);
         SCE_Deferred_PushStates (def);
