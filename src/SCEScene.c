@@ -1311,8 +1311,8 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
         /* setup splits */
         far = def->csm_far > 0.0 ? def->csm_far : SCE_Camera_GetFar (cam);
         /* TODO: make lambda modifiable by the user */
-        SCE_Deferred_CSMSplits (0.5, SCE_Camera_GetNear (cam), far, splits,
-                                def->cascaded_splits + 1);
+        SCE_Deferred_CSMSplits (0.8, SCE_Camera_GetNear (cam), far, splits,
+                                def->cascaded_splits);
 
         /* rendering each split */
         for (i = 0; i < def->cascaded_splits; i++) {
