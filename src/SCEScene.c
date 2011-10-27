@@ -1249,7 +1249,7 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
 
 /**
  * \brief Computes splitting planes for Cascaded Shadow Maps
- * \param lambda
+ * \param lambda weight for linear (0.0) and logarithmic (1.0) splits
  * \param near
  * \param far
  * \param splits
