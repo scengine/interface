@@ -224,8 +224,9 @@ static const char *sce_skybox_vs =
     "void main (void)"
     "{"
     "tc = gl_MultiTexCoord0.xyz;"
-    "pos = sce_projectionmatrix * sce_modelviewmatrix * gl_Vertex;"
-    "gl_Position = pos;"
+    "vec4 p = sce_projectionmatrix * sce_modelviewmatrix * gl_Vertex;"
+    "pos = p;"
+    "gl_Position = p;"
     "}";
 static const char *sce_skybox_ps =
     "uniform samplerCube "SCE_DEFERRED_SKYBOX_MAP_NAME";"
@@ -237,10 +238,9 @@ static const char *sce_skybox_ps =
     "vec2 coord = pos.xy / (pos.w * 2.0);"
     "coord += vec2 (0.5);"
     "float depth = texture2D ("SCE_DEFERRED_DEPTH_TARGET_NAME", coord).x;"
-    "if (depth > 0.9999)"
-    "  gl_FragColor = textureCube ("SCE_DEFERRED_SKYBOX_MAP_NAME", tc);"
-    "else"
+    "if (depth < 0.9999)"
     "  discard;"
+    "gl_FragColor = textureCube ("SCE_DEFERRED_SKYBOX_MAP_NAME", tc);"
     "}";
 
 
