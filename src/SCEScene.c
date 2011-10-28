@@ -1260,7 +1260,7 @@ static void SCE_Deferred_CSMSplits (float lambda, float near, float far,
 {
     size_t i;
 
-    for (i = 0; i < n_splits; i++) {
+    for (i = 0; i <= n_splits; i++) {
         /* logarithmic split */
         float slog = near * pow (far / near, (double)i / n_splits);
         /* linear split */
