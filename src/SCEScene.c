@@ -1247,6 +1247,39 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
 }
 
 
+
+/**
+ * \brief Achieves CSM translations on a per-pixel basis
+ * \param light a light with its last frame position
+ * \param w width of a pixel
+ * \param h height of a pixel
+ * \param mat position matrix of the light for the current frame
+ */
+static void SCE_Deferred_CSMMoveLight (SCE_SLight *light,
+                                       float w, float h, SCE_TMatrix4 mat)
+{
+    SCE_TVector3 x, y, z;
+    SCE_TVector3 origin, pos, new_pos;
+    float dw, dh, dd;           /* distances */
+
+    SCE_Vector3_Set (origin, 0.0, 0.0, 0.0);
+    SCE_Matrix4_GetBase (mat, x, y, z);
+    SCE_Matrix4_GetTranslation (mat, pos);
+
+    dw = SCE_Plane_DistanceAlong (pos, origin, x);
+    dh = SCE_Plane_DistanceAlong (pos, origin, y);
+    dd = SCE_Plane_DistanceAlong (pos, origin, z);
+
+    dw = w * (int)(dw / w);
+    dh = h * (int)(dh / h);
+
+    SCE_Vector3_Operator1v (pos, = -dw *, x);
+    SCE_Vector3_Operator1v (pos, -= dh *, y);
+    SCE_Vector3_Operator1v (pos, -= dd *, z);
+
+    SCE_Matrix4_SetTranslation (mat, pos);
+}
+
 /**
  * \brief Computes splitting planes for Cascaded Shadow Maps
  * \param lambda weight for linear (0.0) and logarithmic (1.0) splits
@@ -1316,15 +1349,23 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
 
         /* rendering each split */
         for (i = 0; i < def->cascaded_splits; i++) {
+            /* TODO: matrix type */
+            float *proj = NULL;
+            SCE_TMatrix4 mat;
+
             /* render shadow map */
             SCE_Camera_SetViewport (def->cam, def->sm_w * i, 0,
                                     def->sm_w, def->sm_h);
-            /* TODO: configure slices */
+
+            proj = SCE_Camera_GetProj (def->cam);
             SCE_Frustum_Slice (SCE_Camera_GetFrustum (cam), splits[i],
-                               splits[i + 1], dir, dist,
-                               SCE_Camera_GetProj (def->cam),
-                               SCE_Node_GetMatrix(SCE_Camera_GetNode(def->cam),
-                                                  SCE_NODE_WRITE_MATRIX));
+                               splits[i + 1], dir, dist, proj, mat);
+
+            SCE_Deferred_CSMMoveLight (
+                light, SCE_Matrix4_GetOrthoWidth (proj) / def->sm_w,
+                SCE_Matrix4_GetOrthoHeight (proj) / def->sm_h, mat);
+
+            SCE_Node_SetMatrix (SCE_Camera_GetNode (def->cam), mat);
 
             SCE_Node_HasMoved (SCE_Camera_GetNode (def->cam));
             SCE_Scene_Update (scene, def->cam, sm, 0);
