@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2008
-   updated: 25/10/2011 */
+   updated: 01/11/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -1121,7 +1121,7 @@ static void
 SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
                           SCE_SCamera *cam, SCE_SLight *light, int flags)
 {
-    float radius, near;
+    float radius, near, x;
     SCE_TVector3 pos;
     SCE_SSphere sphere;
     SCE_SBoundingSphere *bs = NULL;
@@ -1216,6 +1216,9 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
     bs = SCE_Light_GetBoundingSphere (light);
     SCE_BoundingSphere_Push (bs, SCE_Node_GetFinalMatrix (node), &sphere);
     radius = SCE_BoundingSphere_GetRadius (bs);
+    /* wrapping sphere around geometry (see SCE_Scene_MakeBoundingVolumes()) */
+    x = 1.0 - cos (M_PI / SCE_SCENE_SPHERE_SUBDIV);
+    radius *= 1.0f + x / (1.0f - x);
     near = SCE_Camera_GetNear (cam) * 2.0;
     radius += near;
     SCE_Sphere_SetRadius (SCE_BoundingSphere_GetSphere (bs), radius);
@@ -1230,11 +1233,9 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_Scene_UseCamera (cam);
         /* TODO: gl keywords */
         SCE_RSetState (GL_CULL_FACE, SCE_TRUE);
-        /* remove near plane threshold for rendering, otherwise
-           the mesh could be clipped by the near plane, thus resulting
-           in an huge artifact */
-        radius -= near;
-        SCE_Sphere_SetRadius (SCE_BoundingSphere_GetSphere (bs), radius);
+        /* using old radius for rendering, otherwise the mesh could be
+           clipped by the near plane, thus resulting in an huge artifact */
+        SCE_Sphere_SetRadius (SCE_BoundingSphere_GetSphere (bs), sphere.radius);
 
         SCE_Mesh_Use (scene->bsmesh);
         SCE_Scene_DrawBS (SCE_BoundingSphere_GetSphere (bs),
