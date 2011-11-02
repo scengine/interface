@@ -1609,6 +1609,8 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
 
             if (SCE_Light_GetShadows (light))
                 flags |= SCE_DEFERRED_USE_SHADOWS;
+            if (SCE_Light_GetSpecular (light))
+                flags |= SCE_DEFERRED_USE_SPECULAR;
 
             /* apply flags mask from the deferred renderer */
             flags &= def->lightflags_mask;

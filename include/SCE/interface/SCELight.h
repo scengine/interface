@@ -53,6 +53,7 @@ struct sce_slight {
     SCE_SCone cone;             /**< Cone (if spot) */
     float attenuation;          /**< Spot edges attenuation */
     int cast_shadows;           /**< Does the light cast shadows? */
+    int specular;               /**< Does the light produces specular? */
     SCE_SNode *node;    /* noeud de la lumiere */
     SCE_SListIterator it;
     void *udata;
@@ -100,6 +101,8 @@ float SCE_Light_GetAttenuation (const SCE_SLight*);
 
 void SCE_Light_SetShadows (SCE_SLight*, int);
 int SCE_Light_GetShadows (const SCE_SLight*);
+void SCE_Light_SetSpecular (SCE_SLight*, int);
+int SCE_Light_GetSpecular (const SCE_SLight*);
 
 void SCE_Light_SetIntensity (SCE_SLight*, float);
 float SCE_Light_GetIntensity (SCE_SLight*);

@@ -40,6 +40,7 @@ void SCE_Light_Init (SCE_SLight *light)
     SCE_Cone_Init (&light->cone);
     light->attenuation = 1.0;
     light->cast_shadows = SCE_FALSE;
+    light->specular = SCE_FALSE;
     SCE_List_InitIt (&light->it);
     SCE_List_SetData (&light->it, light);
     light->udata = NULL;
@@ -209,6 +210,28 @@ int SCE_Light_GetShadows (const SCE_SLight *light)
 {
     return light->cast_shadows;
 }
+
+/**
+ * \brief Toggles specular, disabled by default
+ * \param light a light
+ * \param specular whether \p light will produce specular lighting
+ * \sa SCE_Light_GetSpecular()
+ */
+void SCE_Light_SetSpecular (SCE_SLight *light, int specular)
+{
+    light->specular = specular;
+}
+/**
+ * \brief Gets a light's 'specular' status
+ * \param light a light
+ * \returns SCE_TRUE if \p is producing specular lighting, SCE_FALSE otherwise
+ * \sa SCE_Light_SetSpecular()
+ */
+int SCE_Light_GetSpecular (const SCE_SLight *light)
+{
+    return light->specular;
+}
+
 
 void SCE_Light_SetIntensity (SCE_SLight *light, float intensity)
 {
