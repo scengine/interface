@@ -1320,6 +1320,7 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
         float dist;
         float splits[SCE_MAX_DEFERRED_CASCADED_SPLITS + 1];
         SCE_TMatrix4 matrices[SCE_MAX_DEFERRED_CASCADED_SPLITS];
+        float coeff[SCE_MAX_DEFERRED_CASCADED_SPLITS];
         float far;
 
         dist = 10000.0;  /* TODO: use octree's size to setup the distance */
@@ -1383,6 +1384,7 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
                in world space */
             SCE_Matrix4_MulCopy (matrices[i],
                                  SCE_Camera_GetFinalViewInverse (cam));
+            coeff[i] = SCE_Matrix4_GetOrthoDepth (proj);
         }
         /* shadow map is now filled!1 */
 
@@ -1400,6 +1402,8 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_Shader_SetMatrix4v (shader->lightviewproj_loc, matrices,
                                 def->cascaded_splits);
         SCE_Shader_SetParam (shader->csmnumsplits_loc, def->cascaded_splits);
+        SCE_Shader_SetParamfv (shader->depthfactor_loc, def->cascaded_splits,
+                               coeff);
     }
 
     /* get light's position in view space */

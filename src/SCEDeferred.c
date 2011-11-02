@@ -576,9 +576,9 @@ static const char *sce_final_uniforms_code[SCE_NUM_LIGHT_TYPES] = {
     "uniform sampler2D "SCE_DEFERRED_DEPTH_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_NORMAL_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_SHADOW_MAP_NAME";"
-    "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
+    "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME"[8];"
     "uniform mat4 "SCE_DEFERRED_INVPROJ_NAME";"
-    /* we should use SCE_MAX_DEFERRED_CASCADED_SPLITS */
+    /* TODO: we should use SCE_MAX_DEFERRED_CASCADED_SPLITS */
     "uniform mat4 "SCE_DEFERRED_LIGHT_VIEWPROJ_NAME"[8];"
     "uniform int "SCE_DEFERRED_CSM_NUM_SPLITS_NAME";"
     "uniform vec3 "SCE_DEFERRED_LIGHT_POSITION_NAME";"
