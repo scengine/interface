@@ -41,8 +41,7 @@ static const char *sce_deferred_target_names[SCE_NUM_DEFERRED_TARGETS] = {
 };
 
 
-static void
-SCE_Deferred_InitLightingShader (SCE_SDeferredLightingShader *shader)
+void SCE_Deferred_InitLightingShader (SCE_SDeferredLightingShader *shader)
 {
     shader->shader = NULL;
     shader->invproj_loc = -1;
@@ -54,8 +53,7 @@ SCE_Deferred_InitLightingShader (SCE_SDeferredLightingShader *shader)
     shader->lightangle_loc = -1;
     shader->lightattenuation_loc = -1;
 }
-static void
-SCE_Deferred_ClearLightingShader (SCE_SDeferredLightingShader *shader)
+void SCE_Deferred_ClearLightingShader (SCE_SDeferredLightingShader *shader)
 {
     SCE_Shader_Delete (shader->shader);
 }
@@ -301,9 +299,6 @@ static const char *sce_shadow_ps[SCE_NUM_LIGHT_TYPES] = {
 };
 
 
-static int SCE_Deferred_BuildFinalShader (SCE_SDeferred*, SCE_ELightType,
-                                          const char*);
-
 int SCE_Deferred_Build (SCE_SDeferred *def,
                         const char *fnames[SCE_NUM_LIGHT_TYPES])
 {
@@ -360,7 +355,8 @@ int SCE_Deferred_Build (SCE_SDeferred *def,
     /* create shaders */
     for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
         if (fnames[i]) {
-            if (SCE_Deferred_BuildFinalShader (def, i, fnames[i]) < 0)
+            if (SCE_Deferred_BuildLightShader (def, i, def->shaders[i],
+                                               fnames[i]) < 0)
                 goto fail;
         }
     }
@@ -587,9 +583,10 @@ static const char *sce_final_uniforms_code[SCE_NUM_LIGHT_TYPES] = {
 };
 
 
-static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def,
-                                          SCE_ELightType type,
-                                          const char *fname)
+int SCE_Deferred_BuildLightShader (SCE_SDeferred *def,
+                                   SCE_ELightType type,
+                                   SCE_SDeferredLightingShader *shd,
+                                   const char *fname)
 {
     SCE_SDeferredLightingShader *shader = NULL;
     int i, j;
@@ -600,7 +597,7 @@ static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def,
     };
 
     for (i = 0; i < SCE_NUM_DEFERRED_LIGHT_FLAGS; i++) {
-        shader = &def->shaders[type][i];
+        shader = &shd[i];
 
         if (!(shader->shader = SCE_Shader_Load (fname, SCE_TRUE)))
             goto fail;
@@ -634,10 +631,11 @@ static int SCE_Deferred_BuildFinalShader (SCE_SDeferred *def,
         SCE_DEF_FLAG (SCE_DEFERRED_USE_SOFT_SHADOWS);
         SCE_DEF_FLAG (SCE_DEFERRED_USE_SPECULAR);
         SCE_DEF_FLAG (SCE_DEFERRED_USE_IMAGE);
+#undef SCE_DEF_FLAG
+
         /* type flag */
         if (SCE_Shader_Global (shader->shader, type_name[type], "1") < 0)
             goto fail;
-#undef SCE_DEF_FLAG
 
         if (SCE_Shader_Build (shader->shader) < 0) goto fail;
 

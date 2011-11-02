@@ -41,6 +41,7 @@ void SCE_Light_Init (SCE_SLight *light)
     light->attenuation = 1.0;
     light->cast_shadows = SCE_FALSE;
     light->specular = SCE_FALSE;
+    light->shader = NULL;
     SCE_List_InitIt (&light->it);
     SCE_List_SetData (&light->it, light);
     light->udata = NULL;
@@ -141,7 +142,8 @@ void SCE_Light_GetColorv (SCE_SLight *light, float *c)
 
 void SCE_Light_SetPosition (SCE_SLight *light, float x, float y, float z)
 {
-    SCE_TVector3 pos = {x, y, z};
+    SCE_TVector3 pos;
+    SCE_Vector3_Set (pos, x, y, z);
     SCE_Light_SetPositionv (light, pos);
 }
 void SCE_Light_SetPositionv (SCE_SLight *light, const SCE_TVector3 pos)
@@ -232,6 +234,16 @@ int SCE_Light_GetSpecular (const SCE_SLight *light)
     return light->specular;
 }
 
+
+void SCE_Light_SetShader (SCE_SLight *light,
+                          SCE_SDeferredLightingShader *shader)
+{
+    light->shader = shader;
+}
+SCE_SDeferredLightingShader* SCE_Light_GetShader (const SCE_SLight *light)
+{
+    return light->shader;
+}
 
 void SCE_Light_SetIntensity (SCE_SLight *light, float intensity)
 {

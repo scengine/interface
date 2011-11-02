@@ -37,6 +37,9 @@ typedef enum {
     SCE_NUM_LIGHT_TYPES
 } SCE_ELightType;
 
+/* TODO: hax */
+typedef struct sce_sdeferredlightingshader SCE_SDeferredLightingShader;
+
 /** \copydoc sce_slight */
 typedef struct sce_slight SCE_SLight;
 /**
@@ -54,6 +57,8 @@ struct sce_slight {
     float attenuation;          /**< Spot edges attenuation */
     int cast_shadows;           /**< Does the light cast shadows? */
     int specular;               /**< Does the light produces specular? */
+    SCE_SDeferredLightingShader *shader; /**< User may choose to use a specific
+                                          * shader instead of the generic one */
     SCE_SNode *node;    /* noeud de la lumiere */
     SCE_SListIterator it;
     void *udata;
@@ -103,6 +108,9 @@ void SCE_Light_SetShadows (SCE_SLight*, int);
 int SCE_Light_GetShadows (const SCE_SLight*);
 void SCE_Light_SetSpecular (SCE_SLight*, int);
 int SCE_Light_GetSpecular (const SCE_SLight*);
+
+void SCE_Light_SetShader (SCE_SLight*, SCE_SDeferredLightingShader*);
+SCE_SDeferredLightingShader* SCE_Light_GetShader (const SCE_SLight*);
 
 void SCE_Light_SetIntensity (SCE_SLight*, float);
 float SCE_Light_GetIntensity (SCE_SLight*);

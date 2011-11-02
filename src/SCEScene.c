@@ -1127,7 +1127,12 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
     SCE_SBoundingSphere *bs = NULL;
     SCE_SNode *node = NULL;
     SCE_ELightType type = SCE_POINT_LIGHT;
-    SCE_SDeferredLightingShader *shader = &def->shaders[type][flags];
+    SCE_SDeferredLightingShader *shader = NULL;
+
+    if (SCE_Light_GetShader (light))
+        shader = &(SCE_Light_GetShader (light)[flags]);
+    else
+        shader = &def->shaders[type][flags];
 
     node = SCE_Light_GetNode (light);
 
@@ -1309,7 +1314,12 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
 {
     SCE_TVector3 pos;
     SCE_ELightType type = SCE_SUN_LIGHT;
-    SCE_SDeferredLightingShader *shader = &def->shaders[type][flags];
+    SCE_SDeferredLightingShader *shader = NULL;
+
+    if (SCE_Light_GetShader (light))
+        shader = &(SCE_Light_GetShader (light)[flags]);
+    else
+        shader = &def->shaders[type][flags];
 
     if (!(flags & SCE_DEFERRED_USE_SHADOWS)) {
         SCE_Shader_Use (shader->shader);
@@ -1434,7 +1444,12 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
     SCE_SCone cone;
     SCE_SNode *node = NULL;
     SCE_ELightType type = SCE_SPOT_LIGHT;
-    SCE_SDeferredLightingShader *shader = &def->shaders[type][flags];
+    SCE_SDeferredLightingShader *shader = NULL;
+
+    if (SCE_Light_GetShader (light))
+        shader = &(SCE_Light_GetShader (light)[flags]);
+    else
+        shader = &def->shaders[type][flags];
 
     /* cone angle and height required to make shadow map projection matrix */
     node = SCE_Light_GetNode (light);
@@ -1618,6 +1633,13 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
 
             /* apply flags mask from the deferred renderer */
             flags &= def->lightflags_mask;
+
+            if (SCE_Light_GetShader (light)) {
+                SCE_SDeferredLightingShader *shd = SCE_Light_GetShader (light);
+                SCE_Shader_Use (shd[flags].shader);
+                SCE_Shader_SetMatrix4 (shd[flags].invproj_loc,
+                                       SCE_Camera_GetProjInverse (cam));
+            }
 
             switch (type) {
             case SCE_POINT_LIGHT:

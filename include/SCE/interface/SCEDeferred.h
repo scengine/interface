@@ -139,6 +139,9 @@ struct sce_sdeferred {
  *
  */
 
+void SCE_Deferred_InitLightingShader (SCE_SDeferredLightingShader*);
+void SCE_Deferred_ClearLightingShader (SCE_SDeferredLightingShader*);
+
 SCE_SDeferred* SCE_Deferred_Create (void);
 void SCE_Deferred_Delete (SCE_SDeferred*);
 
@@ -154,6 +157,8 @@ int SCE_Deferred_GetLightFlagsMask (SCE_SDeferred*);
 
 int SCE_Deferred_Build (SCE_SDeferred*, const char*[SCE_NUM_LIGHT_TYPES]);
 int SCE_Deferred_BuildShader (SCE_SDeferred*, SCE_SShader*);
+int SCE_Deferred_BuildLightShader (SCE_SDeferred*, SCE_ELightType,
+                                   SCE_SDeferredLightingShader*, const char*);
 
 void SCE_Deferred_PushStates (SCE_SDeferred*);
 void SCE_Deferred_PopStates (SCE_SDeferred*);
