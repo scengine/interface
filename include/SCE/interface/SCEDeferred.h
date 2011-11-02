@@ -26,6 +26,7 @@
 #include <SCE/renderer/SCERenderer.h>
 #include "SCE/interface/SCETexture.h"
 #include "SCE/interface/SCEShaders.h"
+#include "SCE/interface/SCELight.h"
 
 #ifdef __cplusplus
 extern "C" {

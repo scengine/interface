@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@
 #include <SCE/renderer/SCERenderer.h>
 
 #include "SCE/interface/SCESceneResource.h"
-#include "SCE/interface/SCELight.h"
 #include "SCE/interface/SCETexture.h"
 #include "SCE/interface/SCEShaders.h"
 
@@ -52,8 +51,7 @@ typedef struct sce_smaterial SCE_SMaterial;
 /**
  * \brief A SCE material
  */
-struct sce_smaterial
-{
+struct sce_smaterial {
     SCE_RMaterial *mat;  /**< Core material */
     /* request that SCE_RCreatePointSprite() doesn't allocs for internal var */
     SCE_RPointSprite ps; /**< Point sprite's model */
