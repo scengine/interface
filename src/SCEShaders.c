@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 24/10/2011 */
+   updated: 06/11/2011 */
 
 #include <ctype.h>
 #include <SCE/utils/SCEUtils.h>
@@ -115,6 +115,9 @@ void SCE_Shader_Init (SCE_SShader *shader)
 
     SCE_SceneResource_Init (&shader->s_resource);
     SCE_SceneResource_SetResource (&shader->s_resource, shader);
+    shader->path = NULL;
+    shader->pipeline.shaders = NULL;
+    shader->pipeline.n_shaders = 0;
 }
 
 SCE_SShader* SCE_Shader_Create (void)
@@ -158,6 +161,15 @@ void SCE_Shader_Delete (SCE_SShader *shader)
         SCE_List_Clear (&shader->params_m);
         SCE_List_Clear (&shader->params_f);
         SCE_List_Clear (&shader->params_i);
+
+        SCE_free (shader->path);
+        if (shader->pipeline.shaders) {
+            int j;
+            /* shaders[0] is \p shader ;) */
+            for (j = 1; j < shader->pipeline.n_shaders; j++)
+                SCE_Shader_Delete (shader->pipeline.shaders[i]);
+            SCE_free (shader->pipeline.shaders);
+        }
         SCE_free (shader);
     }
 }
@@ -348,24 +360,24 @@ static void* SCE_Shader_LoadResource (const char *name, int force, void *data)
     if (force > 0)
         force--;
 
-    shader = SCE_Shader_Create ();
-    if (!shader) {
-        SCEE_LogSrc ();
-        return NULL;
-    }
+    if (!(shader = SCE_Shader_Create ()))
+        goto fail;
+    if (!(shader->path = SCE_String_Dup (name)))
+        goto fail;
 
     srcs = SCE_Resource_Load (resource_source_type, name, force, NULL);
-    if (!srcs) {
-        SCE_Shader_Delete (shader);
-        SCEE_LogSrc ();
-        return NULL;
-    }
+    if (!srcs)
+        goto fail;
 
     shader->res = srcs;
     for (i = 0; i < SCE_NUM_SHADER_TYPES; i++)
         shader->sources[i] = srcs[i];
 
     return shader;
+fail:
+    SCE_Shader_Delete (shader);
+    SCEE_LogSrc ();
+    return NULL;
 }
 
 
@@ -374,6 +386,46 @@ SCE_SShader* SCE_Shader_Load (const char *name, int force)
     return SCE_Resource_Load (resource_shader_type, name, force, NULL);
 }
 
+
+int SCE_Shader_SetupPipeline (SCE_SShader *shader,
+                              const SCE_SRenderState *state)
+{
+    size_t i, j;
+    size_t n_states;
+
+    n_states = SCE_Math_Powi (2, state->n_states);
+
+    if (!(shader->pipeline.shaders =
+          SCE_malloc (n_states * sizeof *shader->pipeline.shaders)))
+        goto fail;
+    shader->pipeline.n_shaders = n_states;
+
+    for (i = 0; i < n_states; i++) {
+
+        if (i == 0)
+            shader->pipeline.shaders[0] = shader; /* tkt */
+        else {
+            /* 1 to force reloading shader but not source code */
+            if (!(shader->pipeline.shaders[i] =SCE_Shader_Load(shader->path,1)))
+                goto fail;
+        }
+
+        for (j = 0; j < state->n_states; j++) {
+            const char *foo = "0";
+            if (i & (1 << j))
+                foo = "1";
+            if (SCE_Shader_Global (shader->pipeline.shaders[i],
+                                   SCE_RenderState_GetStateName (state, j),
+                                   foo) < 0)
+                goto fail;
+        }
+    }
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
+}
 
 static int SCE_Shader_BuildShader (SCE_RShaderType type, char *source,
                                    SCE_RShaderGLSL **shader)
@@ -417,7 +469,7 @@ static int SCE_Shader_BuildGLSL (SCE_SShader *shader)
     return SCE_OK;
 }
 
-int SCE_Shader_Build (SCE_SShader *shader)
+static int SCE_Shader_BuildAux (SCE_SShader *shader)
 {
     SCE_RShaderType i;
     for (i = 0; i < SCE_NUM_SHADER_TYPES; i++) {
@@ -437,6 +489,21 @@ int SCE_Shader_Build (SCE_SShader *shader)
     }
 
     shader->ready = SCE_TRUE;
+    return SCE_OK;
+}
+
+int SCE_Shader_Build (SCE_SShader *shader)
+{
+    if (!shader->pipeline.shaders)
+        return SCE_Shader_BuildAux (shader);
+    else {
+        size_t i;
+
+        for (i = 0; i < shader->pipeline.n_shaders; i++) {
+            if (SCE_Shader_BuildAux (shader->pipeline.shaders[i]) < 0)
+                return SCE_ERROR;
+        }
+    }
     return SCE_OK;
 }
 
@@ -773,6 +840,15 @@ void SCE_Shader_Use (SCE_SShader *shader)
         SCE_Shader_SetParams (shader);
     }
 }
+void SCE_Shader_UsePipeline (SCE_SShader *shader, SCEuint state)
+{
+    SCE_Shader_Use (shader->pipeline.shaders[state]);
+}
+SCE_SShader* SCE_Shader_GetShader (SCE_SShader *shader, SCEuint state)
+{
+    return shader->pipeline.shaders[state];
+}
+
 
 /**
  * \brief Any further call to SCE_Shader_Use() is ignored

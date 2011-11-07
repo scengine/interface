@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 04/08/2011
-   updated: 24/10/2011 */
+   updated: 06/11/2011 */
 
 #include <SCE/core/SCECore.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -98,8 +98,9 @@ static void SCE_Deferred_Clear (SCE_SDeferred *def)
         int j;
         SCE_Shader_Delete (def->shadow_shaders[i]);
         SCE_Texture_Delete (def->shadowmaps[i]);
-        for (j = 0; j < SCE_NUM_DEFERRED_LIGHT_FLAGS; j++)
-            SCE_Deferred_ClearLightingShader (&def->shaders[i][j]);
+        /* only delete the first shader, let's just hope the lighting shader
+           structure doesn't have other pointers to free than the shader */
+        SCE_Deferred_ClearLightingShader (def->shaders[i]);
     }
     SCE_Camera_Delete (def->cam);
 }
@@ -588,24 +589,34 @@ int SCE_Deferred_BuildLightShader (SCE_SDeferred *def,
                                    SCE_SDeferredLightingShader *shd,
                                    const char *fname)
 {
-    SCE_SDeferredLightingShader *shader = NULL;
     int i, j;
     const char *type_name[SCE_NUM_LIGHT_TYPES] = {
         SCE_DEFERRED_POINT_LIGHT,
         SCE_DEFERRED_SPOT_LIGHT,
         SCE_DEFERRED_SUN_LIGHT
     };
+    const char *states[4] = {
+        /* order matters */
+        SCE_DEFERRED_USE_SHADOWS_NAME,
+        SCE_DEFERRED_USE_SOFT_SHADOWS_NAME,
+        SCE_DEFERRED_USE_SPECULAR_NAME,
+        SCE_DEFERRED_USE_IMAGE_NAME
+    };
+    SCE_SRenderState rs;
+
+    SCE_RenderState_Init (&rs);
+    if (SCE_RenderState_SetStates (&rs, states, 4) < 0) goto fail;
+    if (!(shd[0].shader = SCE_Shader_Load (fname, 1))) goto fail;
+    if (SCE_Shader_SetupPipeline (shd[0].shader, &rs) < 0) goto fail;
+    SCE_RenderState_Clear (&rs);
 
     for (i = 0; i < SCE_NUM_DEFERRED_LIGHT_FLAGS; i++) {
-        shader = &shd[i];
-
-        if (!(shader->shader = SCE_Shader_Load (fname, SCE_TRUE)))
-            goto fail;
+        shd[i].shader = SCE_Shader_GetShader (shd[0].shader, i);
 
         /* SCEngine built-in code */
 #define SCE_DEF_ADDSRC(src, type)                                   \
     do {                                                            \
-        if (SCE_Shader_AddSource (shader->shader, type, src, SCE_FALSE) < 0) \
+        if (SCE_Shader_AddSource (shd[i].shader, type, src, SCE_FALSE) < 0) \
             goto fail;                                                    \
     } while (0)
 
@@ -617,32 +628,19 @@ int SCE_Deferred_BuildLightShader (SCE_SDeferred *def,
         SCE_DEF_ADDSRC (sce_unpack_position_fun, SCE_PIXEL_SHADER);
 #undef SCE_DEF_ADDSRC
 
-        /* shader flags */
-#define SCE_DEF_FLAG(flag)                      \
-    do {                                        \
-        const char *foo = "0";                                          \
-        if (i & flag)                                                   \
-            foo = "1";                                                  \
-        if (SCE_Shader_Global (shader->shader, flag##_NAME, foo) < 0)   \
-            goto fail;                                                  \
-    } while (0)
-
-        SCE_DEF_FLAG (SCE_DEFERRED_USE_SHADOWS);
-        SCE_DEF_FLAG (SCE_DEFERRED_USE_SOFT_SHADOWS);
-        SCE_DEF_FLAG (SCE_DEFERRED_USE_SPECULAR);
-        SCE_DEF_FLAG (SCE_DEFERRED_USE_IMAGE);
-#undef SCE_DEF_FLAG
 
         /* type flag */
-        if (SCE_Shader_Global (shader->shader, type_name[type], "1") < 0)
+        if (SCE_Shader_Global (shd[i].shader, type_name[type], "1") < 0)
             goto fail;
+    }
 
-        if (SCE_Shader_Build (shader->shader) < 0) goto fail;
+    if (SCE_Shader_Build (shd[0].shader) < 0) goto fail;
 
+    for (i = 0; i < SCE_NUM_DEFERRED_LIGHT_FLAGS; i++) {
         /* setup uniforms */
 #define SCE_DEF_UNI(a, b)                       \
     do {                                        \
-        shader->a##_loc = SCE_Shader_GetIndex (shader->shader, b);\
+        shd[i].a##_loc = SCE_Shader_GetIndex (shd[i].shader, b);\
     } while (0)
 
         SCE_DEF_UNI (invproj, SCE_DEFERRED_INVPROJ_NAME);
@@ -658,13 +656,13 @@ int SCE_Deferred_BuildLightShader (SCE_SDeferred *def,
 #undef SCE_DEF_UNI
 
         /* constant uniforms */
-        SCE_Shader_Use (shader->shader);
+        SCE_Shader_Use (shd[i].shader);
         for (j = 0; j < def->n_targets; j++)
             SCE_Shader_Param (sce_deferred_target_names[j], j);
         SCE_Shader_Param (SCE_DEFERRED_SHADOW_MAP_NAME, def->n_targets);
         SCE_Shader_Param (SCE_DEFERRED_SHADOW_CUBE_MAP_NAME, def->n_targets);
-        SCE_Shader_Use (NULL);
     }
+    SCE_Shader_Use (NULL);
 
     return SCE_OK;
 fail:

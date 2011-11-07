@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 24/10/2011 */
+   updated: 06/11/2011 */
 
 #ifndef SCESHADERS_H
 #define SCESHADERS_H
@@ -27,6 +27,7 @@
 #include <SCE/renderer/SCERenderer.h>
 
 #include "SCE/interface/SCESceneResource.h"
+#include "SCE/interface/SCERenderState.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,7 +50,15 @@ struct sce_sshaderparam {
     SCE_SListIterator it;
 };
 
+typedef struct sce_spipeline SCE_SPipeline;
 typedef struct sce_sshader SCE_SShader;
+
+struct sce_spipeline {
+    SCE_SShader **shaders;
+    size_t n_shaders;
+    /* TODO: store associated state and/or number of shaders */
+};
+
 struct sce_sshader {
     /** Vertex, pixel, geometry, evaluation and control shaders */
     SCE_RShaderGLSL *shaders[SCE_NUM_SHADER_TYPES];
@@ -66,6 +75,8 @@ struct sce_sshader {
     SCE_SList params_m;
 
     SCE_SSceneResource s_resource;
+    char *path;
+    SCE_SPipeline pipeline;
 };
 
 
@@ -85,6 +96,7 @@ void* SCE_Shader_LoadSourceFromFile (FILE*, const char*, void*);
 
 SCE_SShader* SCE_Shader_Load (const char*, int);
 
+int SCE_Shader_SetupPipeline (SCE_SShader*, const SCE_SRenderState*);
 int SCE_Shader_Build (SCE_SShader*);
 int SCE_Shader_Validate (SCE_SShader*);
 
@@ -140,6 +152,8 @@ void SCE_Shader_Enable (void);
 void SCE_Shader_Disable (void);
 
 void SCE_Shader_Use (SCE_SShader*);
+void SCE_Shader_UsePipeline (SCE_SShader*, SCEuint);
+SCE_SShader* SCE_Shader_GetShader (SCE_SShader*, SCEuint);
 
 void SCE_Shader_Lock (void);
 void SCE_Shader_Unlock (void);

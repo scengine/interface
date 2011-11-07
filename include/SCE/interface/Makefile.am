@@ -1,6 +1,7 @@
 sce_include_interface_HEADERS = SCEBatch.h \
                                 SCEGeometryInstance.h \
                                 SCELight.h \
+                                SCERenderState.h \
                                 SCEMaterial.h \
                                 SCETexture.h \
                                 SCEShaders.h \
