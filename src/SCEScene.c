@@ -505,8 +505,15 @@ void SCE_Scene_AddEntityResources (SCE_SScene *scene, SCE_SSceneEntity *entity)
                                SCE_List_GetData (it));
     }
     res = SCE_SceneEntity_GetShader (entity);
-    if (res)
+    if (res) {
+        SCE_SShader *shader = SCE_SceneResource_GetResource (res);
+        if (scene->deferred) {
+            SCE_Deferred_BuildShader (scene->deferred, shader);
+        } else {
+            SCE_Shader_Build (shader);
+        }
         SCE_Scene_AddResource (scene, SCE_SCENE_SHADERS_GROUP, res);
+    }
     res = SCE_SceneEntity_GetMaterial (entity);
     if (res)
         SCE_Scene_AddResource (scene, SCE_SCENE_MATERIALS_GROUP, res);
