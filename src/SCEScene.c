@@ -791,8 +791,12 @@ int SCE_Scene_MakeOctree (SCE_SScene *scene, unsigned int rec,
 
 void SCE_Scene_SetDeferred (SCE_SScene *scene, SCE_SDeferred *def)
 {
-    scene->deferred = def;
-    SCE_Scene_AddCamera (scene, def->cam);
+    if (def) {
+        scene->deferred = def;
+        SCE_Scene_AddCamera (scene, def->cam);
+    } else {
+        scene->deferred = NULL;
+    }
 }
 
 
