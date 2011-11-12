@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 03/11/2008
-   updated: 14/03/2011 */
+   updated: 10/11/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -41,6 +41,8 @@
 /** @{ */
 
 static int entitylocked = SCE_FALSE;
+
+static SCE_SShader *default_shader = NULL;
 
 void SCE_SceneEntity_InitInstance (SCE_SSceneEntityInstance *einst)
 {
@@ -809,6 +811,7 @@ void SCE_SceneEntity_ApplyProperties (SCE_SSceneEntity *entity)
 
 /**
  * \brief Enables the resources that the given entity is using
+ * \param entity an entity
  *
  * This function calls SCE_Shader_Use(), SCE_Texture_Use() and
  * SCE_Material_Use(), respectively, for the shader, the textures and the
@@ -831,12 +834,22 @@ void SCE_SceneEntity_UseResources (SCE_SSceneEntity *entity)
     if (entity->shader)
         SCE_Shader_Use (SCE_SceneResource_GetResource (entity->shader));
     else
-        SCE_Shader_Use (NULL);
+        SCE_Shader_Use (default_shader);
 
     SCE_Texture_BeginLot ();
     SCE_List_ForEach (it, entity->textures)
         SCE_Texture_Use (SCE_SceneResource_GetResource (SCE_List_GetData (it)));
     SCE_Texture_EndLot ();
+}
+
+/**
+ * \brief Sets the default shader that will be used if none is specified
+ * \param shader a shader
+ * \sa SCE_SceneEntity_UseResources()
+ */
+void SCE_SceneEntity_SetDefaultShader (SCE_SShader *shader)
+{
+    default_shader = shader;
 }
 
 

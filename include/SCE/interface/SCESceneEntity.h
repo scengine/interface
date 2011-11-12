@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 03/11/2008 
-   updated: 14/03/2011 */
+   updated: 12/11/2011 */
 
 #ifndef SCESCENEENTITY_H
 #define SCESCENEENTITY_H
@@ -200,6 +200,7 @@ int SCE_SceneEntity_IsInstanceInFrustum (SCE_SSceneEntityInstance*,
 void SCE_SceneEntity_ApplyProperties (SCE_SSceneEntity*);
 
 void SCE_SceneEntity_UseResources (SCE_SSceneEntity*);
+void SCE_SceneEntity_SetDefaultShader (SCE_SShader*);
 
 void SCE_SceneEntity_Lock (void);
 void SCE_SceneEntity_Unlock (void);
