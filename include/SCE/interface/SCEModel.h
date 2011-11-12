@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 27/06/2009
-   updated: 10/07/2009 */
+   updated: 12/11/2011 */
 
 #ifndef SCEMODEL_H
 #define SCEMODEL_H
@@ -91,6 +91,9 @@ int SCE_Model_AddNewEntityv (SCE_SModel*, SCEuint, SCEuint, SCE_SMesh*,
 int SCE_Model_AddNewEntity (SCE_SModel*, SCEuint, SCEuint, SCE_SMesh*,
                             SCE_SShader*, ...);
 int SCE_Model_AddEntity (SCE_SModel*, SCEuint, SCEuint, SCE_SSceneEntity*, int);
+
+int SCE_Model_SetLODShader (SCE_SModel*, SCEuint, const char*);
+int SCE_Model_SetAllLODShader (SCE_SModel*, const char*);
 
 void SCE_Model_SetRootNode (SCE_SModel*, SCE_SNode*);
 SCE_SNode* SCE_Model_GetRootNode (SCE_SModel*);

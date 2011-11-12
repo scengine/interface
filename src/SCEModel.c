@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 27/06/2009
-   updated: 06/09/2009 */
+   updated: 12/11/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include "SCE/interface/SCEModel.h"
@@ -342,6 +342,70 @@ fail:
     return SCE_ERROR;
 }
 
+
+static void SCE_Model_SetShaderLODLevel (SCE_SShader *shader, int level)
+{
+    if (level <= 99) {
+        char buf[3] = {0};
+        sprintf (buf, "%d", level);
+        SCE_Shader_Global (shader, "SCE_LOD", buf);
+    }
+}
+
+static int SCE_Model_SetLODShaderAux (SCE_SList *entities, const char *fname)
+{
+    int lod_level = 0;
+    SCE_SListIterator *it = NULL;
+
+    SCE_List_ForEach (it, entities) {
+        SCE_SShader *shader = NULL;
+        SCE_SSceneEntity *entity = SCE_List_GetData (it);
+
+        if (!(shader = SCE_Shader_Load (fname, 1)))
+            goto fail;
+        SCE_Model_SetShaderLODLevel (shader, lod_level);
+        SCE_SceneEntity_SetShader (entity, shader);
+        lod_level++;
+    }
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
+}
+
+int SCE_Model_SetLODShader (SCE_SModel *mdl, SCEuint num, const char *fname)
+{
+    SCE_SModelEntityGroup *mgroup = NULL;
+    SCE_SList *entities = NULL;
+
+    mgroup = SCE_Model_LocateEntityGroup (mdl, num);
+    entities = SCE_SceneEntity_GetGroupEntitiesList (mgroup->group);
+    if (SCE_Model_SetLODShaderAux (entities, fname) < 0) {
+        SCEE_LogSrc ();
+        return SCE_ERROR;
+    }
+    return SCE_OK;
+}
+
+int SCE_Model_SetAllLODShader (SCE_SModel *mdl, const char *fname)
+{
+    SCE_SListIterator *it = NULL;
+
+    SCE_List_ForEach (it, &mdl->groups) {
+        SCE_SModelEntityGroup *g = SCE_List_GetData (it);
+        SCE_SList *entities = SCE_SceneEntity_GetGroupEntitiesList (g->group);
+        if (SCE_Model_SetLODShaderAux (entities, fname) < 0)
+            goto fail;
+    }
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
+}
+
+
 /**
  * \brief Defines a root node and join all the instances to it, further added
  * instances will also be added to it
@@ -437,6 +501,8 @@ fail:
 /**
  * \brief Gets the number of LOD for a given the entity group
  * \param num entity group
+ * \returns the number of LOD for group \p num
+ * \sa SCE_Model_GetNumGroups()
  */
 unsigned int SCE_Model_GetNumLOD (SCE_SModel *mdl, SCEuint num)
 {
@@ -464,6 +530,7 @@ SCE_SSceneEntity* SCE_Model_GetEntity (SCE_SModel *mdl, SCEuint num,
 
     if (!(mgroup = SCE_Model_LocateEntityGroup (mdl, num)))
         return NULL;
+    /* TODO: bug, use level instead of num */
     it = SCE_List_GetIterator
         (SCE_SceneEntity_GetGroupEntitiesList (mgroup->group), num);
     if (!it)
