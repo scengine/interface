@@ -129,6 +129,7 @@ static int SCE_Texture_MakeRender (SCE_STexture *tex, int type)
     if (SCE_RCreateRenderTexture (tex->fb[0], type, 0, 0, 0, w, h) < 0)
         goto failure;
     /* s'il s'agit d'une color, on ajoute un depth buffer */
+    /* TODO: with MRTs, there's no need for this */
     if (type == SCE_COLOR_BUFFER) {
         if (SCE_RAddRenderBuffer (tex->fb[0], SCE_DEPTH_BUFFER, 0, w, h) < 0)
             goto failure;
