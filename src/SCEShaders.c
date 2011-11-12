@@ -152,6 +152,9 @@ void SCE_Shader_Delete (SCE_SShader *shader)
             SCE_free (shader->addsrc[i]);
         }
 
+        for (i = 0; i < SCE_NUM_SHADER_TYPES; i++)
+            SCE_free (shader->sources[i]);
+
         if (SCE_Resource_Free (shader->res)) {
             for (i = 0; i < SCE_NUM_SHADER_TYPES; i++)
                 SCE_free (shader->res[i]);
@@ -370,8 +373,6 @@ static void* SCE_Shader_LoadResource (const char *name, int force, void *data)
         goto fail;
 
     shader->res = srcs;
-    for (i = 0; i < SCE_NUM_SHADER_TYPES; i++)
-        shader->sources[i] = srcs[i];
 
     return shader;
 fail:
@@ -472,24 +473,36 @@ static int SCE_Shader_BuildGLSL (SCE_SShader *shader)
 static int SCE_Shader_BuildAux (SCE_SShader *shader)
 {
     SCE_RShaderType i;
-    for (i = 0; i < SCE_NUM_SHADER_TYPES; i++) {
-        if (shader->sources[i] || shader->addsrc[i]) {
-            shader->sources[i] = SCE_String_CatDup (shader->addsrc[i],
-                                                    shader->sources[i]);
-            if (!shader->sources[i]) {
-                SCEE_LogSrc ();
-                return SCE_ERROR;
-            }
+
+    if (shader->ready) {
+        /* looks like we are rebuilding the shader! */
+        shader->ready = SCE_FALSE;
+        SCE_RDeleteProgram (shader->p_glsl);
+        shader->p_glsl = NULL;
+        if (!(shader->p_glsl = SCE_RCreateProgram ())) goto fail;
+        for (i = 0; i < SCE_NUM_SHADER_TYPES; i++) {
+            SCE_RDeleteShaderGLSL (shader->shaders[i]);
+            shader->shaders[i] = NULL;
         }
     }
 
-    if (SCE_Shader_BuildGLSL (shader) < 0) {
-        SCEE_LogSrc ();
-        return SCE_ERROR;
+    for (i = 0; i < SCE_NUM_SHADER_TYPES; i++) {
+        if ((shader->res && shader->res[i]) || shader->addsrc[i]) {
+            SCE_free (shader->sources[i]);
+            shader->sources[i] = SCE_String_CatDup (shader->addsrc[i],
+                                                    shader->res ?
+                                                    shader->res[i] : NULL);
+            if (!shader->sources[i]) goto fail;
+        }
     }
+
+    if (SCE_Shader_BuildGLSL (shader) < 0) goto fail;
 
     shader->ready = SCE_TRUE;
     return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
 }
 
 int SCE_Shader_Build (SCE_SShader *shader)
@@ -601,7 +614,7 @@ int SCE_Shader_Global (SCE_SShader *shader, const char *define,
 {
     int i;
     for (i = 0; i < SCE_NUM_SHADER_TYPES; i++) {
-        if (shader->sources[i]) {
+        if ((shader->res && shader->res[i]) || shader->addsrc[i]) {
             if (SCE_Shader_Local (shader, i, define, value) < 0) {
                 SCEE_LogSrc ();
                 return SCE_ERROR;
