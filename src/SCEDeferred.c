@@ -680,9 +680,10 @@ void SCE_Deferred_PushStates (SCE_SDeferred *def)
     SCE_RActivateDepthBuffer (SCE_FALSE);
 
     /* setup textures */
-    /* TODO: BeginLot() ? */
+    SCE_Texture_BeginLot ();
     for (i = 0; i < def->n_targets; i++)
         SCE_Texture_Use (def->targets[i]);
+    SCE_Texture_EndLot ();
 
     SCE_RLoadMatrix (SCE_MAT_CAMERA, sce_matrix4_id);
     SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
