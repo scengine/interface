@@ -1671,11 +1671,18 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
         SCE_RSetState (GL_BLEND, SCE_FALSE);
     }
 
+    /* reset states */
+    SCE_Shader_Use (NULL);
+    SCE_Deferred_PopStates (def);
+
     /* render skybox */
     if (scene->state->skybox) {
         SCE_STexture *tex = SCE_Skybox_GetTexture (scene->state->skybox);
         SCE_Texture_SetUnit (tex, 0);
+        SCE_Texture_BeginLot ();
         SCE_Texture_Use (tex);
+        SCE_Texture_Use (def->targets[SCE_DEFERRED_DEPTH_TARGET]);
+        SCE_Texture_EndLot ();
         SCE_Skybox_SetShader (scene->state->skybox, def->skybox_shader);
         SCE_Scene_UseCamera (cam);
         SCE_Shader_Use (def->skybox_shader);
@@ -1683,11 +1690,8 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
         SCE_Texture_Lock ();
         SCE_Scene_RenderSkybox (scene, cam);
         SCE_Texture_Unlock ();
+        SCE_Texture_Flush ();
     }
-
-    /* reset states */
-    SCE_Shader_Use (NULL);
-    SCE_Deferred_PopStates (def);
 
     /* TODO: lol fix this, should be RenderTo (NULL, ..) */
     if (target)
