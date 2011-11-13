@@ -1693,9 +1693,8 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
         SCE_Texture_Flush ();
     }
 
-    /* TODO: lol fix this, should be RenderTo (NULL, ..) */
     if (target)
-        SCE_Texture_RenderTo (target, cubeface);
+        SCE_Texture_RenderTo (NULL, 0);
 }
 
 /**
