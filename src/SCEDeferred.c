@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 04/08/2011
-   updated: 06/11/2011 */
+   updated: 14/11/2011 */
 
 #include <SCE/core/SCECore.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -524,11 +524,11 @@ int SCE_Deferred_BuildShader (SCE_SDeferred *def, SCE_SShader *shader)
 {
     (void)def;
     if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
-                              sce_pack_color_fun, SCE_FALSE) < 0) goto fail;
+                              sce_pack_color_fun, SCE_TRUE) < 0) goto fail;
     if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
-                              sce_pack_normal_fun, SCE_FALSE) < 0) goto fail;
+                              sce_pack_normal_fun, SCE_TRUE) < 0) goto fail;
     if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
-                              sce_pack_position_fun, SCE_FALSE) < 0) goto fail;
+                              sce_pack_position_fun, SCE_TRUE) < 0) goto fail;
     if (SCE_Shader_Build (shader) < 0) goto fail;
 
     return SCE_OK;

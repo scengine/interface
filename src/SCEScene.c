@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2008
-   updated: 01/11/2011 */
+   updated: 14/11/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -179,6 +179,7 @@ static void SCE_Scene_Init (SCE_SScene *scene)
     scene->bcmesh = NULL;
 
     scene->deferred = NULL;
+    scene->deferred_shader = NULL;
 }
 
 #define SCE_SCENE_SPHERE_SUBDIV 16
@@ -277,6 +278,7 @@ void SCE_Scene_Delete (SCE_SScene *scene)
 {
     if (scene) {
         unsigned int i;
+        SCE_Shader_Delete (scene->deferred_shader);
         SCE_List_Clear (&scene->cameras);
         SCE_List_Clear (&scene->lights);
         SCE_List_Clear (&scene->entities);
@@ -796,14 +798,56 @@ int SCE_Scene_MakeOctree (SCE_SScene *scene, unsigned int rec,
     return SCE_OK;
 }
 
-void SCE_Scene_SetDeferred (SCE_SScene *scene, SCE_SDeferred *def)
+static const char *sce_def_vs =
+    "varying vec3 normal;"
+    "varying vec4 pos;"
+    "void main ()"
+    "{"
+    "  normal = normalize (gl_NormalMatrix * gl_Normal);"
+    "  gl_FrontColor = vec4 (1.0);"
+/*     gl_Position = pos = sce_projectionmatrix * sce_modelviewmatrix * gl_Vertex;*/
+    "  gl_Position = pos = gl_ProjectionMatrix * gl_ModelViewMatrix * gl_Vertex;"
+    "}";
+
+static const char *sce_def_ps =
+    "varying vec3 normal;"
+    "varying vec4 pos;"
+    "void main ()"
+    "{"
+    "  sce_pack_position (pos);"
+    "  sce_pack_normal (normalize (normal));"
+    "  sce_pack_color (gl_Color.xyz);"
+    "}";
+
+
+
+int SCE_Scene_SetDeferred (SCE_SScene *scene, SCE_SDeferred *def)
 {
-    if (def) {
+    if (!def) {
+        scene->deferred = NULL;
+        SCE_Shader_Delete (scene->deferred_shader);
+        scene->deferred_shader = NULL;
+    } else {
+        SCE_Shader_Delete (scene->deferred_shader);
+        scene->deferred_shader = NULL;
+
         scene->deferred = def;
         SCE_Scene_AddCamera (scene, def->cam);
-    } else {
-        scene->deferred = NULL;
+        if (!(scene->deferred_shader = SCE_Shader_Create ())) goto fail;
+        if (SCE_Shader_AddSource (scene->deferred_shader, SCE_VERTEX_SHADER,
+                                  sce_def_vs, SCE_FALSE) < 0) goto fail;
+        if (SCE_Shader_AddSource (scene->deferred_shader, SCE_PIXEL_SHADER,
+                                  sce_def_ps, SCE_FALSE) < 0) goto fail;
+        if (SCE_Deferred_BuildShader (def, scene->deferred_shader) < 0)
+            goto fail;
+        SCE_Scene_AddResource (scene, SCE_SCENE_SHADERS_GROUP,
+                               SCE_Shader_GetSceneResource (scene->deferred_shader));
     }
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
 }
 
 
@@ -1588,7 +1632,11 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
     scene->state->cleardepth = SCE_TRUE;
     SCE_Scene_ClearBuffers (scene);
     SCE_Light_ActivateLighting (SCE_FALSE);
+
+    /* rendering with default shader */
+    SCE_SceneEntity_SetDefaultShader (scene->deferred_shader);
     SCE_Scene_RenderEntities (scene);
+    SCE_SceneEntity_SetDefaultShader (NULL);
 
     /* setup target */
     SCE_Texture_RenderTo (target, cubeface);

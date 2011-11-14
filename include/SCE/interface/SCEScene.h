@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2007
-   updated: 25/10/2011 */
+   updated: 06/11/2011 */
 
 #ifndef SCESCENE_H
 #define SCESCENE_H
@@ -115,6 +115,7 @@ struct sce_sscene {
     SCE_SMesh *bcmesh;
 
     SCE_SDeferred *deferred;
+    SCE_SShader *deferred_shader;
 };
 
 /** @} */
@@ -159,7 +160,7 @@ void SCE_Scene_SetOctreeSize (SCE_SScene*, float, float, float);
 void SCE_Scene_SetOctreeSizev (SCE_SScene*, SCE_TVector3);
 int SCE_Scene_MakeOctree (SCE_SScene*, unsigned int, int, float);
 
-void SCE_Scene_SetDeferred (SCE_SScene*, SCE_SDeferred*);
+int SCE_Scene_SetDeferred (SCE_SScene*, SCE_SDeferred*);
 
 int SCE_Scene_SetupBatching (SCE_SScene*, unsigned int, int*);
 int SCE_Scene_SetupDefaultBatching (SCE_SScene*);
