@@ -170,9 +170,10 @@ void SCE_Shader_Delete (SCE_SShader *shader)
             int j;
             /* shaders[0] is \p shader ;) */
             for (j = 1; j < shader->pipeline.n_shaders; j++)
-                SCE_Shader_Delete (shader->pipeline.shaders[i]);
+                SCE_Shader_Delete (shader->pipeline.shaders[j]);
             SCE_free (shader->pipeline.shaders);
         }
+
         SCE_free (shader);
     }
 }
