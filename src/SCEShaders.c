@@ -149,11 +149,9 @@ void SCE_Shader_Delete (SCE_SShader *shader)
         SCE_RDeleteProgram (shader->p_glsl);
         for (i = 0; i < SCE_NUM_SHADER_TYPES; i++) {
             SCE_RDeleteShaderGLSL (shader->shaders[i]);
+            SCE_free (shader->sources[i]);
             SCE_free (shader->addsrc[i]);
         }
-
-        for (i = 0; i < SCE_NUM_SHADER_TYPES; i++)
-            SCE_free (shader->sources[i]);
 
         if (SCE_Resource_Free (shader->res)) {
             for (i = 0; i < SCE_NUM_SHADER_TYPES; i++)
