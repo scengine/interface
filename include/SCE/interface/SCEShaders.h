@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 06/11/2011 */
+   updated: 15/11/2011 */
 
 #ifndef SCESHADERS_H
 #define SCESHADERS_H
@@ -35,6 +35,16 @@ extern "C" {
 
 #define SCE_UNKNOWN_SHADER 0
 #define SCE_SHADER_BAD_INDEX -1
+
+#define SCE_SHADER_UNIFORM_SAMPLER_0 "sce_tex0"
+#define SCE_SHADER_UNIFORM_SAMPLER_1 "sce_tex1"
+#define SCE_SHADER_UNIFORM_SAMPLER_2 "sce_tex2"
+#define SCE_SHADER_UNIFORM_SAMPLER_3 "sce_tex3"
+#define SCE_SHADER_UNIFORM_SAMPLER_4 "sce_tex4"
+#define SCE_SHADER_UNIFORM_SAMPLER_5 "sce_tex5"
+#define SCE_SHADER_UNIFORM_SAMPLER_6 "sce_tex6"
+#define SCE_SHADER_UNIFORM_SAMPLER_7 "sce_tex7"
+
 
 /* :-' */
 typedef void (*SCE_FShaderSetParamfv)(int, size_t, float*);

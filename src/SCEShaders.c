@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 06/11/2011 */
+   updated: 15/11/2011 */
 
 #include <ctype.h>
 #include <SCE/utils/SCEUtils.h>
@@ -469,6 +469,20 @@ static int SCE_Shader_BuildGLSL (SCE_SShader *shader)
     return SCE_OK;
 }
 
+static void SCE_Shader_BuildUniformSamplers (SCE_SShader *shader)
+{
+    SCE_Shader_Use (shader);
+    SCE_Shader_Param (SCE_SHADER_UNIFORM_SAMPLER_0, 0);
+    SCE_Shader_Param (SCE_SHADER_UNIFORM_SAMPLER_1, 1);
+    SCE_Shader_Param (SCE_SHADER_UNIFORM_SAMPLER_2, 2);
+    SCE_Shader_Param (SCE_SHADER_UNIFORM_SAMPLER_3, 3);
+    SCE_Shader_Param (SCE_SHADER_UNIFORM_SAMPLER_4, 4);
+    SCE_Shader_Param (SCE_SHADER_UNIFORM_SAMPLER_5, 5);
+    SCE_Shader_Param (SCE_SHADER_UNIFORM_SAMPLER_6, 6);
+    SCE_Shader_Param (SCE_SHADER_UNIFORM_SAMPLER_7, 7);
+    SCE_Shader_Use (NULL);
+}
+
 static int SCE_Shader_BuildAux (SCE_SShader *shader)
 {
     SCE_RShaderType i;
@@ -496,6 +510,7 @@ static int SCE_Shader_BuildAux (SCE_SShader *shader)
     }
 
     if (SCE_Shader_BuildGLSL (shader) < 0) goto fail;
+    SCE_Shader_BuildUniformSamplers (shader);
 
     shader->ready = SCE_TRUE;
     return SCE_OK;
