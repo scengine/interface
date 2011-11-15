@@ -514,6 +514,8 @@ void SCE_Scene_AddEntityResources (SCE_SScene *scene, SCE_SSceneEntity *entity)
         } else {
             SCE_Shader_Build (shader);
         }
+        SCE_Shader_SetupMatricesMapping (shader);
+        SCE_Shader_ActivateMatricesMapping (shader, SCE_TRUE);
         SCE_Scene_AddResource (scene, SCE_SCENE_SHADERS_GROUP, res);
     }
     res = SCE_SceneEntity_GetMaterial (entity);
