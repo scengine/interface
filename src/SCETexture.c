@@ -286,11 +286,10 @@ SCE_SSceneResource* SCE_Texture_GetSceneResource (SCE_STexture *tex)
 /**
  * \brief Sets the filter of a texture when is far
  * \param tex the texture of which set the filter
- * \param filter the texture's filtering type, can set SCE_TEX_NEAREST,
- * SCE_TEX_LINEAR, SCE_TEX_BILINEAR, SCE_TEX_TRILINEAR.
- * \sa SCE_RSetTextureFilter()
+ * \param filter filter type
+ * \sa SCE_RSetTextureFilter(), SCE_Texture_SetAnisotropic()
  */
-void SCE_Texture_SetFilter (SCE_STexture *tex, SCEint filter)
+void SCE_Texture_SetFilter (SCE_STexture *tex, SCE_RTexFilter filter)
 {
     SCE_RSetTextureFilter (tex->tex, filter);
 }
@@ -304,6 +303,16 @@ void SCE_Texture_SetFilter (SCE_STexture *tex, SCEint filter)
 void SCE_Texture_Pixelize (SCE_STexture *tex, int p)
 {
     SCE_RPixelizeTexture (tex->tex, p);
+}
+/**
+ * \brief Set anisotropic filter level for a texture
+ * \param tex a texture
+ * \param level anisotropic level, between 1.0 and SCE_RGetTextureMaxAnisotropic()
+ * \sa SCE_RGetTextureMaxAnisotropic(), SCE_RSetTextureAnisotropic()
+ */
+void SCE_Texture_SetAnisotropic (SCE_STexture *tex, float level)
+{
+    SCE_RSetTextureAnisotropic (tex->tex, level);
 }
 
 /**
