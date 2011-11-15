@@ -801,13 +801,14 @@ int SCE_Scene_MakeOctree (SCE_SScene *scene, unsigned int rec,
 static const char *sce_def_vs =
     "varying vec3 normal;"
     "varying vec4 pos;"
+    "uniform mat4 sce_projectionmatrix;"
+    "uniform mat4 sce_modelviewmatrix;"
     "void main ()"
     "{"
-    "  normal = normalize (gl_NormalMatrix * gl_Normal);"
-    "  gl_FrontColor = vec4 (1.0);"
-/*     gl_Position = pos = sce_projectionmatrix * sce_modelviewmatrix * gl_Vertex;*/
-    "  gl_Position = pos = gl_ProjectionMatrix * gl_ModelViewMatrix * gl_Vertex;"
+    "  normal = normalize (mat3(sce_modelviewmatrix) * gl_Normal);"
+    "  gl_Position = pos = sce_projectionmatrix * (sce_modelviewmatrix * gl_Vertex);"
     "}";
+
 
 static const char *sce_def_ps =
     "varying vec3 normal;"
@@ -816,7 +817,7 @@ static const char *sce_def_ps =
     "{"
     "  sce_pack_position (pos);"
     "  sce_pack_normal (normalize (normal));"
-    "  sce_pack_color (gl_Color.xyz);"
+    "  sce_pack_color (vec3 (1.0));"
     "}";
 
 
@@ -840,6 +841,8 @@ int SCE_Scene_SetDeferred (SCE_SScene *scene, SCE_SDeferred *def)
                                   sce_def_ps, SCE_FALSE) < 0) goto fail;
         if (SCE_Deferred_BuildShader (def, scene->deferred_shader) < 0)
             goto fail;
+        SCE_Shader_SetupMatricesMapping (scene->deferred_shader);
+        SCE_Shader_ActivateMatricesMapping (scene->deferred_shader, SCE_TRUE);
         SCE_Scene_AddResource (scene, SCE_SCENE_SHADERS_GROUP,
                                SCE_Shader_GetSceneResource (scene->deferred_shader));
     }
