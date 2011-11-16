@@ -723,6 +723,7 @@ void SCE_Texture_Blitf (SCE_SFloatRect *rdst, SCE_STexture *dst,
                         SCE_SFloatRect *rsrc, SCE_STexture *src)
 {
     int w = 1, h = 1;
+    int unit;
 
     if (dst && !dst->fb[0]) {
         dst->fb[0] = SCE_RCreateFramebuffer ();
@@ -745,13 +746,18 @@ void SCE_Texture_Blitf (SCE_SFloatRect *rdst, SCE_STexture *dst,
 
     SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_FALSE);
     SCE_RActivateDepthBuffer (SCE_FALSE);
-    if (src)
+    if (src) {
+        unit = src->unit;
+        src->unit = 0;
         SCE_Texture_Set (src);
+    }
 
     SCE_Texture_RenderQuad (rsrc);
 
-    if (src)
-        SCE_RUseTexture (NULL, src->unit);
+    if (src) {
+        SCE_RUseTexture (NULL, unit);
+        src->unit = unit;
+    }
     SCE_RActivateDepthBuffer (SCE_TRUE);
     SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_TRUE);
 
