@@ -1657,10 +1657,15 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
     } else
 #endif
     {
+        SCE_RActivateDepthBuffer (SCE_TRUE); /* Ü */
+        SCE_RSetState (GL_DEPTH_TEST, SCE_TRUE); /* TODO: why is depth test needed? */
+        glClear (GL_DEPTH_BUFFER_BIT);
         SCE_Shader_Use (def->amb_shader);
         SCE_Shader_Param3fv (SCE_DEFERRED_AMBIENT_COLOR_NAME,
                              1, def->amb_color);
         SCE_Quad_Draw (-1.0, -1.0, 2.0, 2.0);      
+        SCE_RSetState (GL_DEPTH_TEST, SCE_FALSE);
+        SCE_RActivateDepthBuffer (SCE_FALSE);
     }
 
     if (scene->state->lighting) {
@@ -1743,6 +1748,7 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
         SCE_Texture_Lock ();
         SCE_Scene_RenderSkybox (scene, cam);
         SCE_Texture_Unlock ();
+        SCE_Shader_Use (NULL);
         SCE_Texture_Flush ();
     }
 

@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 04/08/2011
-   updated: 14/11/2011 */
+   updated: 16/11/2011 */
 
 #include <SCE/core/SCECore.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -206,12 +206,14 @@ static const char *sce_amb_vs =
     "}";
 static const char *sce_amb_ps =
     "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_DEPTH_TARGET_NAME";"
     "uniform vec3 "SCE_DEFERRED_AMBIENT_COLOR_NAME";"
     "varying vec2 tc;"
     "void main (void)"
     "{"
     "gl_FragColor = vec4 ("SCE_DEFERRED_AMBIENT_COLOR_NAME", 1.0)"
     "               * texture2D ("SCE_DEFERRED_COLOR_TARGET_NAME", tc);"
+    "gl_FragDepth = texture2D ("SCE_DEFERRED_DEPTH_TARGET_NAME", tc).x;"
     "}";
 
 
