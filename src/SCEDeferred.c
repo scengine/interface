@@ -25,19 +25,19 @@
 #include "SCE/interface/SCEScene.h"
 #include "SCE/interface/SCEDeferred.h"
 
-#define SCE_DEFERRED_COLOR_TARGET_NAME "sce_deferred_color_map"
 #define SCE_DEFERRED_DEPTH_TARGET_NAME "sce_deferred_depth_map"
+#define SCE_DEFERRED_LIGHT_TARGET_NAME "sce_deferred_light_map"
+#define SCE_DEFERRED_COLOR_TARGET_NAME "sce_deferred_color_map"
 #define SCE_DEFERRED_NORMAL_TARGET_NAME "sce_deferred_normal_map"
 #define SCE_DEFERRED_SPECULAR_TARGET_NAME "sce_deferred_specular_map"
-#define SCE_DEFERRED_EMISSIVE_TARGET_NAME "sce_deferred_emissive_map"
 
 /* shader uniform's names */
 static const char *sce_deferred_target_names[SCE_NUM_DEFERRED_TARGETS] = {
-    SCE_DEFERRED_COLOR_TARGET_NAME,
     SCE_DEFERRED_DEPTH_TARGET_NAME,
+    SCE_DEFERRED_LIGHT_TARGET_NAME,
+    SCE_DEFERRED_COLOR_TARGET_NAME,
     SCE_DEFERRED_NORMAL_TARGET_NAME,
-    SCE_DEFERRED_SPECULAR_TARGET_NAME,
-    SCE_DEFERRED_EMISSIVE_TARGET_NAME
+    SCE_DEFERRED_SPECULAR_TARGET_NAME
 };
 
 
@@ -92,6 +92,7 @@ static void SCE_Deferred_Clear (SCE_SDeferred *def)
     for (i = 0; i < SCE_NUM_DEFERRED_TARGETS; i++)
         SCE_Texture_Delete (def->targets[i]);
 
+    SCE_Shader_Delete (def->final_shader);
     SCE_Shader_Delete (def->amb_shader);
     SCE_Shader_Delete (def->skybox_shader);
     for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
@@ -302,6 +303,30 @@ static const char *sce_shadow_ps[SCE_NUM_LIGHT_TYPES] = {
 };
 
 
+static const char *sce_final_vs =
+    "uniform mat4 sce_modelviewmatrix;"
+    "uniform mat4 sce_projectionmatrix;"
+    "varying vec2 tc;"
+    "void main (void)"
+    "{"
+    "  tc = gl_MultiTexCoord0.xy;"
+    "  gl_Position = sce_projectionmatrix * (sce_modelviewmatrix * gl_Vertex);"
+    "}";
+static const char *sce_final_ps =
+    "uniform sampler2D "SCE_DEFERRED_DEPTH_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_LIGHT_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
+    "varying vec2 tc;"
+    "void main (void)"
+    "{"
+    "  vec4 lum = texture2D ("SCE_DEFERRED_LIGHT_TARGET_NAME", tc);"
+    "  vec4 color = texture2D ("SCE_DEFERRED_COLOR_TARGET_NAME", tc);"
+    "  color.xyz *= lum.xyz;"
+    "  color.xyz += lum.xyz * color.a * lum.a;"
+    "  gl_FragColor = color;"
+    "  gl_FragDepth = texture2D ("SCE_DEFERRED_DEPTH_TARGET_NAME", tc).x;"
+    "}";
+
 int SCE_Deferred_Build (SCE_SDeferred *def,
                         const char *fnames[SCE_NUM_LIGHT_TYPES])
 {
@@ -309,8 +334,9 @@ int SCE_Deferred_Build (SCE_SDeferred *def,
 
 #define SCECREATE(a, b)                                         \
     def->targets[a] = SCE_Texture_Create (b, (int)def->w, (int)def->h)
-    SCECREATE (SCE_DEFERRED_COLOR_TARGET, SCE_RENDER_COLOR);
     SCECREATE (SCE_DEFERRED_DEPTH_TARGET, SCE_RENDER_DEPTH);
+    SCECREATE (SCE_DEFERRED_LIGHT_TARGET, SCE_RENDER_COLOR);
+    SCECREATE (SCE_DEFERRED_COLOR_TARGET, SCE_TEX_2D);
     SCECREATE (SCE_DEFERRED_NORMAL_TARGET, SCE_TEX_2D);
     SCECREATE (SCE_DEFERRED_SPECULAR_TARGET, SCE_TEX_2D);
 #undef SCECREATE
@@ -331,10 +357,9 @@ int SCE_Deferred_Build (SCE_SDeferred *def,
     }
 
     /* add targets to the G-buffer */
-    SCE_Texture_AddRenderTexture (def->gbuf, SCE_DEPTH_BUFFER, def->targets[1]);
-    for (i = 2; i < def->n_targets; i++) {
-        SCE_Texture_AddRenderTexture (def->gbuf, SCE_COLOR_BUFFER1 + i - 2,
-                                      def->targets[i]);
+    for (i = 0; i < def->n_targets - 1; i++) {
+        SCE_Texture_AddRenderTexture (def->gbuf, SCE_COLOR_BUFFER0 + i,
+                                      def->targets[i + 1]);
     }
 
     /* create shadow maps */
@@ -363,6 +388,23 @@ int SCE_Deferred_Build (SCE_SDeferred *def,
                 goto fail;
         }
     }
+
+    /* create final render shader */
+    if (!(def->final_shader = SCE_Shader_Create ())) goto fail;
+    if (SCE_Shader_AddSource (def->final_shader, SCE_VERTEX_SHADER,
+                              sce_final_vs, SCE_FALSE) < 0)
+        goto fail;
+    if (SCE_Shader_AddSource (def->final_shader, SCE_PIXEL_SHADER,
+                              sce_final_ps, SCE_FALSE) < 0)
+        goto fail;
+    if (SCE_Shader_Build (def->final_shader) < 0)
+        goto fail;
+    SCE_Shader_Use (def->final_shader);
+    for (i = 0; i < def->n_targets; i++)
+        SCE_Shader_Param (sce_deferred_target_names[i], i);
+    SCE_Shader_Use (NULL);
+    SCE_Shader_SetupMatricesMapping (def->final_shader);
+    SCE_Shader_ActivateMatricesMapping (def->final_shader, SCE_TRUE);
 
     /* setup ambient lighting shader */
     if (!(def->amb_shader = SCE_Shader_Create ()))
@@ -434,7 +476,7 @@ fail:
 static const char *sce_pack_color_fun =
     "void sce_pack_color (in vec3 col)"
     "{"
-    "  gl_FragData[0].xyz = col;"
+    "  gl_FragData[1].xyz = col;"
     "}";
 /* TODO: inefficient unpacking: another texture fetch will be required to
    unpack the alpha channel */
@@ -458,12 +500,12 @@ static const char *sce_pack_normal_fun =
     /* precision mess^W stuff */
     "  float x = nor.x * 256.0;"
     "  float e = floor (x);"
-    "  gl_FragData[1].x = e / 256.0;"
-    "  gl_FragData[1].y = x - e, 1.0;"
+    "  gl_FragData[2].x = e / 256.0;"
+    "  gl_FragData[2].y = x - e, 1.0;"
     "  x = nor.y * 256.0;"
     "  e = floor (x);"
-    "  gl_FragData[1].z = e / 256.0;"
-    "  gl_FragData[1].w = x - e;"
+    "  gl_FragData[2].z = e / 256.0;"
+    "  gl_FragData[2].w = x - e;"
     "}";
 static const char *sce_unpack_normal_fun =
     "vec3 sce_unpack_normal (in vec2 coord)"
@@ -484,7 +526,7 @@ static const char *sce_unpack_normal_fun =
 static const char *sce_pack_normal_fun =
     "void sce_pack_normal (in vec3 nor)"
     "{"
-    "  gl_FragData[1].xyz = (nor + vec3 (1.0)) / 2.0;"
+    "  gl_FragData[2].xyz = (nor + vec3 (1.0)) / 2.0;"
     "}";
 static const char *sce_unpack_normal_fun =
     "vec3 sce_unpack_normal (in vec2 coord)"
@@ -542,8 +584,9 @@ fail:
 
 static const char *sce_final_uniforms_code[SCE_NUM_LIGHT_TYPES] = {
     /* point */
-    "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_DEPTH_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_LIGHT_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_NORMAL_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_SHADOW_MAP_NAME";"
     "uniform samplerCube "SCE_DEFERRED_SHADOW_CUBE_MAP_NAME";"
@@ -557,8 +600,9 @@ static const char *sce_final_uniforms_code[SCE_NUM_LIGHT_TYPES] = {
     "uniform float "SCE_DEFERRED_LIGHT_ANGLE_NAME";"
     "uniform float "SCE_DEFERRED_LIGHT_ATTENUATION_NAME";",
     /* spot */
-    "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_DEPTH_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_LIGHT_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_NORMAL_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_SHADOW_MAP_NAME";"
     "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
@@ -571,8 +615,9 @@ static const char *sce_final_uniforms_code[SCE_NUM_LIGHT_TYPES] = {
     "uniform float "SCE_DEFERRED_LIGHT_ANGLE_NAME";"
     "uniform float "SCE_DEFERRED_LIGHT_ATTENUATION_NAME";",
     /* sun */
-    "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_DEPTH_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_LIGHT_TARGET_NAME";"
+    "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_NORMAL_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_SHADOW_MAP_NAME";"
     "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME"[8];"
@@ -683,7 +728,8 @@ void SCE_Deferred_PushStates (SCE_SDeferred *def)
 
     /* setup textures */
     SCE_Texture_BeginLot ();
-    for (i = 0; i < def->n_targets; i++)
+    SCE_Texture_Use (def->targets[0]);
+    for (i = 2; i < def->n_targets; i++)
         SCE_Texture_Use (def->targets[i]);
     SCE_Texture_EndLot ();
 

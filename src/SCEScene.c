@@ -1113,6 +1113,7 @@ static void SCE_Scene_RenderSkybox (SCE_SScene *scene, SCE_SCamera *cam)
     SCE_SceneEntity_Render (entity);
     /* because skybox properties disabled it */
     SCE_RActivateDepthBuffer (GL_TRUE);
+    SCE_RSetState (GL_DEPTH_TEST, SCE_TRUE);
 
     SCE_Texture_Flush ();
     SCE_Shader_Use (NULL);
@@ -1399,12 +1400,11 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_Vector3_Operator1 (dir, *=, -1.0);
         SCE_Vector3_Normalize (dir);
 
-        SCE_Shader_Use (def->shadow_shaders[type]);
-
         /* TODO: setup states */
         SCE_RSetState (GL_BLEND, SCE_FALSE);
         SCE_Deferred_PopStates (def);
         SCE_Scene_PushStates (scene);
+        SCE_Shader_Use (def->shadow_shaders[type]);
         SCE_Shader_Lock ();
         scene->state->lighting = SCE_FALSE;
         scene->state->deferred = SCE_FALSE;
@@ -1490,6 +1490,9 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
     SCE_RLoadMatrix (SCE_MAT_OBJECT, sce_matrix4_id);
     SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
     SCE_Quad_Draw (-1.0, -1.0, 2.0, 2.0);
+
+    if (flags & SCE_DEFERRED_USE_SHADOWS)
+        SCE_Texture_Use (NULL); /* def->shadowmaps[type] */
 }
 
 
@@ -1519,9 +1522,6 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
     if (!(flags & SCE_DEFERRED_USE_SHADOWS)) {
         SCE_Shader_Use (shader->shader);
     } else {
-        SCE_SSkybox *sk = scene->state->skybox;
-        SCE_STexture *rt = scene->state->rendertarget;
-        int a, b;
         float coeff;
 
         /* render shadow map */
@@ -1640,33 +1640,19 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
 
     /* rendering with default shader */
     SCE_SceneEntity_SetDefaultShader (scene->deferred_shader);
-    SCE_Scene_RenderEntities (scene);
+    SCE_Scene_RenderEntities (&scene->entities);
     SCE_SceneEntity_SetDefaultShader (NULL);
 
-    /* setup target */
-    SCE_Texture_RenderTo (target, cubeface);
+    scene->state->rendertarget = def->targets[SCE_DEFERRED_LIGHT_TARGET];
+    scene->state->cubeface = 0;
+    SCE_Texture_RenderTo (def->targets[SCE_DEFERRED_LIGHT_TARGET], 0);
 
     /* setup states */
     SCE_Deferred_PushStates (def);
 
-#if 0
-    if (def->use_emissive) {
-        SCE_Shader_Use (def->ambemi_shader);
-        /* SCE_Shader_Param3fv (SCE_DEFERRED_AMBIENT_COLOR_NAME,
-                                def->amb_color); */
-    } else
-#endif
-    {
-        SCE_RActivateDepthBuffer (SCE_TRUE); /* Ü */
-        SCE_RSetState (GL_DEPTH_TEST, SCE_TRUE); /* TODO: why is depth test needed? */
-        glClear (GL_DEPTH_BUFFER_BIT);
-        SCE_Shader_Use (def->amb_shader);
-        SCE_Shader_Param3fv (SCE_DEFERRED_AMBIENT_COLOR_NAME,
-                             1, def->amb_color);
-        SCE_Quad_Draw (-1.0, -1.0, 2.0, 2.0);      
-        SCE_RSetState (GL_DEPTH_TEST, SCE_FALSE);
-        SCE_RActivateDepthBuffer (SCE_FALSE);
-    }
+    glClearColor (def->amb_color[0], def->amb_color[1],
+                  def->amb_color[2], 0.0);
+    glClear (GL_COLOR_BUFFER_BIT);
 
     if (scene->state->lighting) {
 
@@ -1733,23 +1719,33 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
     SCE_Shader_Use (NULL);
     SCE_Deferred_PopStates (def);
 
+    /* final pass */
+    SCE_Texture_RenderTo (target, cubeface);
+
+    SCE_RSetState (GL_CULL_FACE, SCE_FALSE);
+    glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    SCE_Texture_BeginLot ();
+    SCE_Texture_Use (def->targets[SCE_DEFERRED_DEPTH_TARGET]);
+    SCE_Texture_Use (def->targets[SCE_DEFERRED_LIGHT_TARGET]);
+    SCE_Texture_Use (def->targets[SCE_DEFERRED_COLOR_TARGET]);
+    SCE_Texture_EndLot ();
+    SCE_Shader_Use (def->final_shader);
+    SCE_Quad_Draw (-1.0, -1.0, 2.0, 2.0);
+    SCE_Shader_Use (NULL);
+    SCE_Texture_Flush ();
+    SCE_RSetState (GL_CULL_FACE, SCE_TRUE);
+
     /* render skybox */
     if (scene->state->skybox) {
-        SCE_STexture *tex = SCE_Skybox_GetTexture (scene->state->skybox);
-        SCE_Texture_SetUnit (tex, 0);
-        SCE_Texture_BeginLot ();
-        SCE_Texture_Use (tex);
-        SCE_Texture_Use (def->targets[SCE_DEFERRED_DEPTH_TARGET]);
-        SCE_Texture_EndLot ();
-        SCE_Skybox_SetShader (scene->state->skybox, def->skybox_shader);
+        SCE_SSceneEntity *entity = SCE_Skybox_GetEntity (scene->state->skybox);
         SCE_Scene_UseCamera (cam);
-        SCE_Shader_Use (def->skybox_shader);
-        SCE_Shader_Param (SCE_DEFERRED_SKYBOX_MAP_NAME, 0);
-        SCE_Texture_Lock ();
+        entity->props.depthtest = SCE_TRUE;
+        /* TODO: gl function */
+        glDepthRange (1.0 - SCE_EPSILONF, 1.0 - SCE_EPSILONF);
+        SCE_RActivateDepthBuffer (SCE_FALSE);
         SCE_Scene_RenderSkybox (scene, cam);
-        SCE_Texture_Unlock ();
-        SCE_Shader_Use (NULL);
-        SCE_Texture_Flush ();
+        SCE_RActivateDepthBuffer (SCE_TRUE);
+        glDepthRange (0.0, 1.0);
     }
 
     if (target)
@@ -1803,6 +1799,8 @@ void SCE_Scene_PopStates (SCE_SScene *scene)
     if (scene->state > 0) {
         scene->state_id--;
         scene->state = &scene->states[scene->state_id];
+        SCE_Texture_RenderTo (scene->state->rendertarget,
+                              scene->state->cubeface);
     }
 }
 

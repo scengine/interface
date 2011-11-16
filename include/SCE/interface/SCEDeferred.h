@@ -74,11 +74,11 @@ extern "C" {
 #define SCE_MAX_DEFERRED_CASCADED_SPLITS 16
 
 typedef enum {
-    SCE_DEFERRED_COLOR_TARGET = 0,
-    SCE_DEFERRED_DEPTH_TARGET,
+    SCE_DEFERRED_DEPTH_TARGET = 0,
+    SCE_DEFERRED_LIGHT_TARGET,
+    SCE_DEFERRED_COLOR_TARGET,
     SCE_DEFERRED_NORMAL_TARGET,
     SCE_DEFERRED_SPECULAR_TARGET,
-    SCE_DEFERRED_EMISSIVE_TARGET,
     SCE_NUM_DEFERRED_TARGETS
 } SCE_EDeferredTarget;
 
@@ -109,6 +109,7 @@ struct sce_sdeferred {
 
     SCE_SShader *amb_shader;
     SCE_SShader *skybox_shader;
+    SCE_SShader *final_shader;
 
     SCE_SShader *shadow_shaders[SCE_NUM_LIGHT_TYPES];
 
