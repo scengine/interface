@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 03/11/2008
-   updated: 12/07/2009 */
+   updated: 17/11/2011 */
 
 #ifndef SCESCENERESOURCE_H
 #define SCESCENERESOURCE_H
@@ -56,6 +56,7 @@ void SCE_SceneResource_SetGroupType (SCE_SSceneResourceGroup*, int);
 int SCE_SceneResource_GetGroupType (SCE_SSceneResourceGroup*);
 
 int SCE_SceneResource_GetType (SCE_SSceneResource*);
+int SCE_SceneResource_IsResourceAdded (SCE_SSceneResource*);
 
 void SCE_SceneResource_AddResource (SCE_SSceneResourceGroup*,
                                     SCE_SSceneResource*);

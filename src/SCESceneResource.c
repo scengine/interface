@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 03/11/2008
-   updated: 12/07/2009 */
+   updated: 17/11/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include "SCE/interface/SCESceneResource.h"
@@ -129,6 +129,16 @@ int SCE_SceneResource_GetType (SCE_SSceneResource *res)
     return res->group->type;
 }
 
+
+/**
+ * \brief Tells whether a resource belongs to a group or not
+ * \param res a resource
+ * \return SCE_TRUE if \p res belongs to a group, SCE_FALSE otherwise
+ */
+int SCE_SceneResource_IsResourceAdded (SCE_SSceneResource *res)
+{
+    return !res->removed;
+}
 
 /**
  * \brief Adds a resource into a group

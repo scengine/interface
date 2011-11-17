@@ -507,7 +507,7 @@ void SCE_Scene_AddEntityResources (SCE_SScene *scene, SCE_SSceneEntity *entity)
                                SCE_List_GetData (it));
     }
     res = SCE_SceneEntity_GetShader (entity);
-    if (res) {
+    if (res && !SCE_SceneResource_IsResourceAdded (res)) {
         SCE_SShader *shader = SCE_SceneResource_GetResource (res);
         if (scene->deferred) {
             SCE_Deferred_BuildShader (scene->deferred, shader);
