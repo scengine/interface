@@ -779,6 +779,7 @@ static void SCE_Scene_EraseOctreeInternal (SCE_SOctree *tree)
  *
  * Makes an octree for the given scene and clears the previous one.
  * \sa SCE_Octree_RecursiveMake(), SCE_Octree_Clear()
+ * This function cannot be called once objects have been added to the scene.
  */
 int SCE_Scene_MakeOctree (SCE_SScene *scene, unsigned int rec,
                           int loose, float margin)
@@ -984,10 +985,9 @@ static void SCE_Scene_DetermineEntities (SCE_SScene *scene)
 }
 
 
-static void SCE_Scene_FlushEntities (SCE_SScene *scene)
+static void SCE_Scene_FlushEntities (SCE_SList *entities)
 {
     SCE_SListIterator *it = NULL;
-    SCE_SList *entities = &scene->entities;
     SCE_List_ForEach (it, entities)
         SCE_SceneEntity_Flush (SCE_List_GetData (it));
 }
@@ -1022,7 +1022,7 @@ void SCE_Scene_Update (SCE_SScene *scene, SCE_SCamera *camera,
     fc = scene->state->frustum_culling;
 
     if (scene->state->lod || fc)
-        SCE_Scene_FlushEntities (scene);
+        SCE_Scene_FlushEntities (&scene->entities);
 
     if (fc) {
         /* do it before nodes' update, otherwise the calls of
@@ -1069,11 +1069,11 @@ void SCE_Scene_ClearBuffers (SCE_SScene *scene)
 }
 
 
-static void SCE_Scene_RenderEntities (SCE_SScene *scene)
+static void SCE_Scene_RenderEntities (SCE_SList *entities)
 {
     SCE_SSceneEntity *entity = NULL;
     SCE_SListIterator *it;
-    SCE_List_ForEach (it, &scene->entities) {
+    SCE_List_ForEach (it, entities) {
         entity = SCE_List_GetData (it);
         if (SCE_SceneEntity_HasInstance (entity)) {
             SCE_SceneEntity_UseResources (entity);
@@ -1165,7 +1165,7 @@ static void SCE_Scene_ForwardRender (SCE_SScene *scene, SCE_SCamera *cam,
             SCE_Light_Use (SCE_List_GetData (it));
     }
 
-    SCE_Scene_RenderEntities (scene);
+    SCE_Scene_RenderEntities (&scene->entities);
 
     SCE_Light_Use (NULL);
     SCE_Light_ActivateLighting (SCE_FALSE);
