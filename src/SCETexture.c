@@ -260,6 +260,8 @@ void SCE_Texture_Delete (SCE_STexture *tex)
 {
     if (tex) {
         unsigned int i;
+        if (!SCE_Resource_Free (tex))
+            return;
         SCE_SceneResource_RemoveResource (&tex->s_resource);
         for (i = 0; i < 6; i++)
             SCE_RDeleteFramebuffer (tex->fb[i]);
