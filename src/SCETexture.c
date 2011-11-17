@@ -119,31 +119,25 @@ static void SCE_Texture_SetupParameters (SCE_STexture *tex)
 
 static int SCE_Texture_MakeRender (SCE_STexture *tex, int type)
 {
-    int code = SCE_OK;
     int w = tex->w, h = tex->h/*, d*/;
 
     tex->fb[0] = SCE_RCreateFramebuffer ();
     if (!tex->fb[0])
-        goto failure;
+        goto fail;
 
-    if (SCE_RCreateRenderTexture (tex->fb[0], type, 0, 0, 0, w, h) < 0)
-        goto failure;
+    if (!(tex->tex = SCE_RAddNewRenderTexture (tex->fb[0], type,0, 0, 0, w, h)))
+        goto fail;
     /* s'il s'agit d'une color, on ajoute un depth buffer */
     /* TODO: with MRTs, there's no need for this */
     if (type == SCE_COLOR_BUFFER) {
         if (SCE_RAddRenderBuffer (tex->fb[0], SCE_DEPTH_BUFFER, 0, w, h) < 0)
-            goto failure;
+            goto fail;
     }
-    /* le proprietaire de la texture reste le frame buffer
-       car tex->canfree[n] est egal a SCE_FALSE par defaut */
-    tex->tex = SCE_RGetRenderTexture (tex->fb[0], type);
-    goto success;
 
-failure:
+    return SCE_OK;
+fail:
     SCEE_LogSrc ();
-    code = SCE_ERROR;
-success:
-    return code;
+    return SCE_ERROR;
 }
 
 static int SCE_Texture_MakeRenderCube (SCE_STexture *tex, int type)
