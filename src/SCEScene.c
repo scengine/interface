@@ -1099,8 +1099,8 @@ static void SCE_Scene_RenderSkybox (SCE_SScene *scene, SCE_SCamera *cam)
 
     SCE_SceneEntity_UseResources (entity);
     SCE_SceneEntity_Render (entity);
+    SCE_SceneEntity_UnuseResources (entity);
     /* because skybox properties disabled it */
-    SCE_RActivateDepthBuffer (GL_TRUE);
     SCE_RSetState (GL_DEPTH_TEST, SCE_TRUE);
 
     SCE_Texture_Flush ();
@@ -1730,12 +1730,12 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
         SCE_SSceneEntity *entity = SCE_Skybox_GetEntity (scene->state->skybox);
         SCE_Scene_UseCamera (cam);
         entity->props.depthtest = SCE_TRUE;
-        /* TODO: gl function */
-        glDepthRange (1.0 - SCE_EPSILONF, 1.0 - SCE_EPSILONF);
+        entity->props.depthscale = SCE_TRUE;
+        entity->props.depthrange[0] = 1.0 - SCE_EPSILONF;
+        entity->props.depthrange[1] = 1.0 - SCE_EPSILONF;
         SCE_RActivateDepthBuffer (SCE_FALSE);
         SCE_Scene_RenderSkybox (scene, cam);
         SCE_RActivateDepthBuffer (SCE_TRUE);
-        glDepthRange (0.0, 1.0);
     }
 
     if (target)
