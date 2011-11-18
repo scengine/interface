@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 17/02/2009
-   updated: 05/08/2011 */
+   updated: 18/11/2011 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -194,6 +194,15 @@ SCE_SSceneEntity* SCE_Skybox_GetEntity (SCE_SSkybox *skybox)
 SCE_SSceneEntityInstance* SCE_Skybox_GetInstance (SCE_SSkybox *skybox)
 {
     return skybox->instance;
+}
+/**
+ * \brief Gets the node of a skybox
+ * \param skybox a skybox
+ * \return the node of \p skybox
+ */
+SCE_SNode* SCE_Skybox_GetNode (SCE_SSkybox *skybox)
+{
+    return SCE_SceneEntity_GetInstanceNode (skybox->instance);
 }
 
 /** @} */

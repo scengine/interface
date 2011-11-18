@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 17/02/2009
-   updated: 05/08/2011 */
+   updated: 18/11/2011 */
 
 #ifndef SCESKYBOX_H
 #define SCESKYBOX_H
@@ -65,6 +65,7 @@ SCE_SShader* SCE_Skybox_GetShader (SCE_SSkybox*);
 
 SCE_SSceneEntity* SCE_Skybox_GetEntity (SCE_SSkybox*);
 SCE_SSceneEntityInstance* SCE_Skybox_GetInstance (SCE_SSkybox*);
+SCE_SNode* SCE_Skybox_GetNode (SCE_SSkybox*);
 
 #ifdef __cplusplus
 } /* extern "C" */
