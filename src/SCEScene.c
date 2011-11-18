@@ -698,15 +698,15 @@ void SCE_Scene_RemoveResource (SCE_SSceneResource *res)
  */
 void SCE_Scene_SetSkybox (SCE_SScene *scene, SCE_SSkybox *skybox)
 {
-    if (scene->state->skybox) {
-/*        SCE_Scene_RemoveEntityGroup (scene, SCE_Skybox_GetEntityGroup
-          (scene->skybox));*/
-/*        SCE_Scene_RemoveInstance (scene, SCE_Skybox_GetInstance(scene->skybox));*/
-    }
     scene->state->skybox = skybox;
     if (skybox) {
-/*        SCE_Scene_AddEntityGroup (scene, SCE_Skybox_GetEntityGroup (skybox));*/
-/*        SCE_Scene_AddInstance (scene, SCE_Skybox_GetInstance(scene->skybox));*/
+        SCE_TMatrix4 mat;
+        SCE_SNode *node = SCE_Skybox_GetNode (skybox);
+        SCE_Matrix4_Scale (mat, 42.0, 42.0, 42.0);
+        SCE_Matrix4_MulTranslate (mat, -0.5, -0.5, -0.5);
+        SCE_Node_SetMatrix (node, mat);
+        /* only inherits translation from its parent node */
+        SCE_Node_TransformTranslation (node);
     }
 }
 
@@ -1032,6 +1032,11 @@ void SCE_Scene_Update (SCE_SScene *scene, SCE_SCamera *camera,
         scene->selected_join = scene->selected;
     }
 
+    if (scene->state->skybox) {
+        SCE_Node_Attach (SCE_Camera_GetNode (scene->state->camera),
+                         SCE_Skybox_GetNode (scene->state->skybox));
+    }
+
     SCE_Node_UpdateRootRecursive (scene->rootnode);
     SCE_Camera_Update (scene->state->camera);
 
@@ -1085,29 +1090,9 @@ static void SCE_Scene_RenderEntities (SCE_SList *entities)
     SCE_Shader_Use (NULL);
 }
 
-
-static void SCE_Scene_SetupSkybox (SCE_SScene *scene, SCE_SCamera *cam)
-{
-    SCE_TVector3 pos;
-    float *mat = NULL;
-    SCE_SSceneEntityInstance *einst = NULL;
-    SCE_SNode *node = NULL;
-    einst = SCE_Skybox_GetInstance (scene->state->skybox);
-    node = SCE_SceneEntity_GetInstanceNode (einst);
-
-    mat = SCE_Camera_GetFinalViewInverse (cam);
-    SCE_Matrix4_GetTranslation (mat, pos);
-    mat = SCE_Node_GetFinalMatrix (node); /* hax */
-    SCE_Matrix4_Translatev (mat, pos);
-    SCE_Matrix4_MulScale (mat, 42.0, 42.0, 42.0);
-    SCE_Matrix4_MulTranslate (mat, -0.5, -0.5, -0.5);
-}
-
 static void SCE_Scene_RenderSkybox (SCE_SScene *scene, SCE_SCamera *cam)
 {
     SCE_SSceneEntity *entity = SCE_Skybox_GetEntity (scene->state->skybox);
-
-    SCE_Scene_SetupSkybox (scene, cam);
 
     SCE_SceneEntity_UseResources (entity);
     SCE_SceneEntity_Render (entity);
@@ -1118,7 +1103,6 @@ static void SCE_Scene_RenderSkybox (SCE_SScene *scene, SCE_SCamera *cam)
     SCE_Texture_Flush ();
     SCE_Shader_Use (NULL);
 }
-
 
 /**
  * \brief Setup matrices according to the given camera
