@@ -1083,6 +1083,7 @@ static void SCE_Scene_RenderEntities (SCE_SList *entities)
         if (SCE_SceneEntity_HasInstance (entity)) {
             SCE_SceneEntity_UseResources (entity);
             SCE_SceneEntity_Render (entity);
+            SCE_SceneEntity_UnuseResources (entity);
         }
     }
     SCE_Texture_Flush ();

@@ -47,6 +47,8 @@ struct sce_ssceneentityproperties {
     unsigned int depthtest:1;
     int depthmode;
     unsigned int alphatest:1;
+    unsigned int depthscale:1;
+    float depthrange[2];
 };
 
 /** \copydoc sce_ssceneentityinstance */
@@ -200,6 +202,7 @@ int SCE_SceneEntity_IsInstanceInFrustum (SCE_SSceneEntityInstance*,
 void SCE_SceneEntity_ApplyProperties (SCE_SSceneEntity*);
 
 void SCE_SceneEntity_UseResources (SCE_SSceneEntity*);
+void SCE_SceneEntity_UnuseResources (SCE_SSceneEntity*);
 void SCE_SceneEntity_SetDefaultShader (SCE_SShader*);
 
 void SCE_SceneEntity_Lock (void);
