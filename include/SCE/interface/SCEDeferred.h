@@ -107,7 +107,6 @@ struct sce_sdeferred {
 
     float amb_color[3];
 
-    SCE_SShader *amb_shader;
     SCE_SShader *skybox_shader;
     SCE_SShader *final_shader;
 

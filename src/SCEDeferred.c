@@ -69,7 +69,6 @@ static void SCE_Deferred_Init (SCE_SDeferred *def)
 
     def->amb_color[0] = def->amb_color[1] = def->amb_color[2] = 0.1f;
 
-    def->amb_shader = NULL;
     def->skybox_shader = NULL;
     def->lightflags_mask = SCE_DEFERRED_USE_ALL;
 
@@ -93,7 +92,6 @@ static void SCE_Deferred_Clear (SCE_SDeferred *def)
         SCE_Texture_Delete (def->targets[i]);
 
     SCE_Shader_Delete (def->final_shader);
-    SCE_Shader_Delete (def->amb_shader);
     SCE_Shader_Delete (def->skybox_shader);
     for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
         int j;
@@ -195,28 +193,6 @@ int SCE_Deferred_GetLightFlagsMask (SCE_SDeferred *def)
 {
     return def->lightflags_mask;
 }
-
-static const char *sce_amb_vs =
-    "uniform mat4 sce_modelviewmatrix;"
-    "uniform mat4 sce_projectionmatrix;"
-    "varying vec2 tc;"
-    "void main (void)"
-    "{"
-    "tc = gl_MultiTexCoord0.xy;"
-    "gl_Position = sce_projectionmatrix * sce_modelviewmatrix * gl_Vertex;"
-    "}";
-static const char *sce_amb_ps =
-    "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
-    "uniform sampler2D "SCE_DEFERRED_DEPTH_TARGET_NAME";"
-    "uniform vec3 "SCE_DEFERRED_AMBIENT_COLOR_NAME";"
-    "varying vec2 tc;"
-    "void main (void)"
-    "{"
-    "gl_FragColor = vec4 ("SCE_DEFERRED_AMBIENT_COLOR_NAME", 1.0)"
-    "               * texture2D ("SCE_DEFERRED_COLOR_TARGET_NAME", tc);"
-    "gl_FragDepth = texture2D ("SCE_DEFERRED_DEPTH_TARGET_NAME", tc).x;"
-    "}";
-
 
 static const char *sce_skybox_vs =
     "uniform mat4 sce_modelviewmatrix;"
@@ -405,24 +381,6 @@ int SCE_Deferred_Build (SCE_SDeferred *def,
     SCE_Shader_Use (NULL);
     SCE_Shader_SetupMatricesMapping (def->final_shader);
     SCE_Shader_ActivateMatricesMapping (def->final_shader, SCE_TRUE);
-
-    /* setup ambient lighting shader */
-    if (!(def->amb_shader = SCE_Shader_Create ()))
-        goto fail;
-    if (SCE_Shader_AddSource (def->amb_shader, SCE_VERTEX_SHADER,
-                              sce_amb_vs, SCE_FALSE) < 0)
-        goto fail;
-    if (SCE_Shader_AddSource (def->amb_shader, SCE_PIXEL_SHADER,
-                              sce_amb_ps, SCE_FALSE) < 0)
-        goto fail;
-    if (SCE_Shader_Build (def->amb_shader) < 0)
-        goto fail;
-    SCE_Shader_Use (def->amb_shader);
-    for (i = 0; i < def->n_targets; i++)
-        SCE_Shader_Param (sce_deferred_target_names[i], i);
-    SCE_Shader_Use (NULL);
-    SCE_Shader_SetupMatricesMapping (def->amb_shader);
-    SCE_Shader_ActivateMatricesMapping (def->amb_shader, SCE_TRUE);
 
     /* setup skybox shader */
     if (!(def->skybox_shader = SCE_Shader_Create ()))
