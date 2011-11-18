@@ -50,7 +50,6 @@ SCE_SSkybox* SCE_Skybox_Create (void)
 {
     SCE_SSceneEntityProperties *props = NULL;
     SCE_SSkybox *skybox = NULL;
-    SCE_btstart ();
     if (!(skybox = SCE_malloc (sizeof *skybox)))
         goto fail;
     SCE_Skybox_Init (skybox);
@@ -65,13 +64,12 @@ SCE_SSkybox* SCE_Skybox_Create (void)
     props->cullface = SCE_FALSE;
     props->depthtest = SCE_FALSE;
     props->alphatest = SCE_FALSE;
-    goto success;
-fail:
-    SCE_Skybox_Delete (skybox), skybox = NULL;
-    SCEE_LogSrc ();
-success:
-    SCE_btend ();
+
     return skybox;
+fail:
+    SCE_Skybox_Delete (skybox);
+    SCEE_LogSrc ();
+    return NULL;
 }
 /**
  * \brief Deletes a skybox
