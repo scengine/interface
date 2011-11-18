@@ -42,6 +42,8 @@ extern "C" {
 /** \copydoc sce_ssceneentityproperties */
 typedef struct sce_ssceneentityproperties SCE_SSceneEntityProperties;
 struct sce_ssceneentityproperties {
+    SCEuint states;      /* scene's states for which the entity should be
+                            rendered (default ~0) */
     unsigned int cullface:1;
     int cullmode;
     unsigned int depthtest:1;
@@ -198,6 +200,10 @@ void SCE_SceneEntity_DetermineInstanceLOD (SCE_SSceneEntityInstance*,
                                          SCE_SCamera*);
 int SCE_SceneEntity_IsInstanceInFrustum (SCE_SSceneEntityInstance*,
                                          SCE_SCamera*);
+
+void SCE_SceneEntity_AddState (SCE_SSceneEntity*, SCEuint);
+void SCE_SceneEntity_RemoveState (SCE_SSceneEntity*, SCEuint);
+int SCE_SceneEntity_MatchState (SCE_SSceneEntity*, SCEuint);
 
 void SCE_SceneEntity_ApplyProperties (SCE_SSceneEntity*);
 

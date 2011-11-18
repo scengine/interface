@@ -125,6 +125,7 @@ static int SCE_SceneEntity_IsBSInFrustum (SCE_SSceneEntityInstance*,
 
 void SCE_SceneEntity_InitProperties (SCE_SSceneEntityProperties *props)
 {
+    props->states = ~0U;
     props->cullface = SCE_TRUE;
     props->cullmode = SCE_BACK;
     props->depthtest = SCE_TRUE;
@@ -799,6 +800,39 @@ int SCE_SceneEntity_IsInstanceInFrustum (SCE_SSceneEntityInstance *einst,
     return einst->entity->isinfrustumfunc (einst, cam);
 }
 
+
+/**
+ * \brief Adds a state for which the entity should be rendered
+ * \param entity an entity
+ * \param state a scene state
+ * \sa SCE_SceneEntity_RemoveState(), SCE_SceneEntity_MatchState()
+ */
+void SCE_SceneEntity_AddState (SCE_SSceneEntity *entity, SCEuint state)
+{
+    SCE_FLAG_ADD (entity->props.states, state);
+}
+/**
+ * \brief Adds a state for which the entity shouldn't be rendered
+ * \param entity an entity
+ * \param state a scene state
+ * \sa SCE_SceneEntity_RemoveState(), SCE_SceneEntity_MatchState()
+ */
+void SCE_SceneEntity_RemoveState (SCE_SSceneEntity *entity, SCEuint state)
+{
+    SCE_FLAG_REMOVE (entity->props.states, state);
+}
+/**
+ * \brief Given a scene state, tells whether an entity should be renderer
+ * \param entity an entity
+ * \param state scene's state
+ * \return SCE_FALSE if the entity shouldn't be renderer,
+ * something else otherwise
+ * \sa SCE_SceneEntity_AddState(), SCE_SceneEntity_RemoveState()
+ */
+int SCE_SceneEntity_MatchState (SCE_SSceneEntity *entity, SCEuint state)
+{
+    return entity->props.states & state;
+}
 
 /**
  * \brief Applies the properties of an entity by calling SCE_RSetState()
