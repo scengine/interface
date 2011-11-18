@@ -57,6 +57,9 @@ typedef enum {
 typedef int (*SCE_FSceneForEachEntityGroupFunc)(SCE_SSceneEntityGroup *g,
                                                 void *p);
 
+#define SCE_SCENE_STANDARD_STATE (1 << 0)
+#define SCE_SCENE_SHADOW_MAP_STATE (1 << 1)
+
 /** \copydoc sce_sscenestates */
 typedef struct sce_sscenestates SCE_SSceneStates;
 /**
@@ -64,6 +67,7 @@ typedef struct sce_sscenestates SCE_SSceneStates;
  * \todo add contribution_size, clear colors, and other stuff
  */
 struct sce_sscenestates {
+    SCEuint state;
     int clearcolor, cleardepth; /**< Clear the buffers? */
     int frustum_culling; /**< Use frustum culling? */
     int lighting;        /**< Use lighting? */

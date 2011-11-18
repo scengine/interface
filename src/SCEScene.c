@@ -125,6 +125,7 @@ static void SCE_Scene_DeleteOctree (SCE_SSceneOctree *tree)
 
 static void SCE_Scene_InitStates (SCE_SSceneStates *states)
 {
+    states->state = SCE_SCENE_STANDARD_STATE;
     states->clearcolor = states->cleardepth = SCE_TRUE;
     states->frustum_culling = SCE_FALSE;
     states->lighting = SCE_TRUE;
@@ -1074,13 +1075,14 @@ void SCE_Scene_ClearBuffers (SCE_SScene *scene)
 }
 
 
-static void SCE_Scene_RenderEntities (SCE_SList *entities)
+static void SCE_Scene_RenderEntities (SCE_SScene *scene, SCE_SList *entities)
 {
     SCE_SSceneEntity *entity = NULL;
     SCE_SListIterator *it;
     SCE_List_ForEach (it, entities) {
         entity = SCE_List_GetData (it);
-        if (SCE_SceneEntity_HasInstance (entity)) {
+        if (SCE_SceneEntity_HasInstance (entity) &&
+            SCE_SceneEntity_MatchState (entity, scene->state->state)) {
             SCE_SceneEntity_UseResources (entity);
             SCE_SceneEntity_Render (entity);
             SCE_SceneEntity_UnuseResources (entity);
@@ -1150,7 +1152,7 @@ static void SCE_Scene_ForwardRender (SCE_SScene *scene, SCE_SCamera *cam,
             SCE_Light_Use (SCE_List_GetData (it));
     }
 
-    SCE_Scene_RenderEntities (&scene->entities);
+    SCE_Scene_RenderEntities (scene, &scene->entities);
 
     SCE_Light_Use (NULL);
     SCE_Light_ActivateLighting (SCE_FALSE);
@@ -1209,6 +1211,7 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_Deferred_PopStates (def);
         SCE_Scene_PushStates (scene);
         SCE_Shader_Lock ();
+        scene->state->state = SCE_SCENE_SHADOW_MAP_STATE;
         scene->state->lighting = SCE_FALSE;
         scene->state->deferred = SCE_FALSE;
         scene->state->skybox = NULL;
@@ -1391,6 +1394,7 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_Scene_PushStates (scene);
         SCE_Shader_Use (def->shadow_shaders[type]);
         SCE_Shader_Lock ();
+        scene->state->state = SCE_SCENE_SHADOW_MAP_STATE;
         scene->state->lighting = SCE_FALSE;
         scene->state->deferred = SCE_FALSE;
         scene->state->skybox = NULL;
@@ -1526,6 +1530,7 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_Deferred_PopStates (def);
         SCE_Scene_PushStates (scene);
         SCE_Shader_Lock ();
+        scene->state->state = SCE_SCENE_SHADOW_MAP_STATE;
         scene->state->lighting = SCE_FALSE;
         scene->state->deferred = SCE_FALSE;
         scene->state->skybox = NULL;
@@ -1625,7 +1630,7 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
 
     /* rendering with default shader */
     SCE_SceneEntity_SetDefaultShader (scene->deferred_shader);
-    SCE_Scene_RenderEntities (&scene->entities);
+    SCE_Scene_RenderEntities (scene, &scene->entities);
     SCE_SceneEntity_SetDefaultShader (NULL);
 
     scene->state->rendertarget = def->targets[SCE_DEFERRED_LIGHT_TARGET];
