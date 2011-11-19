@@ -1519,6 +1519,7 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
 
         /* attach the camera to the light :) yes, it's that simple */
         SCE_Node_Attach (node, SCE_Camera_GetNode (def->cam));
+        SCE_Node_SetMatrix (SCE_Camera_GetNode (def->cam), sce_matrix4_id);
 
         coeff = 1.0 / SCE_Cone_GetHeight (&cone);
         SCE_Shader_Use (def->shadow_shaders[type]);
@@ -1601,6 +1602,9 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_Scene_DrawBC (&cone, sce_matrix4_id);
         SCE_Mesh_Unuse ();
         SCE_RSetState (GL_CULL_FACE, SCE_FALSE);
+        SCE_RLoadMatrix (SCE_MAT_CAMERA, sce_matrix4_id);
+        SCE_RLoadMatrix (SCE_MAT_OBJECT, sce_matrix4_id);
+        SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
     }
 
     if (flags & SCE_DEFERRED_USE_SHADOWS)
