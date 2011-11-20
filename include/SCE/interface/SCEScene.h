@@ -33,6 +33,7 @@
 #include "SCE/interface/SCESceneEntity.h"
 #include "SCE/interface/SCEModel.h"
 #include "SCE/interface/SCESkybox.h"
+#include "SCE/interface/SCESprite.h"
 #include "SCE/interface/SCEDeferred.h"
 
 #ifdef __cplusplus
@@ -109,6 +110,7 @@ struct sce_sscene {
     SCE_SList entities;         /**< Scene's entities */
     SCE_SList lights;           /**< Scene's lights list */
     SCE_SList cameras;          /**< Cameras in the scene */
+    SCE_SList sprites;          /**< Scene's sprites */
 
     /** Color buffer clear values */
     float rclear, gclear, bclear, aclear;
@@ -151,6 +153,8 @@ void SCE_Scene_RemoveModel (SCE_SScene*, SCE_SModel*);
 /*int SCE_Scene_AddEntityGroup (SCE_SScene*, SCE_SSceneEntityGroup*);*/
 void SCE_Scene_AddLight (SCE_SScene*, SCE_SLight*);
 void SCE_Scene_AddCamera (SCE_SScene*, SCE_SCamera*);
+void SCE_Scene_AddSprite (SCE_SScene*, SCE_SSprite*);
+void SCE_Scene_RemoveSprite (SCE_SScene*, SCE_SSprite*);
 
 void SCE_Scene_AddResource (SCE_SScene*, SCE_ESceneResourceGroup,
                             SCE_SSceneResource*);

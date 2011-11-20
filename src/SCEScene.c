@@ -171,6 +171,8 @@ static void SCE_Scene_Init (SCE_SScene *scene)
     SCE_List_SetFreeFunc2 (&scene->lights, SCE_Scene_RemoveLightNode, scene);
     SCE_List_Init (&scene->cameras);
     SCE_List_SetFreeFunc2 (&scene->cameras, SCE_Scene_RemoveCameraNode, scene);
+    SCE_List_Init (&scene->sprites);
+    /* TODO: remove sprite node? */
 
     scene->rclear = scene->gclear = scene->bclear = scene->aclear = 0.5;
     scene->dclear = 1.0;
@@ -668,6 +670,30 @@ void SCE_Scene_AddCamera (SCE_SScene *scene, SCE_SCamera *camera)
     SCE_Scene_AddNode (scene, node);
 }
 
+
+/**
+ * \brief Adds a sprite to a scene
+ * \param scene a scene
+ * \param sprite a sprite
+ */
+void SCE_Scene_AddSprite (SCE_SScene *scene, SCE_SSprite *sprite)
+{
+    /* only render in standard render mode */
+    SCE_SceneEntity_RemoveState (SCE_Sprite_GetEntity (sprite),
+                                 SCE_SCENE_SHADOW_MAP_STATE);
+    SCE_List_Appendl (&scene->sprites, SCE_Sprite_GetIterator (sprite));
+}
+/**
+ * \brief Removes a sprite from a scene
+ * \param scene a scene
+ * \param sprite a sprite
+ */
+void SCE_Scene_RemoveSprite (SCE_SScene *scene, SCE_SSprite *sprite)
+{
+    SCE_List_Remove (SCE_Sprite_GetIterator (sprite));
+}
+
+
 /**
  * \brief Adds a resource to a scene
  * \param scene a scene
@@ -1093,6 +1119,18 @@ static void SCE_Scene_RenderEntities (SCE_SScene *scene, SCE_SList *entities)
     SCE_Shader_Use (NULL);
 }
 
+static void SCE_Scene_RenderSprites (SCE_SScene *scene, SCE_SList *sprites)
+{
+    SCE_SListIterator *it;
+    SCE_List_ForEach (it, sprites) {
+        SCE_Sprite_Render (SCE_List_GetData (it), scene->state->camera,
+                           scene->state->state);
+    }
+    SCE_Texture_Flush ();
+    SCE_Material_Use (NULL);
+    SCE_Shader_Use (NULL);
+}
+
 static void SCE_Scene_RenderSkybox (SCE_SScene *scene, SCE_SCamera *cam)
 {
     SCE_SSceneEntity *entity = SCE_Skybox_GetEntity (scene->state->skybox);
@@ -1156,6 +1194,8 @@ static void SCE_Scene_ForwardRender (SCE_SScene *scene, SCE_SCamera *cam,
 
     SCE_Light_Use (NULL);
     SCE_Light_ActivateLighting (SCE_FALSE);
+
+    SCE_Scene_RenderSprites (scene, &scene->sprites);
 
     if (target)
         SCE_Texture_RenderTo (NULL, 0);
@@ -1739,8 +1779,13 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
         entity->props.depthrange[1] = 1.0 - SCE_EPSILONF;
         SCE_RActivateDepthBuffer (SCE_FALSE);
         SCE_Scene_RenderSkybox (scene, cam);
-        SCE_RActivateDepthBuffer (SCE_TRUE);
+        /* dont reactivate depth buffer, it will be done a few lines below */
     }
+
+    /* render sprites */
+    SCE_RActivateDepthBuffer (SCE_FALSE);
+    SCE_Scene_RenderSprites (scene, &scene->sprites);
+    SCE_RActivateDepthBuffer (SCE_TRUE);
 
     if (target)
         SCE_Texture_RenderTo (NULL, 0);
