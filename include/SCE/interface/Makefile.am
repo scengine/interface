@@ -12,5 +12,6 @@ sce_include_interface_HEADERS = SCEBatch.h \
                                 SCEScene.h \
                                 SCESceneResource.h \
                                 SCESkybox.h \
+                                SCESprite.h \
                                 SCEModel.h \
                                 SCEInterface.h

@@ -13,6 +13,7 @@ libsceinterface_la_SOURCES = SCELight.c \
                              SCEShaders.c \
                              SCESceneEntity.c \
                              SCESkybox.c \
+                             SCESprite.c \
                              SCEModel.c \
                              SCEDeferred.c \
                              SCEScene.c \
