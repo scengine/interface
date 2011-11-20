@@ -682,19 +682,24 @@ void SCE_Texture_Blit (SCE_SIntRect *rdst, SCE_STexture *dst,
 }
 
 /* fonction de rendu d'un quad pour la fonction Blitf() */
-static void SCE_Texture_RenderQuad (SCE_SFloatRect *r)
+static void SCE_Texture_RenderQuad (SCE_SFloatRect *dst, SCE_SFloatRect *src)
 {
     SCE_TMatrix4 mat;
     /* mise en place des matrices */
-    if (r) {
-        SCE_Quad_MakeMatrixFromRectanglef (mat, r);
+    if (src) {
+        SCE_Quad_MakeMatrixFromRectanglef (mat, src);
         SCE_RLoadMatrix (SCE_MAT_TEXTURE, mat);
     }
     SCE_RLoadMatrix (SCE_MAT_CAMERA, sce_matrix4_id);
     SCE_RLoadMatrix (SCE_MAT_OBJECT, sce_matrix4_id);
     SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
 
-    SCE_Quad_Draw (-1., -1., 2., 2.);
+    if (dst)
+        SCE_Quad_Draw (dst->p1[0] * 2.0 - 1.0, dst->p1[1] * 2.0 - 1.0,
+                       SCE_Rectangle_GetWidthf (dst) * 2.0,
+                       SCE_Rectangle_GetHeightf (dst) * 2.0);
+    else
+        SCE_Quad_Draw (-1.0, -1.0, 2.0, 2.0);
 }
 static void SCE_Texture_Set (SCE_STexture*);
 /**
@@ -718,27 +723,28 @@ static void SCE_Texture_Set (SCE_STexture*);
 void SCE_Texture_Blitf (SCE_SFloatRect *rdst, SCE_STexture *dst,
                         SCE_SFloatRect *rsrc, SCE_STexture *src)
 {
-    int w = 1, h = 1;
     int unit;
 
-    if (dst && !dst->fb[0]) {
-        dst->fb[0] = SCE_RCreateFramebuffer ();
-        if (!dst->fb[0]) {
-            SCEE_LogSrc ();
-            return; /* \o/ */
-        }
-        SCE_RAddRenderTexture (dst->fb[0], SCE_COLOR_BUFFER, 0,
-                               dst->tex, 0, SCE_FALSE);
-    }
     if (dst) {
-        w = SCE_Texture_GetWidth (dst, 0, 0);
-        h = SCE_Texture_GetHeight (dst, 0, 0);
+        if (!dst->fb[0]) {
+            dst->fb[0] = SCE_RCreateFramebuffer ();
+            if (!dst->fb[0]) {
+                SCEE_LogSrc ();
+                return; /* \o/ */
+            }
+            SCE_RAddRenderTexture (dst->fb[0], SCE_COLOR_BUFFER, 0,
+                                   dst->tex, 0, SCE_FALSE);
+        }
+        SCE_Texture_RenderTo (dst, 0);
+        if (rdst) {
+            int w, h;
+            w = SCE_Texture_GetWidth (dst, 0, 0);
+            h = SCE_Texture_GetHeight (dst, 0, 0);
+            SCE_RViewport (rdst->p1[0] * w, rdst->p1[1] * h,
+                           SCE_Rectangle_GetWidthf (rdst) * w,
+                           SCE_Rectangle_GetHeightf (rdst) * h);
+        }
     }
-    SCE_Texture_RenderTo (dst, 0);
-    if (rdst)
-        SCE_RViewport (rdst->p1[0] * w, rdst->p1[1] * h,
-                       SCE_Rectangle_GetWidthf (rdst) * w,
-                       SCE_Rectangle_GetHeightf (rdst) * h);
 
     SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_FALSE);
     SCE_RActivateDepthBuffer (SCE_FALSE);
@@ -748,7 +754,7 @@ void SCE_Texture_Blitf (SCE_SFloatRect *rdst, SCE_STexture *dst,
         SCE_Texture_Set (src);
     }
 
-    SCE_Texture_RenderQuad (rsrc);
+    SCE_Texture_RenderQuad (dst ? NULL : rdst, rsrc);
 
     if (src) {
         SCE_RUseTexture (NULL, unit);
