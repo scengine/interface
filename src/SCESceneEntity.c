@@ -131,6 +131,8 @@ void SCE_SceneEntity_InitProperties (SCE_SSceneEntityProperties *props)
     props->depthtest = SCE_TRUE;
     props->depthmode = SCE_LESS;
     props->alphatest = SCE_FALSE;
+    props->alphafunc = SCE_LESS;
+    props->alpharef = 0.01;
     props->depthscale = SCE_FALSE;
     props->depthrange[0] = 0.0;
     props->depthrange[1] = 1.0;
@@ -844,6 +846,8 @@ void SCE_SceneEntity_ApplyProperties (SCE_SSceneEntity *entity)
     SCE_RSetState (GL_DEPTH_TEST, entity->props.depthtest);
     SCE_RSetValidPixels (entity->props.depthmode);
     SCE_RSetState (GL_ALPHA_TEST, entity->props.alphatest);
+    if (entity->props.alphatest)
+        SCE_RSetAlphaFunc (entity->props.alphafunc, entity->props.alpharef);
     if (entity->props.depthscale)
         SCE_RDepthRange (entity->props.depthrange[0],
                          entity->props.depthrange[1]);

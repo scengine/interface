@@ -49,6 +49,8 @@ struct sce_ssceneentityproperties {
     unsigned int depthtest:1;
     int depthmode;
     unsigned int alphatest:1;
+    SCEenum alphafunc;
+    float alpharef;
     unsigned int depthscale:1;
     float depthrange[2];
 };
