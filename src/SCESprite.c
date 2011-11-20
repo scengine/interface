@@ -30,6 +30,7 @@ void SCE_Sprite_Init (SCE_SSprite *sprite)
     sprite->shader = NULL;
     sprite->texture = NULL;
     sprite->node = NULL;
+    sprite->reduce = SCE_FALSE;
     SCE_List_InitIt (&sprite->it);
     SCE_List_SetData (&sprite->it, sprite);
 }
@@ -120,26 +121,41 @@ void SCE_Sprite_ActivateOcclusion (SCE_SSprite *sprite, int a)
     }
 }
 
+void SCE_Sprite_Reduce (SCE_SSprite *sprite, int r)
+{
+    sprite->reduce = r;
+}
+
 
 void SCE_Sprite_Render (const SCE_SSprite *sprite, const SCE_SCamera *cam,
                         SCEuint state)
 {
     if (SCE_SceneEntity_MatchState (sprite->entity, state)) {
+        float inv;
         SCE_TVector3 pos;
-        int screen_w, screen_h, w, h;
         SCE_SFloatRect r;
+        int screen_w, screen_h;
 
         screen_w = SCE_Camera_GetViewport ((SCE_SCamera*)cam)->w;
         screen_h = SCE_Camera_GetViewport ((SCE_SCamera*)cam)->h;
-        w = SCE_Texture_GetWidth (sprite->texture, 0, 0);
-        h = SCE_Texture_GetHeight (sprite->texture, 0, 0);
         SCE_Matrix4_GetTranslation (SCE_Node_GetFinalMatrix(sprite->node),pos);
-        SCE_Camera_Project ((SCE_SCamera*)cam, pos);
+        inv = SCE_Camera_Project ((SCE_SCamera*)cam, pos);
 
         pos[0] = pos[0] * 0.5 + 0.5;
         pos[1] = pos[1] * 0.5 + 0.5;
-        SCE_Rectangle_SetFromCenterfv (&r, pos,
-                                       (float)w/screen_w, (float)h/screen_h);
+
+        if (sprite->reduce) {
+            SCE_TVector3 scale;
+            SCE_Matrix4_GetScale (SCE_Node_GetFinalMatrix(sprite->node),scale);
+            SCE_Rectangle_SetFromCenterfv (&r, pos, scale[0]*inv, scale[1]*inv
+                                           * (float)screen_w / screen_h);
+        } else {
+            int w, h;
+            w = SCE_Texture_GetWidth (sprite->texture, 0, 0);
+            h = SCE_Texture_GetHeight (sprite->texture, 0, 0);
+            SCE_Rectangle_SetFromCenterfv (&r, pos,
+                                           (float)w/screen_w, (float)h/screen_h);
+        }
 
         SCE_SceneEntity_UseResources (sprite->entity);
         /* FIXME: redundant call to SCE_Texture_Use() */

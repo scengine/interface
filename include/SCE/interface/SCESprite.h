@@ -37,6 +37,7 @@ struct sce_ssprite {
     SCE_SShader *shader;
     SCE_STexture *texture;
     SCE_SNode *node;
+    int reduce;
     SCE_SListIterator it;
 };
 
@@ -55,6 +56,7 @@ SCE_SNode* SCE_Sprite_GetNode (SCE_SSprite*);
 SCE_SListIterator* SCE_Sprite_GetIterator (SCE_SSprite*);
 
 void SCE_Sprite_ActivateOcclusion (SCE_SSprite*, int);
+void SCE_Sprite_Reduce (SCE_SSprite*, int);
 
 void SCE_Sprite_Render (const SCE_SSprite*, const SCE_SCamera*, SCEuint);
 
