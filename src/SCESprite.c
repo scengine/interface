@@ -79,6 +79,7 @@ void SCE_Sprite_SetShader (SCE_SSprite *sprite, SCE_SShader *shader)
 }
 void SCE_Sprite_SetTexture (SCE_SSprite *sprite, SCE_STexture *texture)
 {
+#if 0
     if (sprite->texture) {
         SCE_SceneEntity_RemoveTexture (sprite->entity, sprite->texture);
         SCE_Texture_Delete (sprite->texture);
@@ -86,6 +87,9 @@ void SCE_Sprite_SetTexture (SCE_SSprite *sprite, SCE_STexture *texture)
     }
     sprite->texture = texture;
     SCE_SceneEntity_AddTexture (sprite->entity, texture);
+#else
+    sprite->texture = texture;
+#endif
 }
 
 SCE_SSceneEntity* SCE_Sprite_GetEntity (SCE_SSprite *sprite)
@@ -162,7 +166,6 @@ void SCE_Sprite_Render (const SCE_SSprite *sprite, const SCE_SCamera *cam,
         prop->depthrange[0] = prop->depthrange[1] = pos[2] * 0.5 + 0.5;
         prop->depthscale = SCE_TRUE;
         SCE_SceneEntity_UseResources (sprite->entity);
-        /* FIXME: redundant call to SCE_Texture_Use() */
         SCE_Texture_GenericBlit (&r, NULL, NULL, sprite->texture, SCE_FALSE);
         SCE_SceneEntity_UnuseResources (sprite->entity);
     }
