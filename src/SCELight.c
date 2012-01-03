@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 13/03/2008
-   updated: 17/08/2011 */
+   updated: 03/01/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -140,6 +140,10 @@ void SCE_Light_GetColorv (SCE_SLight *light, float *c)
     SCE_RGetLightColorv (light->clight, c);
 }
 
+void SCE_Light_SetMatrix (SCE_SLight *light, const SCE_TMatrix4 mat)
+{
+    SCE_Node_SetMatrix (light->node, mat);
+}
 void SCE_Light_SetPosition (SCE_SLight *light, float x, float y, float z)
 {
     SCE_TVector3 pos;
