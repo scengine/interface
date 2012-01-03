@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2008
-   updated: 14/11/2011 */
+   updated: 03/01/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -1782,6 +1782,9 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
     SCE_Texture_Flush ();
     SCE_RSetState (GL_CULL_FACE, SCE_TRUE);
 
+    /* render sprites */
+    SCE_Scene_RenderSprites (scene, &scene->sprites);
+
     /* render skybox */
     if (scene->state->skybox) {
         SCE_SSceneEntity *entity = SCE_Skybox_GetEntity (scene->state->skybox);
@@ -1792,13 +1795,8 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
         entity->props.depthrange[1] = 1.0 - SCE_EPSILONF;
         SCE_RActivateDepthBuffer (SCE_FALSE);
         SCE_Scene_RenderSkybox (scene, cam);
-        /* dont reactivate depth buffer, it will be done a few lines below */
+        SCE_RActivateDepthBuffer (SCE_TRUE);
     }
-
-    /* render sprites */
-    SCE_RActivateDepthBuffer (SCE_FALSE);
-    SCE_Scene_RenderSprites (scene, &scene->sprites);
-    SCE_RActivateDepthBuffer (SCE_TRUE);
 
     if (target)
         SCE_Texture_RenderTo (NULL, 0);
