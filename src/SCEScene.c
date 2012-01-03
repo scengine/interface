@@ -306,6 +306,19 @@ SCE_SNode* SCE_Scene_GetRootNode (SCE_SScene *scene)
     return scene->rootnode;
 }
 
+SCE_SMesh* SCE_Scene_GetBoxMesh (SCE_SScene *scene)
+{
+    return scene->bbmesh;
+}
+SCE_SMesh* SCE_Scene_GetSphereMesh (SCE_SScene *scene)
+{
+    return scene->bsmesh;
+}
+SCE_SMesh* SCE_Scene_GetConeMesh (SCE_SScene *scene)
+{
+    return scene->bcmesh;
+}
+
 
 /* called when a node has moved */
 void SCE_Scene_OnNodeMoved (SCE_SNode *node, void *param)

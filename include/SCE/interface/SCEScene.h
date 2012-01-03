@@ -133,6 +133,9 @@ SCE_SScene* SCE_Scene_Create (void);
 void SCE_Scene_Delete (SCE_SScene*);
 
 SCE_SNode* SCE_Scene_GetRootNode (SCE_SScene*);
+SCE_SMesh* SCE_Scene_GetBoxMesh (SCE_SScene*);
+SCE_SMesh* SCE_Scene_GetSphereMesh (SCE_SScene*);
+SCE_SMesh* SCE_Scene_GetConeMesh (SCE_SScene*);
 
 void SCE_Scene_OnNodeMoved (SCE_SNode*, void*);
 
