@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 20/11/2011
-   updated: 20/11/2011 */
+   updated: 03/01/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -135,6 +135,7 @@ void SCE_Sprite_Render (const SCE_SSprite *sprite, const SCE_SCamera *cam,
         SCE_TVector3 pos;
         SCE_SFloatRect r;
         int screen_w, screen_h;
+        SCE_SSceneEntityProperties *prop = NULL;
 
         screen_w = SCE_Camera_GetViewport ((SCE_SCamera*)cam)->w;
         screen_h = SCE_Camera_GetViewport ((SCE_SCamera*)cam)->h;
@@ -157,9 +158,12 @@ void SCE_Sprite_Render (const SCE_SSprite *sprite, const SCE_SCamera *cam,
                                            (float)w/screen_w, (float)h/screen_h);
         }
 
+        prop = SCE_SceneEntity_GetProperties (sprite->entity);
+        prop->depthrange[0] = prop->depthrange[1] = pos[2] * 0.5 + 0.5;
+        prop->depthscale = SCE_TRUE;
         SCE_SceneEntity_UseResources (sprite->entity);
         /* FIXME: redundant call to SCE_Texture_Use() */
-        SCE_Texture_Blitf (&r, NULL, NULL, sprite->texture);
+        SCE_Texture_GenericBlit (&r, NULL, NULL, sprite->texture, SCE_FALSE);
         SCE_SceneEntity_UnuseResources (sprite->entity);
     }
 }
