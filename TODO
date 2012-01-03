@@ -99,5 +99,6 @@ See the file ./doc/html/todo.html
 - Allow double-build of meshes (call Mesh_Build() more than once).
 - Fix skyboxes problem
 - Multi-threaded particles (treat range of particles).
+- Adaptive LOD when objects are partially occluded.
 
-54
+55
