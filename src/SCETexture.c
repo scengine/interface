@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 11/03/2007
-   updated: 01/09/2011 */
+   updated: 03/01/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -708,6 +708,8 @@ static void SCE_Texture_Set (SCE_STexture*);
  * \param dst the texture where blit
  * \param rsrc the rectangle which defines the area to blit
  * \param src the texture to blit (can be NULL)
+ * \param states if true, setup some states for proper blitting,
+ * like disabling depth test and face culling
  *
  * If \p dst doesn't have a frame buffer, a frame buffer is created and added to
  * \p dst, the frame buffer created has only one render target that is
@@ -720,8 +722,9 @@ static void SCE_Texture_Set (SCE_STexture*);
  * \todo add blit to cube maps (use the 2nd parameter of RenderTo())
  * \todo this function maybe change some states
  */
-void SCE_Texture_Blitf (SCE_SFloatRect *rdst, SCE_STexture *dst,
-                        SCE_SFloatRect *rsrc, SCE_STexture *src)
+void SCE_Texture_GenericBlit (SCE_SFloatRect *rdst, SCE_STexture *dst,
+                              SCE_SFloatRect *rsrc, SCE_STexture *src,
+                              int states)
 {
     int unit;
 
@@ -746,8 +749,10 @@ void SCE_Texture_Blitf (SCE_SFloatRect *rdst, SCE_STexture *dst,
         }
     }
 
-    SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_FALSE);
-    SCE_RActivateDepthBuffer (SCE_FALSE);
+    if (states) {
+        SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_FALSE);
+        SCE_RActivateDepthBuffer (SCE_FALSE);
+    }
     if (src) {
         unit = src->unit;
         src->unit = 0;
@@ -760,8 +765,10 @@ void SCE_Texture_Blitf (SCE_SFloatRect *rdst, SCE_STexture *dst,
         SCE_RUseTexture (NULL, unit);
         src->unit = unit;
     }
-    SCE_RActivateDepthBuffer (SCE_TRUE);
-    SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_TRUE);
+    if (states) {
+        SCE_RActivateDepthBuffer (SCE_TRUE);
+        SCE_RSetState2 (GL_DEPTH_TEST, GL_CULL_FACE, SCE_TRUE);
+    }
 
     /* restores viewport too */
     SCE_Texture_RenderTo (NULL, 0);
@@ -773,6 +780,12 @@ static void SCE_Texture_Set (SCE_STexture *tex)
     SCE_RUseTexture (tex->tex, tex->unit);
     /* force matrix initialisation */
     SCE_RLoadMatrix (SCE_MAT_TEXTURE, tex->matrix);
+}
+
+void SCE_Texture_Blitf (SCE_SFloatRect *rdst, SCE_STexture *dst,
+                        SCE_SFloatRect *rsrc, SCE_STexture *src)
+{
+    SCE_Texture_GenericBlit (rdst, dst, rsrc, src, SCE_TRUE);
 }
 
 /**

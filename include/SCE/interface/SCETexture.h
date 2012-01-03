@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 11/03/2007
-   updated: 12/07/2009 */
+   updated: 03/01/2012 */
 
 #ifndef SCETEXTURE_H
 #define SCETEXTURE_H
@@ -134,6 +134,8 @@ SCE_STexture* SCE_Texture_Load (int, int, int, int, int, ...);
 int SCE_Texture_AddRenderCTexture (SCE_STexture*, int, SCE_RTexture*);
 int SCE_Texture_AddRenderTexture (SCE_STexture*, int, SCE_STexture*);
 
+void SCE_Texture_GenericBlit (SCE_SFloatRect*, SCE_STexture*,
+                              SCE_SFloatRect*, SCE_STexture*, int);
 void SCE_Texture_Blit (SCE_SIntRect*, SCE_STexture*,
                        SCE_SIntRect*, SCE_STexture*);
 void SCE_Texture_Blitf (SCE_SFloatRect*, SCE_STexture*,
