@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 03/11/2008 
-   updated: 12/11/2011 */
+   updated: 10/01/2012 */
 
 #ifndef SCESCENEENTITY_H
 #define SCESCENEENTITY_H
@@ -53,6 +53,7 @@ struct sce_ssceneentityproperties {
     float alpharef;
     unsigned int depthscale:1;
     float depthrange[2];
+    unsigned int pickable:1;
 };
 
 /** \copydoc sce_ssceneentityinstance */

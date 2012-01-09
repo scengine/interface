@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 03/11/2008
-   updated: 10/11/2011 */
+   updated: 10/01/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -136,6 +136,7 @@ void SCE_SceneEntity_InitProperties (SCE_SSceneEntityProperties *props)
     props->depthscale = SCE_FALSE;
     props->depthrange[0] = 0.0;
     props->depthrange[1] = 1.0;
+    props->pickable = SCE_TRUE;
 }
 
 void SCE_SceneEntity_Init (SCE_SSceneEntity *entity)

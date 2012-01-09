@@ -1970,13 +1970,17 @@ static void SCE_Scene_PickClosest (SCE_SSceneOctree *stree, SCE_SPickResult *r)
     for (i = 0; i < 3; i++) {
         insts = stree->instances[i];
         SCE_List_ForEach (it, insts) {
+            SCE_SSceneEntity *entity = NULL;
             inst = SCE_List_GetData (it);
-            box = SCE_SceneEntity_PushInstanceBB (inst, &tmp);
-            if (SCE_Collide_BBWithLine (box, &r->line)) {
-                if (ClosestPointIsCloser (box, r))
-                    UpdateClosest (inst, r);
+            entity = SCE_SceneEntity_GetInstanceEntity (inst);
+            if (SCE_SceneEntity_GetProperties (entity)->pickable) {
+                box = SCE_SceneEntity_PushInstanceBB (inst, &tmp);
+                if (SCE_Collide_BBWithLine (box, &r->line)) {
+                    if (ClosestPointIsCloser (box, r))
+                        UpdateClosest (inst, r);
+                }
+                SCE_SceneEntity_PopInstanceBB (inst, &tmp);
             }
-            SCE_SceneEntity_PopInstanceBB (inst, &tmp);
         }
     }
 }
