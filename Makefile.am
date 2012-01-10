@@ -5,6 +5,6 @@ EXTRA_DIST = $(pkgconfig_DATA)
 .PHONY: doc
 
 doc:
-	@DOC_TARGET@
+	@SCE_DOC_TARGET@
 
-ACLOCAL_AMFLAGS = -I build/m4
+ACLOCAL_AMFLAGS = -I build/m4 -I build

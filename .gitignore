@@ -1,8 +1,10 @@
 # aututools specific generated files/dirs
-build/
+build/aux/
+build/m4/
 .deps/
 .libs/
 autom4te.cache/
+aclocal.m4
 configure
 libtool
 Makefile
@@ -12,7 +14,6 @@ config.*
 *.stamp
 
 # may be removed if some .m4 or .make became manually generated
-*.m4
 *.make
 
 # generated files suffixes
