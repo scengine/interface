@@ -343,6 +343,17 @@ void SCE_SceneEntity_AddInstance (SCE_SSceneEntityGroup *group,
     SCE_SceneEntity_AddInstanceToEntity (entity, einst);
     SCE_SceneEntity_SetInstanceDataFromEntity (einst, entity);
 }
+/**
+ * \brief Removes an instance from its group
+ * \param einst an instance
+ * \sa SCE_SceneEntity_AddInstance()
+ */
+void SCE_SceneEntity_RemoveInstance (SCE_SSceneEntityInstance *einst)
+{
+    SCE_SceneEntity_RemoveInstanceFromEntity (einst);
+    einst->entity = NULL;
+    einst->group = NULL;
+}
 
 /**
  * \brief Defines the entity of the given instance and adds its geometry

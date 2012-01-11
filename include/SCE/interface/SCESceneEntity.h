@@ -140,6 +140,7 @@ void SCE_SceneEntity_SetInstanceDataFromEntity (SCE_SSceneEntityInstance*,
                                                 SCE_SSceneEntity*);
 void SCE_SceneEntity_AddInstance (SCE_SSceneEntityGroup*,
                                   SCE_SSceneEntityInstance*);
+void SCE_SceneEntity_RemoveInstance (SCE_SSceneEntityInstance*);
 void SCE_SceneEntity_AddInstanceToEntity (SCE_SSceneEntity*,
                                           SCE_SSceneEntityInstance*);
 void SCE_SceneEntity_ReplaceInstanceToEntity (SCE_SSceneEntityInstance*);
