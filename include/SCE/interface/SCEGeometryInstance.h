@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 25/10/2008
-   updated: 02/11/2009 */
+   updated: 10/01/2012 */
 
 #ifndef SCEINSTANCING_H
 #define SCEINSTANCING_H
@@ -96,6 +96,7 @@ void SCE_Instance_SetHwCallback (SCE_SGeometryInstanceGroup*,
 void SCE_Instance_AddInstance (SCE_SGeometryInstanceGroup*,
                                SCE_SGeometryInstance*);
 void SCE_Instance_RemoveInstance (SCE_SGeometryInstance*);
+void SCE_Instance_RemoveInstanceSafe (SCE_SGeometryInstance*);
 
 void SCE_Instance_FlushInstancesList (SCE_SGeometryInstanceGroup*);
 int SCE_Instance_HasInstances (SCE_SGeometryInstanceGroup*);

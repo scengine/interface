@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 25/10/2008
-   updated: 20/06/2011 */
+   updated: 10/01/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -163,14 +163,30 @@ void SCE_Instance_AddInstance (SCE_SGeometryInstanceGroup *group,
     group->n_instances++;
 }
 /**
+ * \internal
  * \brief Removes an instance from its group
  * \param inst the instance to remove
+ * \warning Do not use this function, internal use only, use
+ * SCE_Instance_RemoveInstanceSafe() instead.
+ * \sa SCE_Instance_RemoveInstanceSafe()
  */
 void SCE_Instance_RemoveInstance (SCE_SGeometryInstance *inst)
 {
     SCE_List_Removel (&inst->it);
     inst->group->n_instances--;
     inst->group = NULL;
+}
+/**
+ * \brief Removes an instance from its group
+ * \param inst the instance to remove
+ */
+void SCE_Instance_RemoveInstanceSafe (SCE_SGeometryInstance *inst)
+{
+    if (inst->group) {
+        SCE_List_Remove (&inst->it);
+        inst->group->n_instances--;
+        inst->group = NULL;
+    }
 }
 
 /**
