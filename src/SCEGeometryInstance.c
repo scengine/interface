@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 25/10/2008
-   updated: 10/01/2012 */
+   updated: 11/01/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -253,6 +253,7 @@ static void SCE_Instance_RenderSimple (SCE_SGeometryInstanceGroup *group)
         SCE_RLoadMatrix (SCE_MAT_OBJECT, SCE_Node_GetFinalMatrix (inst->node));
         SCE_Mesh_Render ();
     }
+    SCE_Mesh_Unuse ();
 }
 
 static void SCE_Instance_RenderPseudo (SCE_SGeometryInstanceGroup *group)
@@ -274,6 +275,7 @@ static void SCE_Instance_RenderPseudo (SCE_SGeometryInstanceGroup *group)
         glVertexAttrib4fv (group->attrib3, &final[8]);
         SCE_Mesh_Render ();
     }
+    SCE_Mesh_Unuse ();
 }
 
 static void SCE_Instance_RenderHardware (SCE_SGeometryInstanceGroup *group)
@@ -293,6 +295,7 @@ static void SCE_Instance_RenderHardware (SCE_SGeometryInstanceGroup *group)
         group->hwfunc (&it, rem);
         SCE_Mesh_RenderInstanced (rem);
     }
+    SCE_Mesh_Unuse ();
 }
 
 /**
