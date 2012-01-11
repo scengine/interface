@@ -50,7 +50,6 @@ struct sce_slight {
     SCE_RLight *clight; /* lumiere coeur */
     SCE_ELightType type;
     float intensity;    /* coefficient d'intensite */
-    float radius;       /* rayon de portee de la lumiere */
     int activated;      /* defini si la lumiere est active */
     SCE_SBoundingSphere sphere; /**< Bounding sphere (if point) */
     SCE_SCone cone;             /**< Cone (if spot) */

@@ -32,11 +32,10 @@ void SCE_Light_Init (SCE_SLight *light)
     light->clight = NULL;       /* TODO: bouh */
     light->type = SCE_POINT_LIGHT;
     light->intensity = 1.0f;
-    light->radius = 16.0f;
     light->activated = SCE_TRUE;
     light->node = NULL;
     SCE_BoundingSphere_Init (&light->sphere);
-    SCE_BoundingSphere_GetSphere (&light->sphere)->radius = light->radius;
+    SCE_BoundingSphere_GetSphere (&light->sphere)->radius = 1.0;
     SCE_Cone_Init (&light->cone);
     light->attenuation = 1.0;
     light->cast_shadows = SCE_FALSE;
@@ -272,19 +271,18 @@ float SCE_Light_GetHeight (SCE_SLight *light)
 
 void SCE_Light_SetRadius (SCE_SLight *light, float radius)
 {
-    light->radius = radius;
-    SCE_BoundingSphere_GetSphere (&light->sphere)->radius = light->radius;
-    if (radius > 1.0f)                      /* 3 gives good results */
-        SCE_RSetLightQuadraticAtt (light->clight, 3.0f/radius);
-    else if (radius <= 0.0f) {
-        SCE_RSetLightQuadraticAtt (light->clight, 0.0f);
-        SCE_RSetLightLinearAtt (light->clight, 0.0f);
-    } else
-        SCE_RSetLightLinearAtt (light->clight, 12.0f/radius);
+    float *mat = SCE_Node_GetMatrix (light->node, SCE_NODE_WRITE_MATRIX);
+    SCE_Matrix4_SetScale (mat, radius, radius, radius);
+    SCE_BoundingSphere_GetSphere (&light->sphere)->radius = radius;
 }
 float SCE_Light_GetRadius (SCE_SLight *light)
 {
-    return light->radius;
+    SCE_TVector3 scale;
+    float s;
+    SCE_Matrix4_GetScale (SCE_Node_GetFinalMatrix (light->node), scale);
+    s = MAX (scale[0], scale[1]);
+    s = MAX (s, scale[2]);
+    return s;
 }
 
 
@@ -301,6 +299,16 @@ void SCE_Light_Use (SCE_SLight *light)
 
     if (light && light->activated) {
         SCE_TVector3 pos, dir;
+        float radius = SCE_Light_GetRadius (light);
+
+        if (radius > 1.0f)                         /* 3 gives good results */
+            SCE_RSetLightQuadraticAtt (light->clight, 3.0f/radius);
+        else if (radius <= 0.0f) {
+            SCE_RSetLightQuadraticAtt (light->clight, 0.0f);
+            SCE_RSetLightLinearAtt (light->clight, 0.0f);
+        } else
+            SCE_RSetLightLinearAtt (light->clight, 12.0f/radius);
+
         SCE_Light_GetPositionv (light, pos);
         SCE_Light_GetOrientationv (light, dir);
         SCE_RSetLightPositionv (light->clight, pos);
