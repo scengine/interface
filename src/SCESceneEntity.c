@@ -373,7 +373,7 @@ void SCE_SceneEntity_ReplaceInstanceToEntity (SCE_SSceneEntityInstance *einst)
  */
 void SCE_SceneEntity_RemoveInstanceFromEntity (SCE_SSceneEntityInstance *einst)
 {
-    SCE_Instance_RemoveInstance (einst->instance);
+    SCE_Instance_RemoveInstanceSafe (einst->instance);
 }
 
 /**
