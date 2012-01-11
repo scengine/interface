@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 13/03/2008
-   updated: 03/01/2012 */
+   updated: 11/01/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -261,11 +261,18 @@ float SCE_Light_GetIntensity (SCE_SLight *light)
     return light->intensity;
 }
 
+void SCE_Light_SetHeight (SCE_SLight *light, float height)
+{
+    SCE_Cone_SetHeight (&light->cone, height);
+}
+float SCE_Light_GetHeight (SCE_SLight *light)
+{
+    return SCE_Cone_GetHeight (&light->cone);
+}
+
 void SCE_Light_SetRadius (SCE_SLight *light, float radius)
 {
     light->radius = radius;
-    /* :> */
-    SCE_Cone_SetHeight (&light->cone, radius);
     SCE_BoundingSphere_GetSphere (&light->sphere)->radius = light->radius;
     if (radius > 1.0f)                      /* 3 gives good results */
         SCE_RSetLightQuadraticAtt (light->clight, 3.0f/radius);

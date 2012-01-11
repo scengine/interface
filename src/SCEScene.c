@@ -1629,7 +1629,7 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
     SCE_Shader_SetParam3fv (shader->lightcolor_loc, 1,
                             SCE_Light_GetColor (light));
     SCE_Shader_SetParamf (shader->lightradius_loc,
-                          SCE_Light_GetRadius (light));
+                          SCE_Light_GetHeight (light));
     /* cosine of the angle, not radians */
     angle = SCE_Math_Cosf (SCE_Light_GetAngle (light));
     SCE_Shader_SetParamf (shader->lightangle_loc, angle);

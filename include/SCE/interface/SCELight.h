@@ -116,6 +116,9 @@ SCE_SDeferredLightingShader* SCE_Light_GetShader (const SCE_SLight*);
 void SCE_Light_SetIntensity (SCE_SLight*, float);
 float SCE_Light_GetIntensity (SCE_SLight*);
 
+void SCE_Light_SetHeight (SCE_SLight*, float);
+float SCE_Light_GetHeight (SCE_SLight*);
+
 void SCE_Light_SetRadius (SCE_SLight*, float);
 float SCE_Light_GetRadius (SCE_SLight*);
 
