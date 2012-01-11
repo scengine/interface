@@ -502,6 +502,10 @@ void SCE_Scene_AddInstance (SCE_SScene *scene, SCE_SSceneEntityInstance *einst)
 void SCE_Scene_RemoveInstance (SCE_SScene *scene,
                                SCE_SSceneEntityInstance *einst)
 {
+    SCE_SNode *node = NULL;
+
+    node = SCE_SceneEntity_GetInstanceNode (einst);
+    SCE_Node_SetOnMovedCallback (node, NULL, NULL);
     SCE_List_Remove (SCE_SceneEntity_GetInstanceIterator1 (einst));
     SCE_Scene_RemoveNodeElement (SCE_SceneEntity_GetInstanceNode (einst));
     SCE_Scene_RemoveNode (scene, SCE_SceneEntity_GetInstanceNode (einst));
