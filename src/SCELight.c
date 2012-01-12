@@ -69,6 +69,7 @@ void SCE_Light_Delete (SCE_SLight *light)
 {
     if (light) {
         SCE_RDeleteLight (light->clight);
+        SCE_List_Remove (&light->it);
         SCE_Node_Delete (light->node);
         SCE_free (light);
     }
