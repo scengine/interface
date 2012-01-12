@@ -8,4 +8,4 @@ Description: Simple C 3D Engine interface library
 Version: @VERSION@
 Requires: sceutils scecore scerenderer
 Libs: -L${libdir} -lsceinterface
-Cflags: -I${includedir} @DEBUG_CFLAGS@
+Cflags: -I${includedir} @SCE_DEBUG_CFLAGS_EXPORT@

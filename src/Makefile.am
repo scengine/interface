@@ -5,7 +5,8 @@ libsceinterface_la_CFLAGS   = @SCE_UTILS_CFLAGS@ \
                               @SCE_CORE_CFLAGS@ \
                               @SCE_RENDERER_CFLAGS@ \
                               @PTHREAD_CFLAGS@ \
-                              @SCE_DEBUG_CFLAGS@
+                              @SCE_DEBUG_CFLAGS@ \
+                              @SCE_DEBUG_CFLAGS_EXPORT@
 libsceinterface_la_LIBADD   = @SCE_UTILS_LIBS@ \
                               @SCE_CORE_LIBS@ \
                               @SCE_RENDERER_LIBS@ \

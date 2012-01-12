@@ -29,12 +29,14 @@ AC_DEFUN([SCE_CHECK_DEBUG],
                   [enable_debug="yes"])
 
     SCE_DEBUG_CFLAGS=
+    SCE_DEBUG_CFLAGS_EXPORT=
 
     dnl normal debugging
     AC_MSG_CHECKING([whether to enable debugging])
     AS_IF([test "x$enable_debug" = "xyes"],
           [AC_DEFINE([SCE_DEBUG], [1], [is debugging enabled])
-           SCE_DEBUG_CFLAGS="$SCE_DEBUG_CFLAGS -DSCE_DEBUG -g"
+           SCE_DEBUG_CFLAGS_EXPORT="$SCE_DEBUG_CFLAGS_EXPORT -DSCE_DEBUG"
+           SCE_DEBUG_CFLAGS="$SCE_DEBUG_CFLAGS -g"
            AC_MSG_RESULT([yes])],
           [DEBUG_CFLAGS=
            AC_MSG_RESULT([no])])
@@ -55,4 +57,5 @@ AC_DEFUN([SCE_CHECK_DEBUG],
           [AC_MSG_RESULT([no])])
 
     AC_SUBST([SCE_DEBUG_CFLAGS])
+    AC_SUBST([SCE_DEBUG_CFLAGS_EXPORT])
 ])
