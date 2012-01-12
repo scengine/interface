@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2008
-   updated: 03/01/2012 */
+   updated: 12/01/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -1228,8 +1228,7 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
 {
     float radius, near, x;
     SCE_TVector3 pos;
-    SCE_SSphere sphere;
-    SCE_SBoundingSphere *bs = NULL;
+    SCE_SBoundingSphere bs;
     SCE_SNode *node = NULL;
     SCE_ELightType type = SCE_POINT_LIGHT;
     SCE_SDeferredLightingShader *shader = NULL;
@@ -1317,25 +1316,25 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
 
     /* get light's position in view space */
     SCE_Light_GetPositionv (light, pos);
+    radius = SCE_Light_GetRadius (light);
+
     SCE_Matrix4_MulV3Copy (SCE_Camera_GetFinalView (cam), pos);
     SCE_Shader_SetParam3fv (shader->lightpos_loc, 1, pos);
     SCE_Shader_SetParam3fv (shader->lightcolor_loc, 1,
                             SCE_Light_GetColor (light));
-    SCE_Shader_SetParamf (shader->lightradius_loc,
-                          SCE_Light_GetRadius (light));
+    SCE_Shader_SetParamf (shader->lightradius_loc, radius);
 
-    bs = SCE_Light_GetBoundingSphere (light);
-    SCE_BoundingSphere_Push (bs, SCE_Node_GetFinalMatrix (node), &sphere);
-    radius = SCE_BoundingSphere_GetRadius (bs);
+    SCE_Light_GetPositionv (light, pos);
+    SCE_BoundingSphere_Setv (&bs, pos, radius);
     /* wrapping sphere around geometry (see SCE_Scene_MakeBoundingVolumes()) */
     x = 1.0 - cos (M_PI / SCE_SCENE_SPHERE_SUBDIV);
     radius *= 1.0f + x / (1.0f - x);
     near = SCE_Camera_GetNear (cam) * 2.0;
     radius += near;
-    SCE_Sphere_SetRadius (SCE_BoundingSphere_GetSphere (bs), radius);
+    SCE_Sphere_SetRadius (SCE_BoundingSphere_GetSphere (&bs), radius);
 
     SCE_Camera_GetPositionv (cam, pos);
-    if (SCE_Collide_BSWithPointv (bs, pos)) {
+    if (SCE_Collide_BSWithPointv (&bs, pos)) {
         SCE_RLoadMatrix (SCE_MAT_CAMERA, sce_matrix4_id);
         SCE_RLoadMatrix (SCE_MAT_OBJECT, sce_matrix4_id);
         SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
@@ -1346,16 +1345,15 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_RSetState (GL_CULL_FACE, SCE_TRUE);
         /* using old radius for rendering, otherwise the mesh could be
            clipped by the near plane, thus resulting in an huge artifact */
-        SCE_Sphere_SetRadius (SCE_BoundingSphere_GetSphere (bs), sphere.radius);
+        SCE_Sphere_SetRadius (SCE_BoundingSphere_GetSphere (&bs),
+                              SCE_Light_GetRadius (light));
 
         SCE_Mesh_Use (scene->bsmesh);
-        SCE_Scene_DrawBS (SCE_BoundingSphere_GetSphere (bs),
+        SCE_Scene_DrawBS (SCE_BoundingSphere_GetSphere (&bs),
                           sce_matrix4_id);
         SCE_Mesh_Unuse ();
         SCE_RSetState (GL_CULL_FACE, SCE_FALSE);
     }
-
-    SCE_BoundingSphere_Pop (bs, &sphere);
 }
 
 
@@ -1772,6 +1770,11 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
 
     /* final pass */
     SCE_Texture_RenderTo (target, cubeface);
+
+    SCE_RLoadMatrix (SCE_MAT_OBJECT, sce_matrix4_id);
+    SCE_RLoadMatrix (SCE_MAT_PROJECTION, sce_matrix4_id);
+    SCE_RLoadMatrix (SCE_MAT_CAMERA, sce_matrix4_id);
+    SCE_RLoadMatrix (SCE_MAT_TEXTURE, sce_matrix4_id);
 
     SCE_RSetState (GL_CULL_FACE, SCE_FALSE);
     glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
