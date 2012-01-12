@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 25/10/2008
-   updated: 11/01/2012 */
+   updated: 12/01/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -53,8 +53,14 @@ SCE_SGeometryInstance* SCE_Instance_Create (void)
 void SCE_Instance_Delete (SCE_SGeometryInstance *inst)
 {
     if (inst) {
+        /* NOTE: actually if frustum culling is enabled (which is the
+           only reason why this code cannot work safely) there is no need
+           to update the number of instances: it will be done in the next
+           frame */
+#if 0
         if (inst->group)
             inst->group->n_instances--;
+#endif
         SCE_List_Remove (&inst->it);
         SCE_free (inst);
     }
