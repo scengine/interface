@@ -1246,8 +1246,7 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
         float coeff;
         SCE_STexture *sm = def->shadowmaps[type]; /* shadow map */
         /* TODO: matrix type */
-        float *mat = SCE_Node_GetMatrix (SCE_Camera_GetNode (def->cam),
-                                         SCE_NODE_WRITE_MATRIX);
+        float *mat = NULL;
 
         /* render shadow map */
         SCE_Camera_SetViewport (def->cam, 0, 0, def->sm_w, def->sm_h);
@@ -1256,6 +1255,7 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
 
         /* attach the camera to the light :) yes, it's that simple */
         SCE_Node_Attach (node, SCE_Camera_GetNode (def->cam));
+        SCE_Node_TransformNoScale (SCE_Camera_GetNode (def->cam));
 
         coeff = 1.0 / SCE_Light_GetRadius (light);
         SCE_Shader_Use (def->shadow_shaders[type]);
@@ -1296,6 +1296,7 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
 
         /* reset camera */
         SCE_Node_Detach (SCE_Camera_GetNode (def->cam));
+        SCE_Node_SetTransformCallback (SCE_Camera_GetNode (def->cam), NULL);
         SCE_Scene_AddNode (scene, SCE_Camera_GetNode (def->cam));
 
         SCE_Shader_Unlock ();
