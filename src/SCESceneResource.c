@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 03/11/2008
-   updated: 17/11/2011 */
+   updated: 13/01/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include "SCE/interface/SCESceneResource.h"
@@ -37,23 +37,16 @@ void SCE_SceneResource_Init (SCE_SSceneResource *res)
 SCE_SSceneResource* SCE_SceneResource_Create (void)
 {
     SCE_SSceneResource *res = NULL;
-    SCE_btstart ();
     if (!(res = SCE_malloc (sizeof *res)))
-        goto fail;
-    SCE_SceneResource_Init (res);
-    SCE_btend ();
+        SCEE_LogSrc ();
+    else
+        SCE_SceneResource_Init (res);
     return res;
-fail:
-    SCE_SceneResource_Delete (res);
-    SCEE_LogSrc ();
-    SCE_btend ();
-    return NULL;
 }
 
 void SCE_SceneResource_Delete (SCE_SSceneResource *res)
 {
-    if (res)
-    {
+    if (res) {
         SCE_SceneResource_RemoveResource (res);
         SCE_List_Clear (&res->owners);
         SCE_free (res);
@@ -79,27 +72,24 @@ SCE_SSceneResourceGroup* SCE_SceneResource_CreateGroup (void)
 {
     SCE_SSceneResourceGroup *group = NULL;
 
-    SCE_btstart ();
     if (!(group = SCE_malloc (sizeof *group)))
-        goto failure;
+        goto fail;
     SCE_SceneResource_InitGroup (group);
     /* don't delete the resources on group deletion */
     if (!(group->resources = SCE_List_Create (
               SCE_SceneResource_YouDontHaveGroup)))
-        goto failure;
-    goto success;
-failure:
-    SCE_SceneResource_DeleteGroup (group), group = NULL;
-    SCEE_LogSrc ();
-success:
-    SCE_btend ();
+        goto fail;
+
     return group;
+fail:
+    SCE_SceneResource_DeleteGroup (group);
+    SCEE_LogSrc ();
+    return NULL;
 }
 
 void SCE_SceneResource_DeleteGroup (SCE_SSceneResourceGroup *group)
 {
-    if (group)
-    {
+    if (group) {
         SCE_List_Delete (group->resources);
         SCE_free (group);
     }

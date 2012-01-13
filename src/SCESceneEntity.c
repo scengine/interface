@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 03/11/2008
-   updated: 10/01/2012 */
+   updated: 13/01/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -66,7 +66,6 @@ SCE_SSceneEntityInstance* SCE_SceneEntity_CreateInstance (void)
 {
     SCE_SSceneEntityInstance *einst = NULL;
 
-    SCE_btstart ();
     if (!(einst = SCE_malloc (sizeof *einst)))
         goto fail;
     SCE_SceneEntity_InitInstance (einst);
@@ -82,14 +81,12 @@ SCE_SSceneEntityInstance* SCE_SceneEntity_CreateInstance (void)
     SCE_Instance_SetData (einst->instance, einst);
     /* set the matrix pointer for the instance */
     SCE_Instance_SetNode (einst->instance, einst->node);
-    goto success;
 
-fail:
-    SCE_SceneEntity_DeleteInstance (einst), einst = NULL;
-    SCEE_LogSrc ();
-success:
-    SCE_btend ();
     return einst;
+fail:
+    SCE_SceneEntity_DeleteInstance (einst);
+    SCEE_LogSrc ();
+    return NULL;
 }
 void SCE_SceneEntity_DeleteInstance (SCE_SSceneEntityInstance *einst)
 {
@@ -162,23 +159,21 @@ SCE_SSceneEntity* SCE_SceneEntity_Create (void)
 {
     SCE_SSceneEntity *entity = NULL;
 
-    SCE_btstart ();
     if (!(entity = SCE_malloc (sizeof *entity)))
-        goto failure;
+        goto fail;
     SCE_SceneEntity_Init (entity);
     if (!(entity->igroup = SCE_Instance_CreateGroup ()))
-        goto failure;
+        goto fail;
     if (!(entity->textures = SCE_List_Create (NULL)))
-        goto failure;
+        goto fail;
     /* NOTE: resources doesn't manage their own iterator (not yet) */
     SCE_List_CanDeleteIterators (entity->textures, SCE_TRUE);
-    goto success;
-failure:
-    SCE_SceneEntity_Delete (entity), entity = NULL;
-    SCEE_LogSrc ();
-success:
-    SCE_btend ();
+
     return entity;
+fail:
+    SCE_SceneEntity_Delete (entity);
+    SCEE_LogSrc ();
+    return NULL;
 }
 void SCE_SceneEntity_Delete (SCE_SSceneEntity *entity)
 {
@@ -208,19 +203,17 @@ SCE_SSceneEntityGroup* SCE_SceneEntity_CreateGroup (void)
 {
     SCE_SSceneEntityGroup *group = NULL;
 
-    SCE_btstart ();
     if (!(group = SCE_malloc (sizeof *group)))
-        goto failure;
+        goto fail;
     SCE_SceneEntity_InitGroup (group);
     if (!(group->entities = SCE_List_Create (SCE_SceneEntity_YouDontHaveGroup)))
-        goto failure;
-    goto success;
-failure:
-    SCE_SceneEntity_DeleteGroup (group), group = NULL;
-    SCEE_LogSrc ();
-success:
-    SCE_btend ();
+        goto fail;
+
     return group;
+fail:
+    SCE_SceneEntity_DeleteGroup (group);
+    SCEE_LogSrc ();
+    return NULL;
 }
 
 void SCE_SceneEntity_DeleteGroup (SCE_SSceneEntityGroup *group)
