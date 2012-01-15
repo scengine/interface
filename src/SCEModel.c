@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 27/06/2009
-   updated: 12/11/2011 */
+   updated: 15/01/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include "SCE/interface/SCEModel.h"
@@ -153,7 +153,6 @@ static void SCE_Model_DeleteEntityGroup (SCE_SModelEntityGroup *group)
 
 static void SCE_Model_Init (SCE_SModel *mdl)
 {
-    unsigned int i;
     SCE_List_Init (&mdl->entities);
     SCE_List_SetFreeFunc (&mdl->entities,
                           (SCE_FListFreeFunc)SCE_Model_DeleteEntity);
@@ -592,7 +591,6 @@ static SCE_SModelEntity* SCE_Model_CopyDupEntity (SCE_SModelEntity *in)
 }
 static int SCE_Model_InstanciateHard (SCE_SModel *mdl, SCE_SModel *mdl2)
 {
-    unsigned int i;
     mdl2->entities = mdl->entities;
     mdl2->groups = mdl->groups;
     mdl2->type = SCE_MODEL_HARD_INSTANCE;
@@ -601,7 +599,6 @@ static int SCE_Model_InstanciateHard (SCE_SModel *mdl, SCE_SModel *mdl2)
 static int SCE_Model_InstanciateSoft (SCE_SModel *mdl, SCE_SModel *mdl2)
 {
     SCE_SListIterator *it = NULL;
-    unsigned int i;
 
     /* NOTE: mdl's groups will be added to those of mdl2 */
     /* duplicate SCE_SModelEntityGroup */
