@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 11/03/2007
-   updated: 03/01/2012 */
+   updated: 23/01/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -117,7 +117,7 @@ static void SCE_Texture_SetupParameters (SCE_STexture *tex)
     }
 }
 
-static int SCE_Texture_MakeRender (SCE_STexture *tex, int type)
+static int SCE_Texture_MakeRender (SCE_STexture *tex, SCE_RBufferType type)
 {
     int w = tex->w, h = tex->h/*, d*/;
 
@@ -125,12 +125,14 @@ static int SCE_Texture_MakeRender (SCE_STexture *tex, int type)
     if (!tex->fb[0])
         goto fail;
 
-    if (!(tex->tex = SCE_RAddNewRenderTexture (tex->fb[0], type,0, 0, 0, w, h)))
+    if (!(tex->tex = SCE_RAddNewRenderTexture
+          (tex->fb[0], type, SCE_PXF_NONE, SCE_IMAGE_NONE, SCE_NONE_TYPE, w,h)))
         goto fail;
     /* s'il s'agit d'une color, on ajoute un depth buffer */
     /* TODO: with MRTs, there's no need for this */
     if (type == SCE_COLOR_BUFFER) {
-        if (SCE_RAddRenderBuffer (tex->fb[0], SCE_DEPTH_BUFFER, 0, w, h) < 0)
+        if (SCE_RAddRenderBuffer (tex->fb[0], SCE_DEPTH_BUFFER,
+                                  SCE_IMAGE_NONE, w, h) < 0)
             goto fail;
     }
 
@@ -140,11 +142,11 @@ fail:
     return SCE_ERROR;
 }
 
-static int SCE_Texture_MakeRenderCube (SCE_STexture *tex, int type)
+static int SCE_Texture_MakeRenderCube (SCE_STexture *tex, SCE_RBufferType type)
 {
     unsigned int i = 0;
     int w = tex->w, h = tex->h/*, d*/;
-    SCE_RTexData data;
+    SCE_STexData data;
 
     tex->tex = SCE_RCreateTexture (SCE_TEX_CUBE);
     if (!tex->tex)
@@ -154,21 +156,21 @@ static int SCE_Texture_MakeRenderCube (SCE_STexture *tex, int type)
         tex->fb[i] = SCE_RCreateFramebuffer ();
         if (!tex->fb[i])
             goto fail;
-        SCE_RInitTexData (&data);
+        SCE_TexData_Init (&data);
 
         /* le target est defini dans AddTextureTexData */
-        data.w = w;
-        data.h = h;
-        data.type = SCE_UNSIGNED_BYTE;
+        SCE_TexData_SetDimensions (&data, w, h, 0);
+        SCE_TexData_SetDataType (&data, SCE_UNSIGNED_BYTE);
 
         if (type == SCE_DEPTH_BUFFER) {
-            data.fmt = GL_DEPTH_COMPONENT;
-            data.pxf = GL_DEPTH_COMPONENT24;
+            SCE_TexData_SetDataFormat (&data, SCE_IMAGE_DEPTH);
+            SCE_TexData_SetPixelFormat (&data, SCE_PXF_DEPTH24);
+        } else {
+            SCE_TexData_SetDataFormat (&data, SCE_IMAGE_RGBA);
+            SCE_TexData_SetPixelFormat (&data, SCE_PXF_RGBA);
         }
-        else
-            data.fmt = data.pxf = GL_RGBA;
 
-        if (SCE_RAddTextureTexDataDup (tex->tex, SCE_TEX_POSX + i, &data) < 0)
+        if (!SCE_RAddTextureTexDataDup (tex->tex, SCE_TEX_POSX + i, &data))
             goto fail;
     }
 
@@ -183,7 +185,8 @@ static int SCE_Texture_MakeRenderCube (SCE_STexture *tex, int type)
 
         /* s'il s'agit d'une color, on ajoute un depth buffer */
         if (type == SCE_COLOR_BUFFER) {
-            if (SCE_RAddRenderBuffer(tex->fb[i], SCE_DEPTH_BUFFER, 0, w, h) < 0)
+            if (SCE_RAddRenderBuffer (tex->fb[i], SCE_DEPTH_BUFFER,
+                                      SCE_IMAGE_NONE, w, h) < 0)
                 goto fail;
         }
     }
@@ -362,7 +365,7 @@ float* SCE_Texture_GetMatrix (SCE_STexture *tex)
  * \brief Forces the pixel format when calling SCE_RAddTextureTexData()
  * \sa SCE_RForceTexturePixelFormat()
  */
-void SCE_Texture_ForcePixelFormat (int force, int pxf)
+void SCE_Texture_ForcePixelFormat (int force, SCE_EPixelFormat pxf)
 {
     SCE_RForceTexturePixelFormat (force, pxf);
 }
@@ -370,7 +373,7 @@ void SCE_Texture_ForcePixelFormat (int force, int pxf)
  * \brief Forces the type when calling SCE_RAddTextureTexData()
  * \sa SCE_RForceTextureType()
  */
-void SCE_Texture_ForceType (int force, int type)
+void SCE_Texture_ForceType (int force, SCE_EType type)
 {
     SCE_RForceTextureType (force, type);
 }
@@ -378,7 +381,7 @@ void SCE_Texture_ForceType (int force, int type)
  * \brief Forces the format when calling SCE_RAddTextureTexData()
  * \sa SCE_RForceTextureFormat()
  */
-void SCE_Texture_ForceFormat (int force, int fmt)
+void SCE_Texture_ForceFormat (int force, SCE_EImageFormat fmt)
 {
     SCE_RForceTextureFormat (force, fmt);
 }
@@ -393,11 +396,11 @@ int SCE_Texture_GetType (SCE_STexture *tex)
 }
 /**
  * \brief Gets the type of the core texture used by \p tex
- * this function calls SCE_RGetTextureTarget()
+ * this function calls SCE_RGetTextureType()
  */
 int SCE_Texture_GetCType (SCE_STexture *tex)
 {
-    return SCE_RGetTextureTarget (tex->tex);
+    return SCE_RGetTextureType (tex->tex);
 }
 
 /**
@@ -445,14 +448,14 @@ int SCE_Texture_Build (SCE_STexture *tex, int use_mipmap)
 
     /* trying to generate mipmaps on the hardware */
     hw_mipmap = (use_mipmap && SCE_RHasCap (SCE_TEX_HW_GEN_MIPMAP));
-    if (SCE_RGetTextureTarget (tex->tex) != SCE_TEX_CUBE)
+    if (SCE_RGetTextureType (tex->tex) != SCE_TEX_CUBE)
         hw_mipmap = (SCE_RGetTextureNumMipmaps (tex->tex, 0) <= 1 && hw_mipmap);
     /* adding some data if needed */
     if (!SCE_RHasTextureData (tex->tex)) {
-        SCE_RTexData d;
-        SCE_RInitTexData (&d);
-        d.w = tex->w; d.h = tex->h;/* d.d = tex->d;*/
-        if (SCE_RAddTextureTexDataDup (tex->tex, tex->type /* hope */, &d) < 0) {
+        SCE_STexData d;
+        SCE_TexData_Init (&d);
+        SCE_TexData_SetDimensions (&d, tex->w, tex->h, 0);
+        if (!SCE_RAddTextureTexDataDup (tex->tex, tex->type /* hope */, &d)) {
             SCEE_LogSrc ();
             return SCE_ERROR;
         }
@@ -607,8 +610,8 @@ int SCE_Texture_AddRenderCTexture (SCE_STexture *tex, int id,
     SCEenum target;
     unsigned int i = 0;
 
-    target = SCE_RGetTextureTarget (tex->tex);
-    if (target != SCE_RGetTextureTarget (ctex)) {
+    target = SCE_RGetTextureType (tex->tex);
+    if (target != SCE_RGetTextureType (ctex)) {
 #ifdef SCE_DEBUG
         SCEE_Log (SCE_INVALID_ARG);
         SCEE_LogMsg ("you can't add a render texture "
@@ -908,7 +911,7 @@ void SCE_Texture_Restore (void)
 void SCE_Texture_RenderTo (SCE_STexture *tex, SCE_EBoxFace cubeface)
 {
     if (tex) {
-        if (SCE_RGetTextureTarget (tex->tex) == SCE_TEX_CUBE)
+        if (SCE_RGetTextureType (tex->tex) == SCE_TEX_CUBE)
             SCE_RUseFramebuffer (tex->fb[cubeface], NULL);
         else
             SCE_RUseFramebuffer (tex->fb[0], NULL);

@@ -110,9 +110,9 @@ unsigned int SCE_Texture_GetUnit (SCE_STexture*);
 
 float* SCE_Texture_GetMatrix (SCE_STexture*);
 
-void SCE_Texture_ForcePixelFormat (int, int);
-void SCE_Texture_ForceType (int, int);
-void SCE_Texture_ForceFormat (int, int);
+void SCE_Texture_ForcePixelFormat (int, SCE_EPixelFormat);
+void SCE_Texture_ForceType (int, SCE_EType);
+void SCE_Texture_ForceFormat (int, SCE_EImageFormat);
 
 /* renvoie le type de la texture (peut etre de type RENDER_<...>) */
 int SCE_Texture_GetType (SCE_STexture*);
