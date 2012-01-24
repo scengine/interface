@@ -174,8 +174,7 @@ static int SCE_Texture_MakeRenderCube (SCE_STexture *tex, SCE_RBufferType type)
             goto fail;
     }
 
-    if (SCE_RBuildTexture (tex->tex, 0, 0) < 0)
-        goto fail;
+    SCE_RBuildTexture (tex->tex, 0, 0);
 
     for (i = 0; i < 6; i++) {
         /* ajout de la texture */
@@ -474,10 +473,7 @@ int SCE_Texture_Build (SCE_STexture *tex, int use_mipmap)
         }
     }
 
-    if (SCE_RBuildTexture (tex->tex, use_mipmap, hw_mipmap) < 0) {
-        SCEE_LogSrc ();
-        return SCE_ERROR;
-    }
+    SCE_RBuildTexture (tex->tex, use_mipmap, hw_mipmap);
 
     return SCE_OK;
 }
@@ -487,13 +483,9 @@ int SCE_Texture_Build (SCE_STexture *tex, int use_mipmap)
  * modifications manpower on your texture
  * \returns SCE_ERROR on error, SCE_OK otherwise
  */
-int SCE_Texture_Update (SCE_STexture *tex)
+void SCE_Texture_Update (SCE_STexture *tex)
 {
-    if (SCE_RUpdateTexture (tex->tex, -1, -1) < 0) {
-        SCEE_LogSrc ();
-        return SCE_ERROR;
-    }
-    return SCE_OK;
+    SCE_RUpdateTexture (tex->tex, -1, -1);
 }
 
 

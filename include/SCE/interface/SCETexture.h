@@ -126,8 +126,7 @@ int SCE_Texture_GetWidth (SCE_STexture*, int, int);
 int SCE_Texture_GetHeight (SCE_STexture*, int, int);
 
 int SCE_Texture_Build (SCE_STexture*, int);
-
-int SCE_Texture_Update (SCE_STexture*);
+void SCE_Texture_Update (SCE_STexture*);
 
 SCE_STexture* SCE_Texture_Loadv (int, int, int, int, int, const char**);
 SCE_STexture* SCE_Texture_Load (int, int, int, int, int, ...);
