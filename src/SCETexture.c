@@ -412,6 +412,19 @@ SCE_RTexture* SCE_Texture_GetCTexture (SCE_STexture *tex)
 }
 
 /**
+ * \brief Adds a new texture data to a texture
+ * \param tex a texture
+ * \param target target of the data (SCE_TEX_1D, 2D, 3D, or SCE_TEX_POSX + i)
+ * \param d a texture data
+ * \sa SCE_RAddTextureTexData()
+ */
+void SCE_Texture_AddTexData (SCE_STexture *tex, int target, SCE_STexData *d)
+{
+    SCE_RAddTextureTexData (tex->tex, target, d);
+}
+
+
+/**
  * \brief Gets the width of a texture
  *
  * This function calls SCE_RGetTextureWidth (SCE_Texture_GetCTexture (\p tex),

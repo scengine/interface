@@ -120,6 +120,7 @@ int SCE_Texture_GetType (SCE_STexture*);
 int SCE_Texture_GetCType (SCE_STexture*);
 
 SCE_RTexture* SCE_Texture_GetCTexture (SCE_STexture*);
+void SCE_Texture_AddTexData (SCE_STexture*, int, SCE_STexData*);
 
 int SCE_Texture_GetWidth (SCE_STexture*, int, int);
 int SCE_Texture_GetHeight (SCE_STexture*, int, int);
