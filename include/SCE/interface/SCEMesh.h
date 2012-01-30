@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 31/07/2009
-   updated: 31/10/2010 */
+   updated: 29/01/2012 */
 
 #ifndef SCEMESH_H
 #define SCEMESH_H
@@ -68,6 +68,10 @@ struct sce_smesh {
     int used_streams[SCE_MESH_NUM_STREAMS];
     SCE_RIndexBuffer ib;
     int use_ib;
+    SCEuint n_vertices;
+    SCEuint n_indices;
+    SCE_RFeedback feedback;     /**< Feedback object */
+    SCE_RBuffer *counting_buffer;
     SCE_SGeometryArrayUser index_auser;
     SCE_RBufferRenderMode rmode;/**< Render mode */
     SCE_EMeshBuildMode bmode;   /**< Build mode */
@@ -108,6 +112,9 @@ void SCE_Mesh_Use (SCE_SMesh*);
 void SCE_Mesh_Render (void);
 void SCE_Mesh_RenderInstanced (SCEuint);
 void SCE_Mesh_Unuse (void);
+
+void SCE_Mesh_BeginRenderTo (SCE_SMesh*);
+void SCE_Mesh_EndRenderTo (SCE_SMesh*);
 
 #ifdef __cplusplus
 } /* extern "C" */

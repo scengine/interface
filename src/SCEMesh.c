@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 31/07/2009
-   updated: 20/06/2011 */
+   updated: 29/01/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -34,6 +34,9 @@ static SCE_SMesh *mesh_bound = NULL;
 static int activated_streams[SCE_MESH_NUM_STREAMS];
 static SCE_SMeshRenderFunc render_func = NULL;
 static SCE_SMeshRenderInstancedFunc render_func_instanced = NULL;
+
+static SCE_SMesh *feedback_target = NULL;
+static int feedback_enabled = SCE_FALSE;
 
 static void* SCE_Mesh_LoadResource (const char*, int, void*);
 
@@ -112,6 +115,10 @@ void SCE_Mesh_Init (SCE_SMesh *mesh)
     }
     SCE_RInitIndexBuffer (&mesh->ib);
     mesh->use_ib = SCE_FALSE;
+    mesh->n_vertices = 0;
+    mesh->n_indices = 0;
+    SCE_RInitFeedback (&mesh->feedback);
+    mesh->counting_buffer = NULL;
     SCE_Geometry_InitArrayUser (&mesh->index_auser);
     mesh->rmode = SCE_VA_RENDER_MODE;
     mesh->bmode = SCE_INDEPENDANT_VERTEX_BUFFER;
@@ -318,9 +325,9 @@ int SCE_Mesh_SetGeometry (SCE_SMesh *mesh, SCE_SGeometry *geom, int canfree)
         SCE_SGeometryArrayData *vdata = SCE_Geometry_GetArrayData (index_array);
         ia.type = vdata->type;
         ia.data = vdata->data;
+        mesh->n_indices = SCE_Geometry_GetNumIndices (geom);
         SCE_RSetIndexBufferIndexArray (&mesh->ib, &ia);
-        SCE_RSetIndexBufferNumIndices (&mesh->ib,
-                                       SCE_Geometry_GetNumIndices (geom));
+        SCE_RSetIndexBufferNumIndices (&mesh->ib, mesh->n_indices);
         mesh->use_ib = SCE_TRUE;
         SCE_Geometry_AddUser (index_array, &mesh->index_auser,
                               SCE_Mesh_UpdateIndexArrayCallback, &mesh->ib);
@@ -329,6 +336,7 @@ int SCE_Mesh_SetGeometry (SCE_SMesh *mesh, SCE_SGeometry *geom, int canfree)
     mesh->prim = SCE_Geometry_GetPrimitiveType (geom);
     mesh->geom = geom;
     mesh->canfree_geom = canfree;
+    mesh->n_vertices = n_vertices;
     return SCE_OK;
 fail:
     SCEE_LogSrc ();
@@ -364,7 +372,7 @@ static void SCE_Mesh_MakeIndependantVB (SCE_SMesh *mesh)
                        stream > SCE_MESH_STREAM_T) {
                 stream = SCE_MESH_STREAM_T;
             } else              /* A is considered as a trash, SCE_ATTRIBn
-                                   and SCE_ROLOR will be stored here */
+                                   and SCE_COLOR will be stored here */
                 stream = SCE_MESH_STREAM_A;
             array = SCE_Geometry_GetChild (array);
         }
@@ -436,6 +444,33 @@ static void SCE_Mesh_BuildBuffers (SCE_SMesh *mesh, SCE_RBufferUsage
     }
 }
 /**
+ * \internal
+ * \todo Maximum number of streams may conflict.
+ */
+static void SCE_Mesh_BuildFeedback (SCE_SMesh *mesh)
+{
+    size_t i;
+    size_t n_streams;
+    int once = SCE_FALSE;
+
+    /* TODO: : d */
+    n_streams = MIN (SCE_MESH_NUM_STREAMS, SCE_MAX_FEEDBACK_STREAMS);
+
+    /* TODO: if global buffer storage mode has been used for mesh construction,
+       add the same buffer many times with different ranges */
+    for (i = 0; i < n_streams; i++) {
+        if (mesh->used_streams[i]) {
+            SCE_RBuffer *buf = SCE_RGetVertexBufferBuffer (&mesh->streams[i]);
+            SCE_RAddFeedbackStream (&mesh->feedback, buf, NULL);
+            if (!once) {
+                SCE_REnableFeedbackCounting (&mesh->feedback, buf);
+                mesh->counting_buffer = buf;
+            }
+        }
+    }
+    /* index buffer usually won't be generated in the same time vertices are */
+}
+/**
  * \brief Builds a mesh by creating vertex buffers with requested usages
  * \sa SCE_Mesh_AutoBuild()
  */
@@ -458,6 +493,7 @@ void SCE_Mesh_Build (SCE_SMesh *mesh, SCE_EMeshBuildMode bmode,
     }
     mesh->bmode = bmode;
     SCE_Mesh_BuildBuffers (mesh, usage);
+    SCE_Mesh_BuildFeedback (mesh);
 }
 
 /**
@@ -540,20 +576,22 @@ SCE_SMesh* SCE_Mesh_Load (const char *fname, int force)
 /**
  * \brief Declares a mesh as activated for rendering
  * \sa SCE_Mesh_Render(), SCE_Mesh_RenderInstanced(), SCE_Mesh_Unuse()
+ * \todo Geometry cannot updates its number of vertices nor indices.
  */
 void SCE_Mesh_Use (SCE_SMesh *mesh)
 {
     size_t i;
     for (i = 0; i < SCE_MESH_NUM_STREAMS; i++) {
         if (activated_streams[i] && mesh->used_streams[i]) {
-            SCE_RSetVertexBufferNumVertices
-                (&mesh->streams[i], SCE_Geometry_GetNumVertices (mesh->geom));
+            /* TODO: if the geometry updates its number of vertices,
+               we're screwed */
+            SCE_RSetVertexBufferNumVertices(&mesh->streams[i],mesh->n_vertices);
             SCE_RUseVertexBuffer (&mesh->streams[i]);
         }
     }
     if (mesh->use_ib) {
-        SCE_RSetIndexBufferNumIndices (
-            &mesh->ib, SCE_Geometry_GetNumIndices (mesh->geom));
+        /* TODO: if the geometry updates its number of indices, we're screwed */
+        SCE_RSetIndexBufferNumIndices (&mesh->ib, mesh->n_indices);
         SCE_RUseIndexBuffer (&mesh->ib);
         render_func = SCE_RRenderVertexBufferIndexed;
         render_func_instanced = SCE_RRenderVertexBufferIndexedInstanced;
@@ -569,6 +607,10 @@ void SCE_Mesh_Use (SCE_SMesh *mesh)
  */
 void SCE_Mesh_Render (void)
 {
+    if (feedback_target && !feedback_enabled) {
+        SCE_RBeginFeedback (&feedback_target->feedback, feedback_target->prim);
+        feedback_enabled = SCE_TRUE;
+    }
     render_func (mesh_bound->prim);
 }
 /**
@@ -591,4 +633,23 @@ void SCE_Mesh_Unuse (void)
     if (SCE_TRUE/*non_full_gl3*/)
         SCE_RFinishVertexBufferRender ();
     mesh_bound = NULL;
+}
+
+
+void SCE_Mesh_BeginRenderTo (SCE_SMesh *mesh)
+{
+    feedback_target = mesh;
+}
+void SCE_Mesh_EndRenderTo (SCE_SMesh *mesh)
+{
+    if (feedback_enabled) {
+        SCEuint n_prim;
+        SCE_REndFeedback (&mesh->feedback);
+        n_prim = SCE_RGetFeedbackNumPrimitives (&mesh->feedback,
+                                                mesh->counting_buffer);
+        mesh->n_vertices =
+            n_prim * SCE_Geometry_GetPrimitiveVertices (feedback_target->prim);
+        feedback_enabled = SCE_FALSE;
+        feedback_target = NULL;
+    }
 }
