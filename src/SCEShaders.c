@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 15/11/2011 */
+   updated: 29/01/2012 */
 
 #include <ctype.h>
 #include <SCE/utils/SCEUtils.h>
@@ -386,6 +386,13 @@ SCE_SShader* SCE_Shader_Load (const char *name, int force)
     return SCE_Resource_Load (resource_shader_type, name, force, NULL);
 }
 
+
+void SCE_Shader_SetupFeedbackVaryings (SCE_SShader *shader, SCEuint n,
+                                       const char **varyings,
+                                       SCE_RFeedbackStorageMode mode)
+{
+    SCE_RSetProgramFeedbackVaryings (shader->p_glsl, n, varyings, mode);
+}
 
 int SCE_Shader_SetupPipeline (SCE_SShader *shader,
                               const SCE_SRenderState *state)
