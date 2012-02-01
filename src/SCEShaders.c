@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 29/01/2012 */
+   updated: 01/02/2012 */
 
 #include <ctype.h>
 #include <SCE/utils/SCEUtils.h>
@@ -630,6 +630,22 @@ int SCE_Shader_Local (SCE_SShader *shader, SCE_RShaderType type,
 
     return SCE_OK;
 }
+int SCE_Shader_Locali (SCE_SShader *shader, SCE_RShaderType type,
+                       const char *define, int value)
+{
+    char buf[256] = {0};
+    sprintf (buf, "(%d)", value);
+    return SCE_Shader_Local (shader, type, define, buf);
+}
+int SCE_Shader_Localf (SCE_SShader *shader, SCE_RShaderType type,
+                       const char *define, float value)
+{
+    char buf[256] = {0};
+    sprintf (buf, "(%f)", value);
+    return SCE_Shader_Local (shader, type, define, buf);
+}
+
+
 int SCE_Shader_Global (SCE_SShader *shader, const char *define,
                        const char *value)
 {
@@ -643,6 +659,18 @@ int SCE_Shader_Global (SCE_SShader *shader, const char *define,
         }
     }
     return SCE_OK;
+}
+int SCE_Shader_Globali (SCE_SShader *shader, const char *define, int value)
+{
+    char buf[256] = {0};
+    sprintf (buf, "(%d)", value);
+    return SCE_Shader_Global (shader, define, buf);
+}
+int SCE_Shader_Globalf (SCE_SShader *shader, const char *define, float value)
+{
+    char buf[256] = {0};
+    sprintf (buf, "(%f)", value);
+    return SCE_Shader_Global (shader, define, buf);
 }
 
 

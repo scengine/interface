@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 29/01/2012 */
+   updated: 01/02/2012 */
 
 #ifndef SCESHADERS_H
 #define SCESHADERS_H
@@ -122,7 +122,11 @@ void SCE_Shader_SetPatchVertices (SCE_SShader*, int);
 
 int SCE_Shader_AddSource (SCE_SShader*, SCE_RShaderType, const char*, int);
 int SCE_Shader_Local (SCE_SShader*, SCE_RShaderType, const char*, const char*);
+int SCE_Shader_Locali (SCE_SShader*, SCE_RShaderType, const char*, int);
+int SCE_Shader_Localf (SCE_SShader*, SCE_RShaderType, const char*, float);
 int SCE_Shader_Global (SCE_SShader*, const char*, const char*);
+int SCE_Shader_Globali (SCE_SShader*, const char*, int);
+int SCE_Shader_Globalf (SCE_SShader*, const char*, float);
 
 int SCE_Shader_InputPrimitive (SCE_SShader*, SCE_EPrimitiveType, int);
 int SCE_Shader_OutputPrimitive (SCE_SShader*, SCE_EPrimitiveType);
