@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 11/03/2007
-   updated: 23/01/2012 */
+   updated: 02/02/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -415,11 +415,23 @@ SCE_RTexture* SCE_Texture_GetCTexture (SCE_STexture *tex)
  * \param tex a texture
  * \param target target of the data (SCE_TEX_1D, 2D, 3D, or SCE_TEX_POSX + i)
  * \param d a texture data
- * \sa SCE_RAddTextureTexData()
+ * \sa SCE_RAddTextureTexData(), SCE_Texture_AddTexDataDup()
  */
 void SCE_Texture_AddTexData (SCE_STexture *tex, int target, SCE_STexData *d)
 {
     SCE_RAddTextureTexData (tex->tex, target, d);
+}
+/**
+ * \brief Duplicates and adds a new texture data to a texture
+ * \param tex a texture
+ * \param target target of the data (SCE_TEX_1D, 2D, 3D, or SCE_TEX_POSX + i)
+ * \param d a texture data
+ * \sa SCE_RAddTextureTexDataDup(), SCE_Texture_AddTexData()
+ */
+SCE_STexData* SCE_Texture_AddTexDataDup (SCE_STexture *tex, int target,
+                                         const SCE_STexData *d)
+{
+    return SCE_RAddTextureTexDataDup (tex->tex, target, d);
 }
 
 

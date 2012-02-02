@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 11/03/2007
-   updated: 03/01/2012 */
+   updated: 02/02/2012 */
 
 #ifndef SCETEXTURE_H
 #define SCETEXTURE_H
@@ -121,6 +121,8 @@ int SCE_Texture_GetCType (SCE_STexture*);
 
 SCE_RTexture* SCE_Texture_GetCTexture (SCE_STexture*);
 void SCE_Texture_AddTexData (SCE_STexture*, int, SCE_STexData*);
+SCE_STexData* SCE_Texture_AddTexDataDup (SCE_STexture*, int,
+                                         const SCE_STexData*);
 
 int SCE_Texture_GetWidth (SCE_STexture*, int, int);
 int SCE_Texture_GetHeight (SCE_STexture*, int, int);
