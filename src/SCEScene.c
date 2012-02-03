@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2008
-   updated: 12/01/2012 */
+   updated: 02/02/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -173,6 +173,8 @@ static void SCE_Scene_Init (SCE_SScene *scene)
     SCE_List_SetFreeFunc2 (&scene->cameras, SCE_Scene_RemoveCameraNode, scene);
     SCE_List_Init (&scene->sprites);
     /* TODO: remove sprite node? */
+
+    scene->vterrain = NULL;
 
     scene->rclear = scene->gclear = scene->bclear = scene->aclear = 0.5;
     scene->dclear = 1.0;
@@ -755,6 +757,17 @@ void SCE_Scene_SetSkybox (SCE_SScene *scene, SCE_SSkybox *skybox)
 }
 
 /**
+ * \brief Sets the voxel terrain of the scene
+ * \param scene a scene
+ * \param vt a voxel terrain
+ * \sa SCE_SVoxelTerrain
+ */
+void SCE_Scene_SetVoxelTerrain (SCE_SScene *scene, SCE_SVoxelTerrain *vt)
+{
+    scene->vterrain = vt;
+}
+
+/**
  * \brief Gets the list of the selected instances (after culling and other
  * tests) for rendering
  * \param scene a scene
@@ -1207,6 +1220,8 @@ static void SCE_Scene_ForwardRender (SCE_SScene *scene, SCE_SCamera *cam,
             SCE_Light_Use (SCE_List_GetData (it));
     }
 
+    if (scene->vterrain)
+        SCE_VTerrain_Render (scene->vterrain);
     SCE_Scene_RenderEntities (scene, &scene->entities);
 
     SCE_Light_Use (NULL);

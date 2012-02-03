@@ -26,6 +26,7 @@ libsceinterface_la_SOURCES  = SCELight.c \
                               SCESkybox.c \
                               SCESprite.c \
                               SCEModel.c \
+                              SCEVoxelTerrain.c \
                               SCEDeferred.c \
                               SCEScene.c \
                               SCEInterface.c
