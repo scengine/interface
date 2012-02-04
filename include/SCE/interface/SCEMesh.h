@@ -32,7 +32,7 @@ extern "C" {
 enum sce_emeshbuildmode {
     SCE_INDEPENDANT_VERTEX_BUFFER, /**< Store each data in its assignated
                                     * stream (default) */
-    SCE_GLOBAL_VERTEX_BUFFER,   /**< Use G stream for the whole data (G stream
+    SCE_GLOBAL_VERTEX_BUFFER    /**< Use G stream for the whole data (G stream
                                  * is always activated) */
 };
 typedef enum sce_emeshbuildmode SCE_EMeshBuildMode;
