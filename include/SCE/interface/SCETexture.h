@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 11/03/2007
-   updated: 02/02/2012 */
+   updated: 04/02/2012 */
 
 #ifndef SCETEXTURE_H
 #define SCETEXTURE_H
@@ -129,6 +129,8 @@ int SCE_Texture_GetHeight (SCE_STexture*, int, int);
 
 int SCE_Texture_Build (SCE_STexture*, int);
 void SCE_Texture_Update (SCE_STexture*);
+
+int SCE_Texture_SetupFramebuffer (SCE_STexture*, SCEuint, int);
 
 SCE_STexture* SCE_Texture_Loadv (int, int, int, int, int, const char**);
 SCE_STexture* SCE_Texture_Load (int, int, int, int, int, ...);

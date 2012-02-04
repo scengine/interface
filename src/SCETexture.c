@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 11/03/2007
-   updated: 02/02/2012 */
+   updated: 04/02/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -119,22 +119,22 @@ static void SCE_Texture_SetupParameters (SCE_STexture *tex)
 
 static int SCE_Texture_MakeRender (SCE_STexture *tex, SCE_RBufferType type)
 {
-    int w = tex->w, h = tex->h/*, d*/;
-
-    tex->fb[0] = SCE_RCreateFramebuffer ();
-    if (!tex->fb[0])
-        goto fail;
-
-    if (!(tex->tex = SCE_RAddNewRenderTexture
-          (tex->fb[0], type, SCE_PXF_NONE, SCE_IMAGE_NONE, SCE_NONE_TYPE, w,h)))
-        goto fail;
-    /* s'il s'agit d'une color, on ajoute un depth buffer */
-    /* TODO: with MRTs, there's no need for this */
-    if (type == SCE_COLOR_BUFFER) {
-        if (SCE_RAddRenderBuffer (tex->fb[0], SCE_DEPTH_BUFFER,
-                                  SCE_IMAGE_NONE, w, h) < 0)
-            goto fail;
+    SCE_STexData tc;
+    SCE_TexData_Init (&tc);
+    SCE_TexData_SetDimensions (&tc, tex->w, tex->h, 0);
+    SCE_TexData_SetDataType (&tc, SCE_UNSIGNED_BYTE);
+    if (type == SCE_DEPTH_BUFFER) {
+        SCE_TexData_SetPixelFormat (&tc, SCE_PXF_DEPTH24);
+        SCE_TexData_SetDataFormat (&tc, SCE_IMAGE_DEPTH);
+    } else {
+        SCE_TexData_SetPixelFormat (&tc, SCE_PXF_RGBA);
+        SCE_TexData_SetDataFormat (&tc, SCE_IMAGE_RGBA);
     }
+    if (!(tex->tex = SCE_RCreateTexture (SCE_TEX_2D))) goto fail;
+    if (!SCE_Texture_AddTexDataDup (tex, 0, &tc)) goto fail;
+    SCE_Texture_Build (tex, SCE_FALSE);
+
+    if (SCE_Texture_SetupFramebuffer (tex, 0, SCE_TRUE) < 0) goto fail;
 
     return SCE_OK;
 fail:
@@ -148,47 +148,28 @@ static int SCE_Texture_MakeRenderCube (SCE_STexture *tex, SCE_RBufferType type)
     int w = tex->w, h = tex->h/*, d*/;
     SCE_STexData data;
 
-    tex->tex = SCE_RCreateTexture (SCE_TEX_CUBE);
-    if (!tex->tex)
-        goto fail;
+    if (!(tex->tex = SCE_RCreateTexture (SCE_TEX_CUBE))) goto fail;
+
+    SCE_TexData_Init (&data);
+    SCE_TexData_SetDimensions (&data, w, h, 0);
+    SCE_TexData_SetDataType (&data, SCE_UNSIGNED_BYTE);
+
+    if (type == SCE_DEPTH_BUFFER) {
+        SCE_TexData_SetDataFormat (&data, SCE_IMAGE_DEPTH);
+        SCE_TexData_SetPixelFormat (&data, SCE_PXF_DEPTH24);
+    } else {
+        SCE_TexData_SetDataFormat (&data, SCE_IMAGE_RGBA);
+        SCE_TexData_SetPixelFormat (&data, SCE_PXF_RGBA);
+    }
 
     for (i = 0; i < 6; i++) {
-        tex->fb[i] = SCE_RCreateFramebuffer ();
-        if (!tex->fb[i])
-            goto fail;
-        SCE_TexData_Init (&data);
-
-        /* le target est defini dans AddTextureTexData */
-        SCE_TexData_SetDimensions (&data, w, h, 0);
-        SCE_TexData_SetDataType (&data, SCE_UNSIGNED_BYTE);
-
-        if (type == SCE_DEPTH_BUFFER) {
-            SCE_TexData_SetDataFormat (&data, SCE_IMAGE_DEPTH);
-            SCE_TexData_SetPixelFormat (&data, SCE_PXF_DEPTH24);
-        } else {
-            SCE_TexData_SetDataFormat (&data, SCE_IMAGE_RGBA);
-            SCE_TexData_SetPixelFormat (&data, SCE_PXF_RGBA);
-        }
-
         if (!SCE_RAddTextureTexDataDup (tex->tex, SCE_TEX_POSX + i, &data))
             goto fail;
     }
 
-    SCE_RBuildTexture (tex->tex, 0, 0);
+    SCE_RBuildTexture (tex->tex, SCE_FALSE, SCE_FALSE);
 
-    for (i = 0; i < 6; i++) {
-        /* ajout de la texture */
-        if (SCE_RAddRenderTexture (tex->fb[i], type, SCE_TEX_POSX + i,
-                                   tex->tex, 0, SCE_FALSE) < 0)
-            goto fail;
-
-        /* s'il s'agit d'une color, on ajoute un depth buffer */
-        if (type == SCE_COLOR_BUFFER) {
-            if (SCE_RAddRenderBuffer (tex->fb[i], SCE_DEPTH_BUFFER,
-                                      SCE_IMAGE_NONE, w, h) < 0)
-                goto fail;
-        }
-    }
+    if (SCE_Texture_SetupFramebuffer (tex, 0, SCE_TRUE) < 0) goto fail;
 
     return SCE_OK;
 fail:
@@ -498,6 +479,100 @@ int SCE_Texture_Build (SCE_STexture *tex, int use_mipmap)
 void SCE_Texture_Update (SCE_STexture *tex)
 {
     SCE_RUpdateTexture (tex->tex, -1, -1);
+}
+
+
+static int SCE_Texture_SetupFramebufferOther (SCE_STexture *tex, int depth)
+{
+    SCE_STexData *tc = NULL;
+
+    if (!(tex->fb[0] = SCE_RCreateFramebuffer ())) goto fail;
+
+    tc = SCE_RGetTextureTexData (tex->tex, 0, 0);
+    if (SCE_TexData_IsDepthFormat (tc)) {
+        if (SCE_RAddRenderTexture (tex->fb[0], SCE_DEPTH_BUFFER, 0, tex->tex,
+                                   0, SCE_FALSE) < 0)
+            goto fail;
+    } else {
+        if (SCE_RAddRenderTexture (tex->fb[0], SCE_COLOR_BUFFER0, 0, tex->tex,
+                                   0, SCE_FALSE) < 0)
+            goto fail;
+        if (depth && SCE_RGetTextureType (tex->tex) == SCE_TEX_2D) {
+            int w, h;
+            w = SCE_Texture_GetWidth (tex, 0, 0);
+            h = SCE_Texture_GetHeight (tex, 0, 0);
+            if (SCE_RAddRenderBuffer (tex->fb[0], SCE_DEPTH_BUFFER,
+                                      SCE_IMAGE_NONE, w, h) < 0)
+                goto fail;
+        }
+    }
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
+}
+
+static int SCE_Texture_SetupFramebufferCube (SCE_STexture *tex, int depth)
+{
+    unsigned int i = 0;
+    SCE_STexData *tc = NULL;
+
+    tc = SCE_RGetTextureTexData (tex->tex, 0, 0);
+    if (SCE_TexData_IsDepthFormat (tc)) {
+        for (i = 0; i < 6; i++) {
+            if (!(tex->fb[i] = SCE_RCreateFramebuffer ())) goto fail;
+            if (SCE_RAddRenderTexture (tex->fb[i], SCE_DEPTH_BUFFER,
+                                       SCE_TEX_POSX + i, tex->tex, 0,
+                                       SCE_FALSE) < 0)
+                goto fail;
+        }
+    } else {
+        for (i = 0; i < 6; i++) {
+            if (!(tex->fb[i] = SCE_RCreateFramebuffer ())) goto fail;
+            if (SCE_RAddRenderTexture (tex->fb[i], SCE_COLOR_BUFFER0,
+                                       SCE_TEX_POSX + i, tex->tex, 0,
+                                       SCE_FALSE) < 0)
+                goto fail;
+
+            if (depth) {
+                int w, h;
+                w = SCE_Texture_GetWidth (tex, 0, 0);
+                h = SCE_Texture_GetHeight (tex, 0, 0);
+                if (SCE_RAddRenderBuffer (tex->fb[i], SCE_DEPTH_BUFFER,
+                                          SCE_IMAGE_NONE, w, h) < 0)
+                    goto fail;
+            }
+        }
+    }
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
+}
+/**
+ * \brief Setup a texture for render-to-texture
+ * \param tex a texture
+ * \param layer not used yet
+ * \param depthbuffer SCE_TRUE creates a depth render buffer when the texture
+ * is either a cube map or a 2D texture, SCE_FALSE disables render depth buffer
+ * \return SCE_ERROR on error, SCE_OK otherwise
+ * \sa SCE_Texture_RenderTo(), SCE_RFramebuffer
+ */
+int SCE_Texture_SetupFramebuffer (SCE_STexture *tex, SCEuint layer,
+                                  int depthbuffer)
+{
+    unsigned int i;
+
+    (void)layer;
+    for (i = 0; i < 6; i++)
+        SCE_RDeleteFramebuffer (tex->fb[i]);
+
+    if (SCE_RGetTextureType (tex->tex) == SCE_TEX_CUBE)
+        return SCE_Texture_SetupFramebufferCube (tex, depthbuffer);
+    else
+        return SCE_Texture_SetupFramebufferOther (tex, depthbuffer);
 }
 
 
