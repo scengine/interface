@@ -569,6 +569,8 @@ int SCE_Texture_SetupFramebuffer (SCE_STexture *tex, SCEuint layer,
     for (i = 0; i < 6; i++)
         SCE_RDeleteFramebuffer (tex->fb[i]);
 
+    SCE_RSetTextureWrapMode (tex->tex, SCE_TEX_CLAMP);
+
     if (SCE_RGetTextureType (tex->tex) == SCE_TEX_CUBE)
         return SCE_Texture_SetupFramebufferCube (tex, depthbuffer);
     else
@@ -998,17 +1000,33 @@ void SCE_Texture_Restore (void)
  * This function uses the default frame buffer of \p tex. If \p tex isn't a
  * render buffer, calling of this function is equivalent of
  * SCE_RUseFramebuffer (NULL, NULL).
- * \sa SCE_RUseFramebuffer()
+ * \sa SCE_RUseFramebuffer(), SCE_Texture_RenderToLayer()
  */
 void SCE_Texture_RenderTo (SCE_STexture *tex, SCE_EBoxFace cubeface)
 {
     if (tex) {
         if (SCE_RGetTextureType (tex->tex) == SCE_TEX_CUBE)
-            SCE_RUseFramebuffer (tex->fb[cubeface], NULL);
+            SCE_RUseFramebuffer (tex->fb[cubeface], NULL, -1);
         else
-            SCE_RUseFramebuffer (tex->fb[0], NULL);
+            SCE_RUseFramebuffer (tex->fb[0], NULL, -1);
     } else
-        SCE_RUseFramebuffer (NULL, NULL);
+        SCE_RUseFramebuffer (NULL, NULL, -1);
 }
+
+/**
+ * \brief Same as SCE_Texture_RenderTo() except that it binds a specific
+ * target of the layered framebuffer \p tex
+ * \param tex a render texture
+ * \param layer layer to render to
+ * \sa SCE_Texture_RenderTo()
+ */
+void SCE_Texture_RenderToLayer (SCE_STexture *tex, int layer)
+{
+    if (tex) {
+        SCE_RUseFramebuffer (tex->fb[0], NULL, layer);
+    } else
+        SCE_RUseFramebuffer (NULL, NULL, -1);
+}
+
 
 /** @} */
