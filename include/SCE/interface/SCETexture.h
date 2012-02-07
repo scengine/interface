@@ -161,6 +161,7 @@ void SCE_Texture_Restore (void);
 #endif
 
 void SCE_Texture_RenderTo (SCE_STexture*, SCE_EBoxFace);
+void SCE_Texture_RenderToLayer (SCE_STexture*, int);
 
 #ifdef __cplusplus
 } /* extern "C" */
