@@ -77,6 +77,22 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
 void SCE_VTerrain_Clear (SCE_SVoxelTerrain *vt)
 {
     size_t i;
+
+    SCE_Geometry_Clear (&vt->grid_geom);
+    SCE_Mesh_Clear (&vt->grid_mesh);
+
+    SCE_Geometry_Clear (&vt->non_empty_geom);
+    SCE_Geometry_Clear (&vt->list_verts_geom);
+    SCE_Geometry_Clear (&vt->final_geom);
+
+    SCE_Shader_Delete (vt->non_empty_shader);
+    SCE_Shader_Delete (vt->list_verts_shader);
+    SCE_Shader_Delete (vt->final_shader);
+
+    SCE_Shader_Delete (vt->splat_shader);
+    SCE_Shader_Delete (vt->indices_shader);
+    SCE_Texture_Delete (vt->splat);
+
     for (i = 0; i < SCE_MAX_VTERRAIN_LEVELS; i++)
         SCE_VTerrain_ClearLevel (&vt->levels[i]);
 }
@@ -538,7 +554,7 @@ void SCE_VTerrain_SetLevel (SCE_SVoxelTerrain *vt, SCEuint level,
         return;
     }
 
-    SCE_Grid_CopyData (&vt->levels[level].grid, grid); /* TODO: pseudo code */
+    SCE_Grid_CopyData (&vt->levels[level].grid, grid);
 }
 
 SCE_SGrid* SCE_VTerrain_GetLevelGrid (SCE_SVoxelTerrain *vt, SCEuint level)
