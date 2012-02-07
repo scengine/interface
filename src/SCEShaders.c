@@ -393,6 +393,11 @@ void SCE_Shader_SetupFeedbackVaryings (SCE_SShader *shader, SCEuint n,
 {
     SCE_RSetProgramFeedbackVaryings (shader->p_glsl, n, varyings, mode);
 }
+void SCE_Shader_SetOutputTarget (SCE_SShader *shader, const char *output,
+                                 SCE_RBufferType target)
+{
+    SCE_RSetProgramOutputTarget (shader->p_glsl, output, target);
+}
 
 int SCE_Shader_SetupPipeline (SCE_SShader *shader,
                               const SCE_SRenderState *state)

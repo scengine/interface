@@ -108,6 +108,7 @@ SCE_SShader* SCE_Shader_Load (const char*, int);
 
 void SCE_Shader_SetupFeedbackVaryings (SCE_SShader*, SCEuint, const char**,
                                        SCE_RFeedbackStorageMode);
+void SCE_Shader_SetOutputTarget (SCE_SShader*, const char*, SCE_RBufferType);
 int SCE_Shader_SetupPipeline (SCE_SShader*, const SCE_SRenderState*);
 int SCE_Shader_Build (SCE_SShader*);
 int SCE_Shader_Validate (SCE_SShader*);
