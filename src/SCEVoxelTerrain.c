@@ -57,15 +57,13 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
 
     vt->non_empty_shader = NULL;
     vt->non_empty_offset_loc = 0;
-
     vt->list_verts_shader = NULL;
-
     vt->final_shader = NULL;
     vt->final_offset_loc = 0;
 
-    /* HERP */
-    vt->herp_shader = NULL;
-    vt->herp_offset_loc = 0;
+    vt->splat_shader = NULL;
+    vt->indices_shader = NULL;
+    vt->splat = NULL;
 
     for (i = 0; i < SCE_MAX_VTERRAIN_LEVELS; i++)
         SCE_VTerrain_InitLevel (&vt->levels[i]);
@@ -369,6 +367,70 @@ static const char *final_gs =
     "}";
 
 
+static const char *splat_vs =
+    "#define OW (1.0/W)\n"
+    "#define OH (1.0/H)\n"
+    "#define OD (1.0/D)\n"
+
+    "in uint sce_position;"
+    "out vec2 pos;"
+    "out int depth;"
+    "out int vertex_id;"
+
+    "void main (void)"
+    "{"
+       /* extracting position */
+    "  uint xyz8 = sce_position;"
+    "  vec2 ip;"
+    "  ip = vec2 ((xyz8 >> 24) & 0xFF, (xyz8 >> 16) & 0xFF);"
+       /* TODO: maybe developing can produce a single MAD instruction */
+    "  vec2 p = (vec2 (ip) + vec2 (0.5)) * vec2 (OW, OH);"
+       /* extracting edge; and thus offset */
+    "  int edge = int (sce_position & 0xFF);"
+    "  float edgef = float(edge) * OW / 8.0;"
+
+    "  pos = 2.0 * vec2 (p.x + edgef, p.y) - vec2 (1.0, 1.0);"
+    "  depth = int((xyz8 >> 8) & 0xFF);"
+    "  vertex_id = gl_VertexID;"
+    "}";
+
+static const char *splat_gs =
+#if 1
+    "\n#extension ARB_draw_buffers : require\n"
+    "#extension EXT_gpu_shader4 : require\n"
+    "#extension EXT_geometry_shader4 : require\n"
+#endif
+
+    "layout (points, max_vertices = 1) in;"
+    "layout (points, max_vertices = 1) out;"
+
+    "in vec2 pos[1];"
+    "in int depth[1];"
+    "in int vertex_id[1];"
+    "out uint vid;"
+
+    "void main (void)"
+    "{"
+    "  vid = uint (vertex_id[0]);"
+    "  gl_Layer = depth[0];"
+    "  gl_Position = vec4 (pos[0], 0.0, 1.0);"
+    "  EmitVertex ();"
+    "  EndPrimitive ();"
+    "}";
+
+static const char *splat_ps =
+    "in uint vid;"
+    "out uvec4 fragdata;"
+
+    "void main (void)"
+    "{"
+    "  fragdata = uvec4 ((vid & 0xFF000000) >> 24,"
+    "                    (vid & 0x00FF0000) >> 16,"
+    "                    (vid & 0x0000FF00) >> 8,"
+    "                    (vid & 0x000000FF));"
+    "}";
+
+
 static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
                                     SCE_SVoxelTerrainLevel *tl)
 {
@@ -382,6 +444,7 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
     if (!(tc = SCE_TexData_Create ()))
         goto fail;
     /* SCE_PXF_LUMINANCE: 8 bits density precision */
+    /* TODO: luminance format is deprecated */
     SCE_Grid_ToTexture (&tl->grid, tc, SCE_PXF_LUMINANCE);
 
     if (!(tl->tex = SCE_Texture_Create (SCE_TEX_3D, 0, 0)))
@@ -420,6 +483,7 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
     SCE_SGrid grid;
     size_t n_points;
     const char *varyings[2] = {NULL, NULL};
+    SCE_STexData tc;
 
     if (vt->built)
         return SCE_OK;
@@ -498,7 +562,6 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
     if (SCE_Shader_AddSource (vt->list_verts_shader, SCE_GEOMETRY_SHADER,
                               list_verts_gs, SCE_FALSE) < 0) goto fail;
     varyings[0] = "xyz8_edge8";
-
     SCE_Shader_SetupFeedbackVaryings (vt->list_verts_shader, 1, varyings,
                                       SCE_FEEDBACK_INTERLEAVED);
     SCE_Shader_SetupAttributesMapping (vt->list_verts_shader);
@@ -522,6 +585,38 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
     SCE_Shader_ActivateAttributesMapping (vt->final_shader, SCE_TRUE);
     if (SCE_Shader_Build (vt->final_shader) < 0) goto fail;
     vt->final_offset_loc = SCE_Shader_GetIndex (vt->final_shader, "offset");
+
+    /* splat vertices index shader */
+    if (!(vt->splat_shader = SCE_Shader_Create ())) goto fail;
+    if (SCE_Shader_AddSource (vt->splat_shader, SCE_VERTEX_SHADER,
+                              splat_vs, SCE_FALSE) < 0) goto fail;
+    if (SCE_Shader_AddSource (vt->splat_shader, SCE_GEOMETRY_SHADER,
+                              splat_gs, SCE_FALSE) < 0) goto fail;
+    if (SCE_Shader_AddSource (vt->splat_shader, SCE_PIXEL_SHADER,
+                              splat_ps, SCE_FALSE) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->splat_shader, "W", vt->width) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->splat_shader, "H", vt->height) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->splat_shader, "D", vt->depth) < 0) goto fail;
+    SCE_Shader_SetupAttributesMapping (vt->splat_shader);
+    SCE_Shader_ActivateAttributesMapping (vt->splat_shader, SCE_TRUE);
+    SCE_Shader_SetOutputTarget (vt->splat_shader, "fragdata",
+                                SCE_COLOR_BUFFER0);
+    if (SCE_Shader_Build (vt->splat_shader) < 0) goto fail;
+
+    /* constructing indices 3D map */
+    if (!(vt->splat = SCE_Texture_Create (SCE_TEX_3D, 0, 0))) goto fail;
+    SCE_TexData_Init (&tc);
+    SCE_TexData_SetDimensions (&tc, vt->width * 8, vt->height, vt->depth);
+    SCE_TexData_SetDataType (&tc, SCE_UNSIGNED_INT);
+    SCE_TexData_SetType (&tc, SCE_IMAGE_3D);
+    SCE_TexData_SetDataFormat (&tc, SCE_IMAGE_RGBA);
+    SCE_TexData_SetPixelFormat (&tc, SCE_PXF_RGBA8UI);
+    SCE_Texture_AddTexDataDup (vt->splat, 0, &tc);
+    /* index values must not be modified by magnification filter */
+    SCE_Texture_Pixelize (vt->splat, SCE_TRUE);
+    SCE_Texture_SetFilter (vt->splat, SCE_TEX_NEAREST);
+    SCE_Texture_Build (vt->splat, SCE_FALSE);
+    if (SCE_Texture_SetupFramebuffer (vt->splat, 0, SCE_FALSE) < 0) goto fail;
 
     vt->built = SCE_TRUE;
 
@@ -616,7 +711,9 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
 static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
                                       SCE_SVoxelTerrainLevel *tl)
 {
-    /* first pass: render non empty cells */
+    int i;
+
+    /* 1st pass: render non empty cells */
     SCE_Texture_Use (tl->tex);
     SCE_Shader_Use (vt->non_empty_shader);
     SCE_Shader_SetParam3fv (vt->non_empty_offset_loc, 1, tl->wrap);
@@ -626,6 +723,7 @@ static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
     SCE_Mesh_Unuse ();
     SCE_Mesh_EndRenderTo (&tl->non_empty);
 
+    /* 2nd pass: render a list of vertices */
     SCE_Shader_Use (vt->list_verts_shader);
     SCE_Mesh_BeginRenderTo (&tl->list_verts);
     SCE_Mesh_Use (&tl->non_empty);
@@ -633,6 +731,7 @@ static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
     SCE_Mesh_Unuse ();
     SCE_Mesh_EndRenderTo (&tl->list_verts);
 
+    /* 3rd pass: process vertices to generate final coords & normal */
     SCE_Shader_Use (vt->final_shader);
     SCE_Shader_SetParam3fv (vt->final_offset_loc, 1, tl->wrap);
     SCE_Mesh_BeginRenderTo (&tl->mesh);
@@ -640,6 +739,28 @@ static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
     SCE_Mesh_Render ();
     SCE_Mesh_Unuse ();
     SCE_Mesh_EndRenderTo (&tl->mesh);
+
+    glDisable (GL_ALPHA_TEST);
+
+    /* 4th pass: generate the 3D map of indices */
+    SCE_Texture_Use (NULL);
+    /* TODO: useless clear */
+#if 1
+    SCE_RClearColorui (0, 0, 0, 0);
+    for (i = 0; i < vt->depth; i++) {
+        SCE_Texture_RenderToLayer (vt->splat, i);
+        SCE_RClear (GL_COLOR_BUFFER_BIT);
+    }
+#endif
+    SCE_Texture_RenderTo (vt->splat, 0);
+    SCE_Shader_Use (vt->splat_shader);
+    SCE_Mesh_Use (&tl->list_verts);
+    SCE_Mesh_Render ();
+    SCE_Mesh_Unuse ();
+    SCE_Texture_RenderTo (NULL, 0);
+
+    /* 5th pass: generate the index buffer */
+    /* derp. */
 
     SCE_Shader_Use (NULL);
     SCE_Texture_Use (NULL);

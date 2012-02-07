@@ -72,14 +72,13 @@ struct sce_svoxelterrain {
 
     SCE_SShader *non_empty_shader;
     int non_empty_offset_loc;
-
     SCE_SShader *list_verts_shader;
-
     SCE_SShader *final_shader;
     int final_offset_loc;
 
-    SCE_SShader *herp_shader;
-    int herp_offset_loc;
+    SCE_SShader *splat_shader;
+    SCE_SShader *indices_shader;
+    SCE_STexture *splat;     /**< 3D map of indices */
 
     SCE_SVoxelTerrainLevel levels[SCE_MAX_VTERRAIN_LEVELS];
     size_t n_levels;
