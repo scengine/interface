@@ -186,6 +186,10 @@ void SCE_Mesh_DisableStream (SCE_EMeshStream s)
     activated_streams[s] = SCE_FALSE;
 }
 
+void SCE_Mesh_ActivateIndices (SCE_SMesh *mesh, int activate)
+{
+    mesh->use_ib = activate;
+}
 /**
  * \brief Sets the primitive type of a mesh
  * \param mesh a mesh

@@ -96,6 +96,7 @@ void SCE_Mesh_ActivateStream (SCE_EMeshStream, int);
 void SCE_Mesh_EnableStream (SCE_EMeshStream);
 void SCE_Mesh_DisableStream (SCE_EMeshStream);
 
+void SCE_Mesh_ActivateIndices (SCE_SMesh*, int);
 void SCE_Mesh_SetPrimitiveType (SCE_SMesh*, SCE_EPrimitiveType);
 
 SCE_SGeometry* SCE_Mesh_GetGeometry (SCE_SMesh*);
