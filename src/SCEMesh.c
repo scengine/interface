@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 31/07/2009
-   updated: 29/01/2012 */
+   updated: 09/02/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -186,6 +186,16 @@ void SCE_Mesh_DisableStream (SCE_EMeshStream s)
     activated_streams[s] = SCE_FALSE;
 }
 
+/**
+ * \brief Sets the primitive type of a mesh
+ * \param mesh a mesh
+ * \param t primitive type
+ * \sa SCE_Geometry_GetPrimitiveType(), SCE_Geometry_SetPrimitiveType()
+ */
+void SCE_Mesh_SetPrimitiveType (SCE_SMesh *mesh, SCE_EPrimitiveType t)
+{
+    mesh->prim = t;
+}
 
 /**
  * \brief Gets the geometry of a mesh

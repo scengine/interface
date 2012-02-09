@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 31/07/2009
-   updated: 29/01/2012 */
+   updated: 09/02/2012 */
 
 #ifndef SCEMESH_H
 #define SCEMESH_H
@@ -95,6 +95,8 @@ void SCE_Mesh_Delete (SCE_SMesh*);
 void SCE_Mesh_ActivateStream (SCE_EMeshStream, int);
 void SCE_Mesh_EnableStream (SCE_EMeshStream);
 void SCE_Mesh_DisableStream (SCE_EMeshStream);
+
+void SCE_Mesh_SetPrimitiveType (SCE_SMesh*, SCE_EPrimitiveType);
 
 SCE_SGeometry* SCE_Mesh_GetGeometry (SCE_SMesh*);
 int SCE_Mesh_SetGeometry (SCE_SMesh*, SCE_SGeometry*, int);
