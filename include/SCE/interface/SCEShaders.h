@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 01/02/2012 */
+   updated: 08/02/2012 */
 
 #ifndef SCESHADERS_H
 #define SCESHADERS_H
@@ -87,6 +87,7 @@ struct sce_sshader {
     SCE_SSceneResource s_resource;
     char *path;
     SCE_SPipeline pipeline;
+    int version;
 };
 
 
@@ -109,7 +110,9 @@ SCE_SShader* SCE_Shader_Load (const char*, int);
 void SCE_Shader_SetupFeedbackVaryings (SCE_SShader*, SCEuint, const char**,
                                        SCE_RFeedbackStorageMode);
 void SCE_Shader_SetOutputTarget (SCE_SShader*, const char*, SCE_RBufferType);
+void SCE_Shader_SetVersion (SCE_SShader*, int);
 int SCE_Shader_SetupPipeline (SCE_SShader*, const SCE_SRenderState*);
+
 int SCE_Shader_Build (SCE_SShader*);
 int SCE_Shader_Validate (SCE_SShader*);
 

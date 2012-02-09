@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 01/02/2012 */
+   updated: 08/02/2012 */
 
 #include <ctype.h>
 #include <SCE/utils/SCEUtils.h>
@@ -118,6 +118,7 @@ void SCE_Shader_Init (SCE_SShader *shader)
     shader->path = NULL;
     shader->pipeline.shaders = NULL;
     shader->pipeline.n_shaders = 0;
+    shader->version = 120;
 }
 
 SCE_SShader* SCE_Shader_Create (void)
@@ -399,6 +400,11 @@ void SCE_Shader_SetOutputTarget (SCE_SShader *shader, const char *output,
     SCE_RSetProgramOutputTarget (shader->p_glsl, output, target);
 }
 
+void SCE_Shader_SetVersion (SCE_SShader *shader, int version)
+{
+    shader->version = version;
+}
+
 int SCE_Shader_SetupPipeline (SCE_SShader *shader,
                               const SCE_SRenderState *state)
 {
@@ -498,6 +504,7 @@ static void SCE_Shader_BuildUniformSamplers (SCE_SShader *shader)
 static int SCE_Shader_BuildAux (SCE_SShader *shader)
 {
     SCE_RShaderType i;
+    char verbuf[32] = {0};
 
     if (shader->ready) {
         /* looks like we are rebuilding the shader! */
@@ -511,12 +518,21 @@ static int SCE_Shader_BuildAux (SCE_SShader *shader)
         }
     }
 
+    sprintf (verbuf, "#version %d\n", shader->version);
+
     for (i = 0; i < SCE_NUM_SHADER_TYPES; i++) {
         if ((shader->res && shader->res[i]) || shader->addsrc[i]) {
             SCE_free (shader->sources[i]);
-            shader->sources[i] = SCE_String_CatDup (shader->addsrc[i],
-                                                    shader->res ?
-                                                    shader->res[i] : NULL);
+            if (shader->addsrc[i]) {
+                shader->sources[i] =
+                    SCE_String_CatDupMulti (verbuf, shader->addsrc[i],
+                                            shader->res ? shader->res[i] : NULL,
+                                            NULL);
+            } else {
+                shader->sources[i] =
+                    SCE_String_CatDupMulti (verbuf, shader->res ?
+                                            shader->res[i] : NULL, NULL);
+            }
             if (!shader->sources[i]) goto fail;
         }
     }
