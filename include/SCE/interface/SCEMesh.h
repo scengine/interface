@@ -71,7 +71,9 @@ struct sce_smesh {
     SCEuint n_vertices;
     SCEuint n_indices;
     SCE_RFeedback feedback;     /**< Feedback object */
+    SCE_RFeedback feedback_id;  /**< Feedback object for indices */
     SCE_RBuffer *counting_buffer;
+    SCE_RBuffer *counting_buffer_id;
     SCE_SGeometryArrayUser index_auser;
     SCE_RBufferRenderMode rmode;/**< Render mode */
     SCE_EMeshBuildMode bmode;   /**< Build mode */
@@ -118,6 +120,8 @@ void SCE_Mesh_Unuse (void);
 
 void SCE_Mesh_BeginRenderTo (SCE_SMesh*);
 void SCE_Mesh_EndRenderTo (SCE_SMesh*);
+void SCE_Mesh_BeginRenderToIndices (SCE_SMesh*);
+void SCE_Mesh_EndRenderToIndices (SCE_SMesh*);
 
 #ifdef __cplusplus
 } /* extern "C" */

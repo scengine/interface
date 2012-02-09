@@ -37,6 +37,8 @@ static SCE_SMeshRenderInstancedFunc render_func_instanced = NULL;
 
 static SCE_SMesh *feedback_target = NULL;
 static int feedback_enabled = SCE_FALSE;
+static SCE_SMesh *feedback_target_id = NULL;
+static int feedback_enabled_id = SCE_FALSE;
 
 static void* SCE_Mesh_LoadResource (const char*, int, void*);
 
@@ -118,6 +120,7 @@ void SCE_Mesh_Init (SCE_SMesh *mesh)
     mesh->n_vertices = 0;
     mesh->n_indices = 0;
     SCE_RInitFeedback (&mesh->feedback);
+    SCE_RInitFeedback (&mesh->feedback_id);
     mesh->counting_buffer = NULL;
     SCE_Geometry_InitArrayUser (&mesh->index_auser);
     mesh->rmode = SCE_VA_RENDER_MODE;
@@ -482,7 +485,10 @@ static void SCE_Mesh_BuildFeedback (SCE_SMesh *mesh)
             }
         }
     }
-    /* index buffer usually won't be generated in the same time vertices are */
+
+    mesh->counting_buffer_id = SCE_RGetIndexBufferBuffer (&mesh->ib);
+    SCE_RAddFeedbackStream (&mesh->feedback_id, mesh->counting_buffer_id, NULL);
+    SCE_REnableFeedbackCounting (&mesh->feedback_id, mesh->counting_buffer_id);
 }
 /**
  * \brief Builds a mesh by creating vertex buffers with requested usages
@@ -624,6 +630,10 @@ void SCE_Mesh_Render (void)
     if (feedback_target && !feedback_enabled) {
         SCE_RBeginFeedback (&feedback_target->feedback, feedback_target->prim);
         feedback_enabled = SCE_TRUE;
+    } else if (feedback_target_id && !feedback_enabled_id) {
+        SCE_RBeginFeedback (&feedback_target_id->feedback_id,
+                            feedback_target_id->prim);
+        feedback_enabled_id = SCE_TRUE;
     }
     render_func (mesh_bound->prim);
 }
@@ -663,7 +673,27 @@ void SCE_Mesh_EndRenderTo (SCE_SMesh *mesh)
                                                 mesh->counting_buffer);
         mesh->n_vertices =
             n_prim * SCE_Geometry_GetPrimitiveVertices (feedback_target->prim);
+        //SCEE_SendMsg ("mesh->n_vertices = %d\n", mesh->n_vertices);
         feedback_enabled = SCE_FALSE;
-        feedback_target = NULL;
     }
+    feedback_target = NULL;
+}
+
+void SCE_Mesh_BeginRenderToIndices (SCE_SMesh *mesh)
+{
+    feedback_target_id = mesh;
+}
+void SCE_Mesh_EndRenderToIndices (SCE_SMesh *mesh)
+{
+    if (feedback_enabled_id) {
+        SCEuint n_prim;
+        SCE_REndFeedback (&mesh->feedback_id);
+        n_prim = SCE_RGetFeedbackNumPrimitives (&mesh->feedback_id,
+                                                mesh->counting_buffer_id);
+        mesh->n_indices =
+            n_prim * SCE_Geometry_GetPrimitiveVertices (feedback_target_id->prim);
+//        SCEE_SendMsg ("mesh->n_indices = %d\n", mesh->n_indices);
+        feedback_enabled_id = SCE_FALSE;
+    }
+    feedback_target_id = NULL;
 }
