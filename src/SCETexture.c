@@ -293,6 +293,16 @@ void SCE_Texture_SetAnisotropic (SCE_STexture *tex, float level)
 {
     SCE_RSetTextureAnisotropic (tex->tex, level);
 }
+/**
+ * \brief Sets wrapping mode of a texture
+ * \param tex a texture
+ * \param mode wrapping mode
+ * \sa SCE_RSetTextureWrapMode()
+ */
+void SCE_Texture_SetWrapMode (SCE_STexture *tex, SCE_RTexWrapMode mode)
+{
+    SCE_RSetTextureWrapMode (tex->tex, mode);
+}
 
 /**
  * \brief Sets an OpenGL texture's parameter

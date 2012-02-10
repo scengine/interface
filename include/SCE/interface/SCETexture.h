@@ -101,6 +101,7 @@ SCE_SSceneResource* SCE_Texture_GetSceneResource (SCE_STexture*);
 void SCE_Texture_SetFilter (SCE_STexture*, SCE_RTexFilter);
 void SCE_Texture_Pixelize (SCE_STexture*, int);
 void SCE_Texture_SetAnisotropic (SCE_STexture*, float);
+void SCE_Texture_SetWrapMode (SCE_STexture*, SCE_RTexWrapMode);
 
 void SCE_Texture_SetParam (SCE_STexture*, SCEenum, SCEint) SCE_GNUC_DEPRECATED;
 void SCE_Texture_SetParamf (SCE_STexture*, SCEenum, SCEfloat) SCE_GNUC_DEPRECATED;
