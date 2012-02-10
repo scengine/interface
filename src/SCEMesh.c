@@ -672,8 +672,7 @@ void SCE_Mesh_EndRenderTo (SCE_SMesh *mesh)
         n_prim = SCE_RGetFeedbackNumPrimitives (&mesh->feedback,
                                                 mesh->counting_buffer);
         mesh->n_vertices =
-            n_prim * SCE_Geometry_GetPrimitiveVertices (feedback_target->prim);
-        //SCEE_SendMsg ("mesh->n_vertices = %d\n", mesh->n_vertices);
+            n_prim * SCE_Geometry_GetPrimitiveVertices (mesh->prim);
         feedback_enabled = SCE_FALSE;
     }
     feedback_target = NULL;
@@ -691,8 +690,7 @@ void SCE_Mesh_EndRenderToIndices (SCE_SMesh *mesh)
         n_prim = SCE_RGetFeedbackNumPrimitives (&mesh->feedback_id,
                                                 mesh->counting_buffer_id);
         mesh->n_indices =
-            n_prim * SCE_Geometry_GetPrimitiveVertices (feedback_target_id->prim);
-//        SCEE_SendMsg ("mesh->n_indices = %d\n", mesh->n_indices);
+            n_prim * SCE_Geometry_GetPrimitiveVertices (mesh->prim);
         feedback_enabled_id = SCE_FALSE;
     }
     feedback_target_id = NULL;
