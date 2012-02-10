@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 03/02/2012 */
+   updated: 10/02/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -182,24 +182,24 @@ static const char *non_empty_gs =
 
     "void main (void)"
     "{"
-    "  int case8;"
+    "  uint case8;"
     "  vec3 p = pos[0];"
        /* texture fetch */
     "  vec3 tc = p + offset;"
     "  case8  = int(0.5 + texture3D (sce_tex0, tc).x);"
-    "  case8 |= int(0.5 + texture3D (sce_tex0, tc + vec3 (OW, 0., 0.)).x) << 1;"
-    "  case8 |= int(0.5 + texture3D (sce_tex0, tc + vec3 (OW, 0., OD)).x) << 2;"
-    "  case8 |= int(0.5 + texture3D (sce_tex0, tc + vec3 (0., 0., OD)).x) << 3;"
-    "  case8 |= int(0.5 + texture3D (sce_tex0, tc + vec3 (0., OH, OD)).x) << 4;"
-    "  case8 |= int(0.5 + texture3D (sce_tex0, tc + vec3 (OW, OH, OD)).x) << 5;"
-    "  case8 |= int(0.5 + texture3D (sce_tex0, tc + vec3 (OW, OH, 0.)).x) << 6;"
-    "  case8 |= int(0.5 + texture3D (sce_tex0, tc + vec3 (0., OH, 0.)).x) << 7;"
+    "  case8 |= uint(0.5 + texture3D (sce_tex0, tc + vec3 (OW, 0., 0.)).x) << 1;"
+    "  case8 |= uint(0.5 + texture3D (sce_tex0, tc + vec3 (OW, 0., OD)).x) << 2;"
+    "  case8 |= uint(0.5 + texture3D (sce_tex0, tc + vec3 (0., 0., OD)).x) << 3;"
+    "  case8 |= uint(0.5 + texture3D (sce_tex0, tc + vec3 (0., OH, OD)).x) << 4;"
+    "  case8 |= uint(0.5 + texture3D (sce_tex0, tc + vec3 (OW, OH, OD)).x) << 5;"
+    "  case8 |= uint(0.5 + texture3D (sce_tex0, tc + vec3 (OW, OH, 0.)).x) << 6;"
+    "  case8 |= uint(0.5 + texture3D (sce_tex0, tc + vec3 (0., OH, 0.)).x) << 7;"
 
     "  if (case8 > 0 && case8 < 255) {"
     "    p *= vec3 (W, H, D);"
-    "    case8 |= int(p.x) << 24;"
-    "    case8 |= int(p.y) << 16;"
-    "    case8 |= int(p.z) << 8;"
+    "    case8 |= uint(p.x) << 24;"
+    "    case8 |= uint(p.y) << 16;"
+    "    case8 |= uint(p.z) << 8;"
     "    xyz8_case8 = case8;"
     "    EmitVertex ();"
     "    EndPrimitive ();"
@@ -243,48 +243,48 @@ static const char *list_verts_vs =
  */
 static const char *list_verts_gs =
     "layout (points, max_vertices = 1) in;"
-    "layout (points, max_vertices = 1) out;"
+    "layout (points, max_vertices = 7) out;"
 
     "in uint xyz8_case8[1];"
-    "out uint xyz8_edge8;"      /* actually there is one bit left unused */
+    "out uint xyz8_edge8;"      /* actually there are some bits left unused */
 
     "void main (void)"
     "{"
     "  uint xyz = 0xFFFFFF00 & xyz8_case8[0];"
     "  uint case8 = 0x000000FF & xyz8_case8[0];"
 
-    "  if ((((case8 >> 0) & 1) ^ ((case8 >> 6) & 1)) != 0) {"
+    "  if ((case8 & 1) != ((case8 >> 6) & 1)) {"
     "    xyz8_edge8 = xyz;"
     "    EmitVertex ();"
     "    EndPrimitive ();"
     "  }"
-    "  if ((((case8 >> 0) & 1) ^ ((case8 >> 7) & 1)) != 0) {"
-    "    xyz8_edge8 = xyz | 1;"
+    "  if ((case8 & 1) != ((case8 >> 7) & 1)) {"
+    "    xyz8_edge8 = xyz + 1;"
     "    EmitVertex ();"
     "    EndPrimitive ();"
     "  }"
-    "  if ((((case8 >> 0) & 1) ^ ((case8 >> 1) & 1)) != 0) {"
-    "    xyz8_edge8 = xyz | 2;"
+    "  if ((case8 & 1) != ((case8 >> 1) & 1)) {"
+    "    xyz8_edge8 = xyz + 2;"
     "    EmitVertex ();"
     "    EndPrimitive ();"
     "  }"
-    "  if ((((case8 >> 0) & 1) ^ ((case8 >> 3) & 1)) != 0) {"
-    "    xyz8_edge8 = xyz | 3;"
+    "  if ((case8 & 1) != ((case8 >> 3) & 1)) {"
+    "    xyz8_edge8 = xyz + 3;"
     "    EmitVertex ();"
     "    EndPrimitive ();"
     "  }"
-    "  if ((((case8 >> 3) & 1) ^ ((case8 >> 7) & 1)) != 0) {"
-    "    xyz8_edge8 = xyz | 4;"
+    "  if (((case8 >> 3) & 1) != ((case8 >> 7) & 1)) {"
+    "    xyz8_edge8 = xyz + 4;"
     "    EmitVertex ();"
     "    EndPrimitive ();"
     "  }"
-    "  if ((((case8 >> 3) & 1) ^ ((case8 >> 1) & 1)) != 0) {"
-    "    xyz8_edge8 = xyz | 5;"
+    "  if (((case8 >> 3) & 1) != ((case8 >> 1) & 1)) {"
+    "    xyz8_edge8 = xyz + 5;"
     "    EmitVertex ();"
     "    EndPrimitive ();"
     "  }"
-    "  if ((((case8 >> 3) & 1) ^ ((case8 >> 6) & 1)) != 0) {"
-    "    xyz8_edge8 = xyz | 6;"
+    "  if (((case8 >> 3) & 1) != ((case8 >> 6) & 1)) {"
+    "    xyz8_edge8 = xyz + 6;"
     "    EmitVertex ();"
     "    EndPrimitive ();"
     "  }"
@@ -345,7 +345,6 @@ static const char *final_vs =
     "  float w = -c1.w / (c2.w - c1.w);"
     "  pos.xyz = (0.5 * c1.xyz) * (1.0 - w) + (0.5 * c2.xyz) * w;"
     "  pos.w = 1.0;"
-    "  pos.xyz *= 5.0;"
     "  nor = vec3 (0.0, 0.0, 1.0);"
     "}";
 
@@ -383,11 +382,10 @@ static const char *splat_vs =
     "  uint xyz8 = sce_position;"
     "  vec2 ip;"
     "  ip = vec2 ((xyz8 >> 24) & 0xFF, (xyz8 >> 16) & 0xFF);"
-       /* TODO: maybe developing can produce a single MAD instruction */
-    "  vec2 p = (vec2 (ip) + vec2 (0.5)) * vec2 (OW, OH);"
+    "  vec2 p = vec2 (ip) * vec2 (OW, OH);"
        /* extracting edge; and thus offset */
-    "  int edge = int (sce_position & 0xFF);"
-    "  float edgef = float(edge) * OW / 8.0;"
+    "  int edge = int (xyz8 & 0xFF);"
+    "  float edgef = float (edge) * OW / 8.0;"
 
     "  pos = 2.0 * vec2 (p.x + edgef, p.y) - vec2 (1.0, 1.0);"
     "  depth = int((xyz8 >> 8) & 0xFF);"
@@ -395,11 +393,9 @@ static const char *splat_vs =
     "}";
 
 static const char *splat_gs =
-#if 1
     "\n#extension ARB_draw_buffers : require\n"
     "#extension EXT_gpu_shader4 : require\n"
     "#extension EXT_geometry_shader4 : require\n"
-#endif
 
     "layout (points, max_vertices = 1) in;"
     "layout (points, max_vertices = 1) out;"
@@ -420,14 +416,227 @@ static const char *splat_gs =
 
 static const char *splat_ps =
     "in uint vid;"
-    "out uvec4 fragdata;"
+    "out uint fragdata;"
 
     "void main (void)"
     "{"
-    "  fragdata = uvec4 ((vid & 0xFF000000) >> 24,"
-    "                    (vid & 0x00FF0000) >> 16,"
-    "                    (vid & 0x0000FF00) >> 8,"
-    "                    (vid & 0x000000FF));"
+    "  fragdata = vid;"
+    "}";
+
+
+static const char *indices_vs =
+    "#define OW (1.0/W)\n"
+    "#define OH (1.0/H)\n"
+    "#define OD (1.0/D)\n"
+
+    "in uint sce_position;"     /* xyz8_case8 */
+    "out vec3 pos;"             /* coordinates */
+    "out uint case8;"           /* case */
+
+    "void main (void)"
+    "{"
+    "  uvec3 xyz = uvec3 ((sce_position & 0xFF000000) >> 24,"
+    "                     (sce_position & 0x00FF0000) >> 16,"
+    "                     (sce_position & 0x0000FF00) >> 8);"
+    "  case8 = sce_position & 0x000000FF;"
+    "  pos = vec3 (xyz) * vec3 (OW, OH, OD);"
+    "}";
+
+static const char *indices_gs =
+    "#define OW (1.0/W)\n"
+    "#define OH (1.0/H)\n"
+    "#define OD (1.0/D)\n"
+
+    "layout (points, max_vertices = 1) in;"
+    "layout (triangle_strip, max_vertices = 36) out;"
+
+    "in vec3 pos[1];"
+    "in uint case8[1];"
+    "out uint index;"
+
+    "uniform usampler3D sce_tex0;"
+
+    /*                + 0
+                     /|\
+                    / | \
+                   /  |  \
+                  1   2   0
+                 /    |    \
+                /     |     \
+               +---4--|------+ 1
+              3 \     |     /
+                 \    |    /
+                  5   |   3
+                   \  |  /
+                    \ | /
+                     \|/
+                      + 2
+    */
+    "\n#define N_CASES (16)\n"
+
+    /* lookup tables */
+
+    /* number of polygons, false indicates one and true indicates two */
+    "const bool lt_triangles_count[N_CASES] = {"
+    "    false, false, false, true, false, true, true, false, false, true,"
+    "    true, false, true, false, false, false"
+    "};"
+
+    /* frontfacing triangles are clockwise */
+    "const int lt_triangles[N_CASES * 4] = {"
+                                      // 3210 vertex index
+    "    0, 0, 0, 0,"                 // 0000
+    "    0, 1, 2, 0,"                 // 0001
+    "    0, 3, 4, 0,"                 // 0010
+    "    1, 2, 3, 4,"                 // 0011
+    "    2, 5, 3, 0,"                 // 0100
+    "    0, 1, 5, 3,"                 // 0101
+    "    0, 2, 5, 4,"                 // 0110
+    "    1, 5, 4, 0,"                 // 0111
+    "    1, 4, 5, 0,"                 // 1000
+    "    0, 4, 5, 2,"                 // 1001
+    "    0, 3, 5, 1,"                 // 1010
+    "    2, 3, 5, 0,"                 // 1011
+    "    1, 4, 3, 2,"                 // 1100
+    "    0, 4, 3, 0,"                 // 1101
+    "    0, 2, 1, 0,"                 // 1110
+    "    0, 0, 0, 0"                  // 1111
+    "};"
+
+    "uint get_edge (in vec3 coord, in float edge)"
+    "{"
+    "  vec3 c = coord;"
+    "  c.x += (edge + 0.5) * OW / 8.0;"
+    "  uvec4 v = texture (sce_tex0, c);"
+    "  return v.x;"
+    "}"
+
+    "void get_edges (out uint edges[19])"
+    "{"
+    "  vec3 t = pos[0];"
+
+    "  edges[0] = get_edge (t, 0.0);"
+    "  edges[1] = get_edge (t, 1.0);"
+    "  edges[2] = get_edge (t, 2.0);"
+    "  edges[3] = get_edge (t, 3.0);"
+    "  edges[4] = get_edge (t, 4.0);"
+    "  edges[5] = get_edge (t, 5.0);"
+    "  edges[6] = get_edge (t, 6.0);"
+
+    "  t = pos[0] + vec3 (OW, 0.0, 0.0);"
+    "  edges[7] = get_edge (t, 1.0);"
+    "  edges[8] = get_edge (t, 3.0);"
+    "  edges[9] = get_edge (t, 4.0);"
+
+    "  t = pos[0] + vec3 (OW, 0.0, OD);"
+    "  edges[10] = get_edge (t, 1.0);"
+
+    "  t = pos[0] + vec3 (OW, OH, 0.0);"
+    "  edges[11] = get_edge (t, 3.0);"
+
+    "  t = pos[0] + vec3 (0.0, OH, 0.0);"
+    "  edges[12] = get_edge (t, 2.0);"
+    "  edges[13] = get_edge (t, 3.0);"
+    "  edges[14] = get_edge (t, 5.0);"
+
+    "  t = pos[0] + vec3 (0.0, OH, OD);"
+    "  edges[15] = get_edge (t, 2.0);"
+
+    "  t = pos[0] + vec3 (0.0, 0.0, OD);"
+    "  edges[16] = get_edge (t, 0.0);"
+    "  edges[17] = get_edge (t, 1.0);"
+    "  edges[18] = get_edge (t, 2.0);"
+    "}"
+
+    /* given a couple of vertices, gives the index of the associated edge
+       in the cube */
+    "const int lt_cube_edges[8 * 8] = {"
+    "  -1,  2, -1,  3, -1, -1,  0,  1,"
+    "   2, -1,  8,  5, -1, -1,  7, -1,"
+    "  -1,  8, -1, 18, -1, 10,  9, -1,"
+    "   3,  5, 18, -1, 17, 16,  6,  4,"
+    "  -1, -1, -1, 17, -1, 15, 14, 13,"
+    "  -1, -1, 10, 16, 15, -1, 11, -1,"
+    "   0,  7,  9,  6, 14, 11, -1, 12,"
+    "   1, -1, -1,  4, 13, -1, 12, -1"
+    "};"
+
+    /* look up table that constructs a tetrahedron given its ID and
+       returning the indices of the corners forming the tetrahedron */
+    "const int lt_vertices[6 * 4] = {"
+    "  3, 6, 7, 0,"
+    "  3, 4, 7, 6,"
+    "  3, 5, 4, 6,"
+    "  3, 2, 5, 6,"
+    "  3, 1, 2, 6,"
+    "  3, 0, 1, 6"
+    "};"
+
+    "void output_tetrahedron (uint c, in uint edges[6])"
+    "{"
+    "  if (c > 0 && c < 15) {"
+    "    index = edges[lt_triangles[c * 4 + 0]];"
+    "    EmitVertex ();"
+    "    index = edges[lt_triangles[c * 4 + 1]];"
+    "    EmitVertex ();"
+    "    index = edges[lt_triangles[c * 4 + 2]];"
+    "    EmitVertex ();"
+    "    EndPrimitive ();"
+
+    "    if (lt_triangles_count[c]) {"
+    "      index = edges[lt_triangles[c * 4 + 2]];"
+    "      EmitVertex ();"
+    "      index = edges[lt_triangles[c * 4 + 3]];"
+    "      EmitVertex ();"
+    "      index = edges[lt_triangles[c * 4 + 0]];"
+    "      EmitVertex ();"
+    "      EndPrimitive ();"
+    "    }"
+    "  }"
+    "}"
+
+    "void output_indices (in uint edges[19])"
+    "{"
+    "  int i;"
+    "  uint tetra[6];"
+
+       /* for each tetrahedron in the cube */
+    "  for (i = 0; i < 6; i++) {"
+         /* retrieve the 6 edges of the tetrahedron */
+    "    int v1, v2;"
+    "    v1 = lt_vertices[i * 4 + 0]; v2 = lt_vertices[i * 4 + 1];"
+    "    tetra[0] = edges[lt_cube_edges[v1 * 8 + v2]];"
+    "    v1 = lt_vertices[i * 4 + 0]; v2 = lt_vertices[i * 4 + 3];"
+    "    tetra[1] = edges[lt_cube_edges[v1 * 8 + v2]];"
+    "    v1 = lt_vertices[i * 4 + 0]; v2 = lt_vertices[i * 4 + 2];"
+    "    tetra[2] = edges[lt_cube_edges[v1 * 8 + v2]];"
+    "    v1 = lt_vertices[i * 4 + 1]; v2 = lt_vertices[i * 4 + 2];"
+    "    tetra[3] = edges[lt_cube_edges[v1 * 8 + v2]];"
+    "    v1 = lt_vertices[i * 4 + 1]; v2 = lt_vertices[i * 4 + 3];"
+    "    tetra[4] = edges[lt_cube_edges[v1 * 8 + v2]];"
+    "    v1 = lt_vertices[i * 4 + 2]; v2 = lt_vertices[i * 4 + 3];"
+    "    tetra[5] = edges[lt_cube_edges[v1 * 8 + v2]];"
+         /* retrieve case */
+    "    uint c = 1 & (case8[0] >> lt_vertices[i * 4 + 0]);"
+    "    c |= (1 & (case8[0] >> lt_vertices[i * 4 + 1])) << 1;"
+    "    c |= (1 & (case8[0] >> lt_vertices[i * 4 + 2])) << 2;"
+    "    c |= (1 & (case8[0] >> lt_vertices[i * 4 + 3])) << 3;"
+         /* emit tetrahedron */
+    "    output_tetrahedron (c, tetra);"
+    "  }"
+    "}"
+
+
+    "void main (void)"
+    "{"
+    "  if (pos[0].x < 1.0 - OW &&"
+    "      pos[0].y < 1.0 - OH &&"
+    "      pos[0].z < 1.0 - OD)"
+    "  {"
+    "    uint edges[19];"
+    "    get_edges (edges);"
+    "    output_indices (edges);"
+    "  }"
     "}";
 
 
@@ -450,6 +659,7 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
     if (!(tl->tex = SCE_Texture_Create (SCE_TEX_3D, 0, 0)))
         goto fail;
     SCE_Texture_AddTexData (tl->tex, SCE_TEX_3D, tc);
+    SCE_Texture_Pixelize (tl->tex, SCE_TRUE);
     SCE_Texture_Build (tl->tex, SCE_FALSE);
 
     /* create non-empty mesh */
@@ -514,7 +724,7 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
                                NULL, SCE_FALSE);
     SCE_Geometry_AddArrayDup (&vt->list_verts_geom, &ar1, SCE_FALSE);
     /* vertices per voxel * voxels */
-    SCE_Geometry_SetNumVertices (&vt->list_verts_geom, 6 * n_points);
+    SCE_Geometry_SetNumVertices (&vt->list_verts_geom, 7 * n_points);
     SCE_Geometry_SetPrimitiveType (&vt->list_verts_geom, SCE_POINTS);
 
     /* create final vertices geometry */
@@ -526,8 +736,12 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
                                NULL, SCE_FALSE);
     SCE_Geometry_AttachArray (&ar1, &ar2);
     SCE_Geometry_AddArrayRecDup (&vt->final_geom, &ar1, SCE_FALSE);
+    SCE_Geometry_InitArray (&ar1);
+    SCE_Geometry_SetArrayIndices (&ar1, SCE_UNSIGNED_INT, NULL, SCE_FALSE);
+    SCE_Geometry_SetIndexArrayDup (&vt->final_geom, &ar1, SCE_FALSE);
     /* vertices per voxel * voxels */
     SCE_Geometry_SetNumVertices (&vt->final_geom, 6 * n_points);
+    SCE_Geometry_SetNumIndices (&vt->final_geom, 36 * n_points);
     SCE_Geometry_SetPrimitiveType (&vt->final_geom, SCE_POINTS);
 
 
@@ -603,14 +817,31 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
                                 SCE_COLOR_BUFFER0);
     if (SCE_Shader_Build (vt->splat_shader) < 0) goto fail;
 
+    /* generate indices shader */
+    if (!(vt->indices_shader = SCE_Shader_Create ())) goto fail;
+    if (SCE_Shader_AddSource (vt->indices_shader, SCE_VERTEX_SHADER,
+                              indices_vs, SCE_FALSE) < 0) goto fail;
+    if (SCE_Shader_AddSource (vt->indices_shader, SCE_GEOMETRY_SHADER,
+                              indices_gs, SCE_FALSE) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->indices_shader, "W", vt->width) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->indices_shader, "H", vt->height) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->indices_shader, "D", vt->depth) < 0) goto fail;
+    SCE_Shader_SetVersion (vt->indices_shader, 140);
+    varyings[0] = "index";
+    SCE_Shader_SetupFeedbackVaryings (vt->indices_shader, 1, varyings,
+                                      SCE_FEEDBACK_INTERLEAVED);
+    SCE_Shader_SetupAttributesMapping (vt->indices_shader);
+    SCE_Shader_ActivateAttributesMapping (vt->indices_shader, SCE_TRUE);
+    if (SCE_Shader_Build (vt->indices_shader) < 0) goto fail;
+
     /* constructing indices 3D map */
     if (!(vt->splat = SCE_Texture_Create (SCE_TEX_3D, 0, 0))) goto fail;
     SCE_TexData_Init (&tc);
     SCE_TexData_SetDimensions (&tc, vt->width * 8, vt->height, vt->depth);
     SCE_TexData_SetDataType (&tc, SCE_UNSIGNED_INT);
     SCE_TexData_SetType (&tc, SCE_IMAGE_3D);
-    SCE_TexData_SetDataFormat (&tc, SCE_IMAGE_RGBA);
-    SCE_TexData_SetPixelFormat (&tc, SCE_PXF_RGBA8UI);
+    SCE_TexData_SetDataFormat (&tc, SCE_IMAGE_RED);
+    SCE_TexData_SetPixelFormat (&tc, SCE_PXF_R32UI);
     SCE_Texture_AddTexDataDup (vt->splat, 0, &tc);
     /* index values must not be modified by magnification filter */
     SCE_Texture_Pixelize (vt->splat, SCE_TRUE);
@@ -732,6 +963,7 @@ static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
     SCE_Mesh_EndRenderTo (&tl->list_verts);
 
     /* 3rd pass: process vertices to generate final coords & normal */
+    SCE_Mesh_SetPrimitiveType (&tl->mesh, SCE_POINTS);
     SCE_Shader_Use (vt->final_shader);
     SCE_Shader_SetParam3fv (vt->final_offset_loc, 1, tl->wrap);
     SCE_Mesh_BeginRenderTo (&tl->mesh);
@@ -740,18 +972,9 @@ static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
     SCE_Mesh_Unuse ();
     SCE_Mesh_EndRenderTo (&tl->mesh);
 
-    glDisable (GL_ALPHA_TEST);
-
+    glPointSize (1.0);  /* TODO: take care of point size */
     /* 4th pass: generate the 3D map of indices */
     SCE_Texture_Use (NULL);
-    /* TODO: useless clear */
-#if 1
-    SCE_RClearColorui (0, 0, 0, 0);
-    for (i = 0; i < vt->depth; i++) {
-        SCE_Texture_RenderToLayer (vt->splat, i);
-        SCE_RClear (GL_COLOR_BUFFER_BIT);
-    }
-#endif
     SCE_Texture_RenderTo (vt->splat, 0);
     SCE_Shader_Use (vt->splat_shader);
     SCE_Mesh_Use (&tl->list_verts);
@@ -760,7 +983,14 @@ static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
     SCE_Texture_RenderTo (NULL, 0);
 
     /* 5th pass: generate the index buffer */
-    /* derp. */
+    SCE_Mesh_SetPrimitiveType (&tl->mesh, SCE_TRIANGLES);
+    SCE_Texture_Use (vt->splat);
+    SCE_Shader_Use (vt->indices_shader);
+    SCE_Mesh_BeginRenderToIndices (&tl->mesh);
+    SCE_Mesh_Use (&tl->non_empty);
+    SCE_Mesh_Render ();
+    SCE_Mesh_Unuse ();
+    SCE_Mesh_EndRenderToIndices (&tl->mesh);
 
     SCE_Shader_Use (NULL);
     SCE_Texture_Use (NULL);
