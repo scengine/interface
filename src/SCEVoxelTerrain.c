@@ -343,9 +343,19 @@ static const char *final_vs =
     "  vec4 c1 = corners[edges[edge * 2 + 0]];"
     "  vec4 c2 = corners[edges[edge * 2 + 1]];"
     "  float w = -c1.w / (c2.w - c1.w);"
-    "  pos.xyz = (0.5 * c1.xyz) * (1.0 - w) + (0.5 * c2.xyz) * w;"
-    "  pos.w = 1.0;"
-    "  nor = vec3 (0.0, 0.0, 1.0);"
+    "  vec3 position;"
+    "  position = c1.xyz * (1.0 - w) + c2.xyz * w;"
+    "  pos = vec4 (position, 1.0);"
+
+    "  tc = position + offset;"
+    "  vec3 grad;"
+    "  grad.x = texture3D (sce_tex0, tc + vec3 (OW, 0., 0.)).x -"
+    "           texture3D (sce_tex0, tc + vec3 (-OW, 0., 0.)).x;"
+    "  grad.y = texture3D (sce_tex0, tc + vec3 (0., OH, 0.)).x -"
+    "           texture3D (sce_tex0, tc + vec3 (0., -OH, 0.)).x;"
+    "  grad.z = texture3D (sce_tex0, tc + vec3 (0., 0., OD)).x -"
+    "           texture3D (sce_tex0, tc + vec3 (0., 0., -OD)).x;"
+    "  nor = -normalize (grad);"
     "}";
 
 static const char *final_gs =
@@ -659,7 +669,6 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
     if (!(tl->tex = SCE_Texture_Create (SCE_TEX_3D, 0, 0)))
         goto fail;
     SCE_Texture_AddTexData (tl->tex, SCE_TEX_3D, tc);
-    SCE_Texture_Pixelize (tl->tex, SCE_TRUE);
     SCE_Texture_Build (tl->tex, SCE_FALSE);
 
     /* create non-empty mesh */
