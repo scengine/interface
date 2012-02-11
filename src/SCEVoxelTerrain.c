@@ -30,6 +30,7 @@ static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
     SCE_Grid_Init (&tl->grid);
     SCE_Vector3_Set (tl->wrap, 0.0, 0.0, 0.0);
     tl->tex = NULL;
+    tl->need_update = SCE_FALSE;
     SCE_Mesh_Init (&tl->non_empty);
     SCE_Mesh_Init (&tl->list_verts);
     SCE_Mesh_Init (&tl->mesh);
@@ -954,7 +955,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
     }
 #endif
 
-    SCE_Texture_Update (tl->tex);
+    tl->need_update = SCE_TRUE;
 }
 
 
@@ -962,6 +963,11 @@ static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
                                       SCE_SVoxelTerrainLevel *tl)
 {
     int i;
+
+    if (tl->need_update) {
+        SCE_Texture_Update (tl->tex);
+        tl->need_update = SCE_FALSE;
+    }
 
     /* 1st pass: render non empty cells */
     SCE_Texture_Use (tl->tex);

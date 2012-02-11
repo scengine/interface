@@ -41,6 +41,7 @@ struct sce_svoxelterrainlevel {
     SCE_SGrid grid;          /**< Uniform grid of this level */
     SCE_TVector3 wrap;
     SCE_STexture *tex;       /**< GPU-side grid */
+    int need_update;         /**< Does the texture need to be updated? */
     SCE_SMesh non_empty;     /**< Generated list of non-empty cells */
     SCE_SMesh list_verts;    /**< Generated list of vertices to generate */
     SCE_SMesh mesh;          /**< Final mesh */
