@@ -355,6 +355,16 @@ static const char *final_vs =
     "           texture3D (sce_tex0, tc + vec3 (0., -OH, 0.)).x;"
     "  grad.z = texture3D (sce_tex0, tc + vec3 (0., 0., OD)).x -"
     "           texture3D (sce_tex0, tc + vec3 (0., 0., -OD)).x;"
+    "  const float c = 2.3;"
+    "  vec3 grad2;"
+    "  grad2.x = texture3D (sce_tex0, tc + c * vec3 (OW, 0., 0.)).x -"
+    "            texture3D (sce_tex0, tc + c * vec3 (-OW, 0., 0.)).x;"
+    "  grad2.y = texture3D (sce_tex0, tc + c * vec3 (0., OH, 0.)).x -"
+    "            texture3D (sce_tex0, tc + c * vec3 (0., -OH, 0.)).x;"
+    "  grad2.z = texture3D (sce_tex0, tc + c * vec3 (0., 0., OD)).x -"
+    "            texture3D (sce_tex0, tc + c * vec3 (0., 0., -OD)).x;"
+    "  w = 0.5;"
+    "  grad = grad * w + grad2 * (1.0 - w);"
     "  nor = -normalize (grad);"
     "}";
 
