@@ -901,6 +901,7 @@ void SCE_VTerrain_SetLevel (SCE_SVoxelTerrain *vt, SCEuint level,
     }
 
     SCE_Grid_CopyData (&vt->levels[level].grid, grid);
+    vt->levels[level].need_update = SCE_TRUE;
 }
 
 SCE_SGrid* SCE_VTerrain_GetLevelGrid (SCE_SVoxelTerrain *vt, SCEuint level)
@@ -1031,7 +1032,7 @@ void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
 
 void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level)
 {
-    SCE_Texture_Update (vt->levels[level].tex);
+    vt->levels[level].need_update = SCE_TRUE;
 }
 
 static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrainLevel *tl)
