@@ -965,10 +965,7 @@ static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
 {
     int i;
 
-    if (tl->need_update) {
-        SCE_Texture_Update (tl->tex);
-        tl->need_update = SCE_FALSE;
-    }
+    SCE_Texture_Update (tl->tex);
 
     /* 1st pass: render non empty cells */
     SCE_Texture_Use (tl->tex);
@@ -1020,14 +1017,18 @@ static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
 
     SCE_Shader_Use (NULL);
     SCE_Texture_Use (NULL);
+
+    tl->need_update = SCE_FALSE;
 }
 
 void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
 {
     size_t i;
 
-    for (i = 0; i < vt->n_levels; i++)
-        SCE_VTerrain_UpdateLevel (vt, &vt->levels[i]);
+    for (i = 0; i < vt->n_levels; i++) {
+        if (vt->levels[i].need_update)
+            SCE_VTerrain_UpdateLevel (vt, &vt->levels[i]);
+    }
 }
 
 void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level)
