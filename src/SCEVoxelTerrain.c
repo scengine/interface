@@ -187,7 +187,7 @@ static const char *non_empty_gs =
     "  vec3 p = pos[0];"
        /* texture fetch */
     "  vec3 tc = p + offset;"
-    "  case8  = int(0.5 + texture3D (sce_tex0, tc).x);"
+    "  case8  = uint(0.5 + texture3D (sce_tex0, tc).x);"
     "  case8 |= uint(0.5 + texture3D (sce_tex0, tc + vec3 (OW, 0., 0.)).x) << 1;"
     "  case8 |= uint(0.5 + texture3D (sce_tex0, tc + vec3 (OW, 0., OD)).x) << 2;"
     "  case8 |= uint(0.5 + texture3D (sce_tex0, tc + vec3 (0., 0., OD)).x) << 3;"
