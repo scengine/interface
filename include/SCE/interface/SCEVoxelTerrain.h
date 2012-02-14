@@ -46,6 +46,7 @@ struct sce_svoxelterrainlevel {
     SCE_SMesh list_verts;    /**< Generated list of vertices to generate */
     SCE_SMesh mesh;          /**< Final mesh */
     int enabled;             /**< Is this level enabled? */
+    int x, y, z;             /**< Position of the center of this level */
 };
 
 #define SCE_MAX_VTERRAIN_LEVELS 16
@@ -83,7 +84,7 @@ struct sce_svoxelterrain {
 
     SCE_SVoxelTerrainLevel levels[SCE_MAX_VTERRAIN_LEVELS];
     size_t n_levels;
-    int x, y, z;                /* something like position */
+    int x, y, z;                /**< Position of the theoretical viewer */
     int width, height, depth;   /**< Dimensions of one level */
     int built;                  /**< Is the terrain built? */
 };
@@ -116,6 +117,9 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain*, SCEuint,
 
 void SCE_VTerrain_Update (SCE_SVoxelTerrain*);
 void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain*, SCEuint);
+
+int SCE_VTerrain_GetOffset (const SCE_SVoxelTerrain*, SCEuint,
+                            int*, int*, int*);
 
 void SCE_VTerrain_Render (const SCE_SVoxelTerrain*);
 

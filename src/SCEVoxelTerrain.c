@@ -35,6 +35,7 @@ static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
     SCE_Mesh_Init (&tl->list_verts);
     SCE_Mesh_Init (&tl->mesh);
     tl->enabled = SCE_TRUE;
+    tl->x = tl->y = tl->z = 0;
 }
 static void SCE_VTerrain_ClearLevel (SCE_SVoxelTerrainLevel *tl)
 {
@@ -1035,6 +1036,32 @@ void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level)
 {
     vt->levels[level].need_update = SCE_TRUE;
 }
+
+
+/**
+ * \brief Gets the missing data of a grid's level
+ * \param vt a voxel terrain
+ * \param level level number
+ * \param dx,dy,dz number of missing slices in each direction
+ * \return SCE_TRUE if there is any missing slice, SCE_FALSE otherwise
+ */
+int SCE_VTerrain_GetOffset (const SCE_SVoxelTerrain *vt, SCEuint level,
+                            int *dx, int *dy, int *dz)
+{
+    int x, y, z;
+    SCE_SVoxelTerrainLevel *l;
+    SCEuint coef = 1 << level;
+
+    l = &vt->levels[level];
+    *dx = (vt->x - l->x) / coef;
+    *dy = (vt->y - l->y) / coef;
+    *dz = (vt->z - l->z) / coef;
+
+    if (*dx != 0 || *dy != 0 || *dz != 0)
+        return SCE_TRUE;
+    return SCE_FALSE;
+}
+
 
 static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrainLevel *tl)
 {
