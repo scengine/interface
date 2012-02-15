@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2010  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 11/04/2010
-   updated: 11/04/2010 */
+   updated: 15/02/2012 */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -68,6 +68,7 @@ int SCE_Init_Interface (FILE *outlog, SCEbitfield flags)
             SCE_Init_Shader () < 0 ||
             SCE_Init_Mesh () < 0 ||
             SCE_Init_Quad () < 0 ||
+            SCE_Init_VRender () < 0 ||
             SCE_Init_Scene () < 0) {
             ret = SCE_ERROR;
         }
@@ -98,6 +99,7 @@ void SCE_Quit_Interface (void)
         } else if (init_n == 0) {
             SCE_Quit_Scene ();
             SCE_Quit_Quad ();
+            SCE_Quit_VRender ();
             SCE_Quit_idTechMD5 ();
             SCE_Quit_Anim ();
             SCE_Quit_AnimGeom ();

@@ -24,9 +24,8 @@
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>   /* SCE_SGrid */
-#include "SCE/interface/SCEMesh.h"
-#include "SCE/interface/SCETexture.h"
 #include "SCE/interface/SCEShaders.h"
+#include "SCE/interface/SCEVoxelRenderer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,8 +41,7 @@ struct sce_svoxelterrainlevel {
     SCE_TVector3 wrap;
     SCE_STexture *tex;       /**< GPU-side grid */
     int need_update;         /**< Does the texture need to be updated? */
-    SCE_SMesh non_empty;     /**< Generated list of non-empty cells */
-    SCE_SMesh list_verts;    /**< Generated list of vertices to generate */
+    SCE_SVoxelMesh vmesh;    /**< Abstract voxel mesh */
     SCE_SMesh mesh;          /**< Final mesh */
     int enabled;             /**< Is this level enabled? */
     int x, y, z;             /**< Position of the center of this level */
@@ -64,23 +62,7 @@ typedef struct sce_svoxelterrain SCE_SVoxelTerrain;
  * grids.
  */
 struct sce_svoxelterrain {
-    SCE_SGeometry grid_geom; /**< Grid of points to generate \c dst_geom */
-    SCE_SMesh grid_mesh; /**< Mesh of the grid of points for the first stage
-                          * of the generation process */
-
-    SCE_SGeometry non_empty_geom; /**< Geometry of generated non-empty cells */
-    SCE_SGeometry list_verts_geom; /**< Geometry of vertices to generate */
-    SCE_SGeometry final_geom; /**< Geometry of generated vertices list */
-
-    SCE_SShader *non_empty_shader;
-    int non_empty_offset_loc;
-    SCE_SShader *list_verts_shader;
-    SCE_SShader *final_shader;
-    int final_offset_loc;
-
-    SCE_SShader *splat_shader;
-    SCE_SShader *indices_shader;
-    SCE_STexture *splat;     /**< 3D map of indices */
+    SCE_SVoxelTemplate template;
 
     SCE_SVoxelTerrainLevel levels[SCE_MAX_VTERRAIN_LEVELS];
     size_t n_levels;
