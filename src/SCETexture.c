@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 11/03/2007
-   updated: 04/02/2012 */
+   updated: 15/02/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -431,7 +431,7 @@ SCE_STexData* SCE_Texture_AddTexDataDup (SCE_STexture *tex, int target,
  *
  * This function calls SCE_RGetTextureWidth (SCE_Texture_GetCTexture (\p tex),
  * \p target, \p level)
- * \sa SCE_RGetTextureWidth()
+ * \sa SCE_Texture_GetDepth(), SCE_Texture_GetHeight(), SCE_RGetTextureWidth()
  */
 int SCE_Texture_GetWidth (SCE_STexture *tex, int target, int level)
 {
@@ -442,11 +442,22 @@ int SCE_Texture_GetWidth (SCE_STexture *tex, int target, int level)
  *
  * This function calls SCE_RGetTextureHeight (SCE_Texture_GetCTexture (\p tex),
  * \p target, \p level)
- * \sa SCE_RGetTextureHeight()
+ * \sa SCE_Texture_GetWidth(), SCE_Texture_GetDepth(), SCE_RGetTextureHeight()
  */
 int SCE_Texture_GetHeight (SCE_STexture *tex, int target, int level)
 {
     return SCE_RGetTextureHeight (tex->tex, target, level);
+}
+/**
+ * \brief Gets the depth of a texture
+ *
+ * This function calls SCE_RGetTextureDepth (SCE_Texture_GetCTexture (\p tex),
+ * \p target, \p level)
+ * \sa SCE_Texture_GetWidth(), SCE_Texture_GetHeight(), SCE_RGetTextureDepth()
+ */
+int SCE_Texture_GetDepth (SCE_STexture *tex, int target, int level)
+{
+    return SCE_RGetTextureDepth (tex->tex, target, level);
 }
 
 

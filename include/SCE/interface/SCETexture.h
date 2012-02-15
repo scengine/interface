@@ -127,6 +127,7 @@ SCE_STexData* SCE_Texture_AddTexDataDup (SCE_STexture*, int,
 
 int SCE_Texture_GetWidth (SCE_STexture*, int, int);
 int SCE_Texture_GetHeight (SCE_STexture*, int, int);
+int SCE_Texture_GetDepth (SCE_STexture*, int, int);
 
 int SCE_Texture_Build (SCE_STexture*, int);
 void SCE_Texture_Update (SCE_STexture*);
