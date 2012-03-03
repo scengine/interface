@@ -50,7 +50,8 @@ struct sce_svoxeltemplate {
     SCE_SShader *indices_shader;
     SCE_STexture *splat;     /**< 3D map of indices */
 
-    int width, height, depth; /**< Dimensions of the volume texture */
+    int vwidth, vheight, vdepth; /**< Dimensions of the volume texture */
+    int width, height, depth; /**< Dimensions of the grid to render */
 };
 
 typedef struct sce_svoxelmesh SCE_SVoxelMesh;
@@ -82,6 +83,11 @@ void SCE_VRender_SetDimensions (SCE_SVoxelTemplate*, int, int, int);
 void SCE_VRender_SetWidth (SCE_SVoxelTemplate*, int);
 void SCE_VRender_SetHeight (SCE_SVoxelTemplate*, int);
 void SCE_VRender_SetDepth (SCE_SVoxelTemplate*, int);
+
+void SCE_VRender_SetVolumeDimensions (SCE_SVoxelTemplate*, int, int, int);
+void SCE_VRender_SetVolumeWidth (SCE_SVoxelTemplate*, int);
+void SCE_VRender_SetVolumeHeight (SCE_SVoxelTemplate*, int);
+void SCE_VRender_SetVolumeDepth (SCE_SVoxelTemplate*, int);
 
 int SCE_VRender_Build (SCE_SVoxelTemplate*);
 

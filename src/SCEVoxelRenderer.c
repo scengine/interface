@@ -93,6 +93,7 @@ void SCE_VRender_Init (SCE_SVoxelTemplate *vt)
     vt->indices_shader = NULL;
     vt->splat = NULL;
 
+    vt->vwidth = vt->vheight = vt->vdepth = 0;
     vt->width = vt->height = vt->depth = 0;
 }
 void SCE_VRender_Clear (SCE_SVoxelTemplate *vt)
@@ -174,6 +175,22 @@ void SCE_VRender_SetDepth (SCE_SVoxelTemplate *vt, int d)
     vt->depth = d;
 }
 
+void SCE_VRender_SetVolumeDimensions (SCE_SVoxelTemplate *vt, int w, int h, int d)
+{
+    vt->vwidth = w; vt->vheight = h; vt->vdepth = d;
+}
+void SCE_VRender_SetVolumeWidth (SCE_SVoxelTemplate *vt, int w)
+{
+    vt->vwidth = w;
+}
+void SCE_VRender_SetVolumeHeight (SCE_SVoxelTemplate *vt, int h)
+{
+    vt->vheight = h;
+}
+void SCE_VRender_SetVolumeDepth (SCE_SVoxelTemplate *vt, int d)
+{
+    vt->vdepth = d;
+}
 
 
 static const char *non_empty_vs =
@@ -696,7 +713,8 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
     SCE_Grid_SetDimensions (&grid, vt->width, vt->height, vt->depth);
     SCE_Grid_SetType (&grid, SCE_UNSIGNED_BYTE);
     /* fortunately, grids do not need to be built to generate geometry */
-    if (SCE_Grid_ToGeometry (&grid, &vt->grid_geom) < 0)
+    if (SCE_Grid_ToGeometryDiv (&grid, &vt->grid_geom,
+                                vt->vwidth, vt->vheight, vt->vdepth) < 0)
         goto fail;
     if (SCE_Mesh_SetGeometry (&vt->grid_mesh, &vt->grid_geom, SCE_FALSE) < 0)
         goto fail;
@@ -717,12 +735,6 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
     if (SCE_Mesh_SetGeometry (&vt->list_verts, &list_verts_geom, SCE_FALSE) < 0)
         goto fail;
     SCE_Mesh_AutoBuild (&vt->list_verts);
-    /* TODO: remember to generate the final mesh */
-#if 0
-    if (SCE_Mesh_SetGeometry (&vt->mesh, &final_geom, SCE_FALSE) < 0)
-        goto fail;
-    SCE_Mesh_AutoBuild (&vt->mesh);
-#endif
 
     /* build shaders */
     /* non empty cells list shader */
@@ -731,9 +743,9 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
                               non_empty_vs, SCE_FALSE) < 0) goto fail;
     if (SCE_Shader_AddSource (vt->non_empty_shader, SCE_GEOMETRY_SHADER,
                               non_empty_gs, SCE_FALSE) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->non_empty_shader, "W", vt->width) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->non_empty_shader, "H", vt->height) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->non_empty_shader, "D", vt->depth) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->non_empty_shader, "W", vt->vwidth) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->non_empty_shader, "H", vt->vheight) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->non_empty_shader, "D", vt->vdepth) < 0) goto fail;
     varyings[0] = "xyz8_case8";
     SCE_Shader_SetupFeedbackVaryings (vt->non_empty_shader, 1, varyings,
                                       SCE_FEEDBACK_INTERLEAVED);
@@ -762,9 +774,9 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
                               final_vs, SCE_FALSE) < 0) goto fail;
     if (SCE_Shader_AddSource (vt->final_shader, SCE_GEOMETRY_SHADER,
                               final_gs, SCE_FALSE) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->final_shader, "W", vt->width) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->final_shader, "H", vt->height) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->final_shader, "D", vt->depth) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->final_shader, "W", vt->vwidth) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->final_shader, "H", vt->vheight) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->final_shader, "D", vt->vdepth) < 0) goto fail;
     varyings[0] = "pos_";
     varyings[1] = "nor_";
     SCE_Shader_SetupFeedbackVaryings (vt->final_shader, 2, varyings,
