@@ -64,9 +64,9 @@ int SCE_Init_VRender (void)
     SCE_Geometry_InitArray (&ar1);
     SCE_Geometry_SetArrayIndices (&ar1, SCE_UNSIGNED_INT, NULL, SCE_FALSE);
     SCE_Geometry_SetIndexArrayDup (&final_geom, &ar1, SCE_FALSE);
-    /* TODODODODODO: WARNINGINGINGINGINGIN ssdqdhskljhfdklsjhfdklsjhfdklhjfkljshfds
-      SCE_POINTS => TRIANGLES*/
     SCE_Geometry_SetPrimitiveType (&final_geom, SCE_TRIANGLES);
+
+    return SCE_OK;
 }
 
 void SCE_Quit_VRender (void)
