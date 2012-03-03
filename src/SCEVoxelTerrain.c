@@ -32,17 +32,27 @@ static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
     SCE_Vector3_Set (tl->wrap, 0.0, 0.0, 0.0);
     tl->tex = NULL;
     tl->need_update = SCE_FALSE;
-    SCE_VRender_InitMesh (&tl->vmesh);
-    SCE_Mesh_Init (&tl->mesh);
+    tl->subregions = 1;
+    tl->vmesh = NULL;
+    tl->mesh = NULL;
+    tl->wrap_x = tl->wrap_y = tl->wrap_z = 0;
     tl->enabled = SCE_TRUE;
     tl->x = tl->y = tl->z = 0;
 }
 static void SCE_VTerrain_ClearLevel (SCE_SVoxelTerrainLevel *tl)
 {
+    SCEuint i, n;
+
     SCE_Grid_Clear (&tl->grid);
     SCE_Texture_Delete (tl->tex);
-    SCE_VRender_ClearMesh (&tl->vmesh);
-    SCE_Mesh_Clear (&tl->mesh);
+
+    n = tl->subregions * tl->subregions * tl->subregions;
+    for (i = 0; i < n; i++) {
+        SCE_VRender_ClearMesh (&tl->vmesh[i]);
+        SCE_Mesh_Clear (&tl->mesh[i]);
+    }
+    SCE_free (tl->vmesh);
+    SCE_free (tl->mesh);
 }
 
 void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
@@ -50,6 +60,8 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
     size_t i;
 
     SCE_VRender_Init (&vt->template);
+    vt->subregion_dim = 0;
+    vt->n_subregions = 1;
     for (i = 0; i < SCE_MAX_VTERRAIN_LEVELS; i++)
         SCE_VTerrain_InitLevel (&vt->levels[i]);
 
@@ -120,11 +132,21 @@ SCEuint SCE_VTerrain_GetNumLevels (const SCE_SVoxelTerrain *vt)
     return vt->n_levels;
 }
 
+void SCE_VTerrain_SetSubRegionDimension (SCE_SVoxelTerrain *vt, SCEuint dim)
+{
+    vt->subregion_dim = dim;
+}
+
+void SCE_VTerrain_SetNumSubRegions (SCE_SVoxelTerrain *vt, SCEuint n)
+{
+    vt->n_subregions = n;
+}
 
 static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
                                     SCE_SVoxelTerrainLevel *tl)
 {
     SCE_STexData *tc = NULL;
+    SCEuint i, num;
 
     SCE_Grid_SetType (&tl->grid, SCE_UNSIGNED_BYTE);
     SCE_Grid_SetDimensions (&tl->grid, vt->width, vt->height, vt->depth);
@@ -142,14 +164,25 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
     SCE_Texture_AddTexData (tl->tex, SCE_TEX_3D, tc);
     SCE_Texture_Build (tl->tex, SCE_FALSE);
 
-    /* TODO: make sure the geometry has the good number of vertices/indices */
-    if (SCE_Mesh_SetGeometry (&tl->mesh, SCE_VRender_GetFinalGeometry (),
-                              SCE_FALSE) < 0)
-        goto fail;
-    SCE_Mesh_AutoBuild (&tl->mesh);
+    tl->subregions = vt->n_subregions;
+    num = tl->subregions * tl->subregions * tl->subregions;
+    if (!(tl->vmesh = SCE_malloc (num * sizeof *tl->vmesh))) goto fail;
+    if (!(tl->mesh = SCE_malloc (num * sizeof *tl->mesh))) goto fail;
 
-    SCE_VRender_SetVolume (&tl->vmesh, tl->tex);
-    SCE_VRender_SetMesh (&tl->vmesh, &tl->mesh);
+    for (i = 0; i < num; i++) {
+        SCE_VRender_InitMesh (&tl->vmesh[i]);
+        SCE_Mesh_Init (&tl->mesh[i]);
+
+        /* TODO: make sure the geometry has the good number
+           of vertices/indices */
+        if (SCE_Mesh_SetGeometry (&tl->mesh[i], SCE_VRender_GetFinalGeometry (),
+                                  SCE_FALSE) < 0)
+            goto fail;
+        SCE_Mesh_AutoBuild (&tl->mesh[i]);
+
+        SCE_VRender_SetVolume (&tl->vmesh[i], tl->tex);
+        SCE_VRender_SetMesh (&tl->vmesh[i], &tl->mesh[i]);
+    }
 
     return SCE_OK;
 fail:
@@ -165,7 +198,10 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
     if (vt->built)
         return SCE_OK;
 
-    SCE_VRender_SetDimensions (&vt->template, vt->width, vt->height, vt->depth);
+    SCE_VRender_SetDimensions (&vt->template, vt->subregion_dim,
+                               vt->subregion_dim, vt->subregion_dim);
+    SCE_VRender_SetVolumeDimensions (&vt->template, vt->width,
+                                     vt->height, vt->depth);
     if (SCE_VRender_Build (&vt->template) < 0)
         goto fail;
 
@@ -221,6 +257,7 @@ void SCE_VTerrain_ActivateLevel (SCE_SVoxelTerrain *vt, SCEuint level,
 }
 
 
+/* TODO: update */
 void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
                                SCE_EBoxFace f, const unsigned char *slice)
 {
@@ -236,7 +273,8 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
     tl->wrap[1] = (float)tl->grid.wrap_y / vt->height;
     tl->wrap[2] = (float)tl->grid.wrap_z / vt->depth;
 
-    SCE_VRender_SetWrap (&tl->vmesh, tl->wrap);
+    /* TODO: restore proper wrapping for blelfhlhlbblehblhblbl herp */
+    /*SCE_VRender_SetWrap (&tl->vmesh, tl->wrap);*/
 
 #if 0
     /* TODO: take grid wrapping into account... it will be crappy */
@@ -270,7 +308,20 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
 static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
                                       SCE_SVoxelTerrainLevel *tl)
 {
-    SCE_VRender_Hardware (&vt->template, &tl->vmesh, 0, 0, 0);
+    SCEuint x, y, z;
+
+    for (z = 0; z < tl->subregions; z++) {
+        for (y = 0; y < tl->subregions; y++) {
+            for (x = 0; x < tl->subregions; x++) {
+                SCEuint i = z * tl->subregions * tl->subregions;
+                SCEuint j = y * tl->subregions;
+                SCE_VRender_Hardware (&vt->template, &tl->vmesh[i + j + x],
+                                      x * (vt->subregion_dim - 1),
+                                      y * (vt->subregion_dim - 1),
+                                      z * (vt->subregion_dim - 1));
+            }
+        }
+    }
     tl->need_update = SCE_FALSE;
 }
 
@@ -300,7 +351,6 @@ void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level)
 int SCE_VTerrain_GetOffset (const SCE_SVoxelTerrain *vt, SCEuint level,
                             int *dx, int *dy, int *dz)
 {
-    int x, y, z;
     SCE_SVoxelTerrainLevel *l;
     SCEuint coef = 1 << level;
 
@@ -315,11 +365,35 @@ int SCE_VTerrain_GetOffset (const SCE_SVoxelTerrain *vt, SCEuint level,
 }
 
 
-static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrainLevel *tl)
+static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrainLevel *tl,
+                                      const SCE_SVoxelTerrain *vt)
 {
-    SCE_Mesh_Use (&tl->mesh);
-    SCE_Mesh_Render ();
-    SCE_Mesh_Unuse ();
+    SCE_TMatrix4 m;
+    SCE_TVector3 pos;
+    SCEuint x, y, z;
+
+    SCE_Matrix4_Identity (m);
+
+    for (z = 0; z < tl->subregions; z++) {
+        for (y = 0; y < tl->subregions; y++) {
+            for (x = 0; x < tl->subregions; x++) {
+                SCEuint i = z * tl->subregions * tl->subregions;
+                SCEuint j = y * tl->subregions;
+
+#define DERP 1
+                SCE_Vector3_Set
+                    (pos,
+                     (float)x * (vt->subregion_dim - DERP) / vt->width,
+                     (float)y * (vt->subregion_dim - DERP) / vt->height,
+                     (float)z * (vt->subregion_dim - DERP) / vt->depth);
+                SCE_Matrix4_SetTranslation (m, pos);
+                SCE_RLoadMatrix (SCE_MAT_OBJECT, m);
+                SCE_Mesh_Use (&tl->mesh[i + j + x]);
+                SCE_Mesh_Render ();
+                SCE_Mesh_Unuse ();
+            }
+        }
+    }
 }
 
 void SCE_VTerrain_Render (const SCE_SVoxelTerrain *vt)
@@ -327,7 +401,7 @@ void SCE_VTerrain_Render (const SCE_SVoxelTerrain *vt)
     size_t i;
 
     for (i = 0; i < vt->n_levels; i++) {
-        SCE_VTerrain_RenderLevel (&vt->levels[i]);
+        SCE_VTerrain_RenderLevel (&vt->levels[i], vt);
         /* TODO: clear depth buffer or add an offset or whatev. */
     }
 }

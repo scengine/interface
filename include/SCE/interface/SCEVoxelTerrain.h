@@ -41,8 +41,10 @@ struct sce_svoxelterrainlevel {
     SCE_TVector3 wrap;
     SCE_STexture *tex;       /**< GPU-side grid */
     int need_update;         /**< Does the texture need to be updated? */
-    SCE_SVoxelMesh vmesh;    /**< Abstract voxel mesh */
-    SCE_SMesh mesh;          /**< Final mesh */
+    SCEuint subregions;      /**< Number of sub-regions per side */
+    SCE_SVoxelMesh *vmesh;   /**< Abstract voxel meshes */
+    SCE_SMesh *mesh;         /**< Final meshes */
+    int wrap_x, wrap_y, wrap_z; /**< Subregions wrapping */
     int enabled;             /**< Is this level enabled? */
     int x, y, z;             /**< Position of the center of this level */
 };
@@ -64,6 +66,8 @@ typedef struct sce_svoxelterrain SCE_SVoxelTerrain;
 struct sce_svoxelterrain {
     SCE_SVoxelTemplate template;
 
+    SCEuint subregion_dim;      /**< Dimensions of one subregion */
+    SCEuint n_subregions;       /**< Number of subregions per side */
     SCE_SVoxelTerrainLevel levels[SCE_MAX_VTERRAIN_LEVELS];
     size_t n_levels;
     int x, y, z;                /**< Position of the theoretical viewer */
@@ -86,6 +90,9 @@ int SCE_VTerrain_GetDepth (const SCE_SVoxelTerrain*);
 
 void SCE_VTerrain_SetNumLevels (SCE_SVoxelTerrain*, SCEuint);
 SCEuint SCE_VTerrain_GetNumLevels (const SCE_SVoxelTerrain*);
+
+void SCE_VTerrain_SetSubRegionDimension (SCE_SVoxelTerrain*, SCEuint);
+void SCE_VTerrain_SetNumSubRegions (SCE_SVoxelTerrain*, SCEuint);
 
 int SCE_VTerrain_Build (SCE_SVoxelTerrain*);
 
