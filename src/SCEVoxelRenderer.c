@@ -903,8 +903,6 @@ void SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_SVoxelMesh *vm,
     wrap[1] += (float)y / h;
     wrap[2] += (float)z / d;
 
-    SCE_Texture_Update (vm->volume);
-
     /* 1st pass: render non empty cells */
     SCE_Texture_Use (vm->volume);
     SCE_Shader_Use (vt->non_empty_shader);
