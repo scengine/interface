@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 10/02/2012 */
+   updated: 05/03/2012 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
@@ -40,13 +40,15 @@ struct sce_svoxelterrainlevel {
     SCE_SGrid grid;          /**< Uniform grid of this level */
     SCE_TVector3 wrap;
     SCE_STexture *tex;       /**< GPU-side grid */
-    int need_update;         /**< Does the texture need to be updated? */
     SCEuint subregions;      /**< Number of sub-regions per side */
     SCE_SVoxelMesh *vmesh;   /**< Abstract voxel meshes */
     SCE_SMesh *mesh;         /**< Final meshes */
     int wrap_x, wrap_y, wrap_z; /**< Subregions wrapping */
     int enabled;             /**< Is this level enabled? */
     int x, y, z;             /**< Position of the center of this level */
+
+    int need_update;         /**< Does the texture need to be updated? */
+    SCE_SIntRect3 update_zone;
 };
 
 #define SCE_MAX_VTERRAIN_LEVELS 16
@@ -106,6 +108,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain*, SCEuint,
 
 void SCE_VTerrain_Update (SCE_SVoxelTerrain*);
 void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain*, SCEuint);
+void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain*, SCEuint, SCE_SIntRect3*);
 
 int SCE_VTerrain_GetOffset (const SCE_SVoxelTerrain*, SCEuint,
                             int*, int*, int*);

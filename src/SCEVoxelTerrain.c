@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 10/02/2012 */
+   updated: 05/03/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -31,13 +31,15 @@ static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
     SCE_Grid_Init (&tl->grid);
     SCE_Vector3_Set (tl->wrap, 0.0, 0.0, 0.0);
     tl->tex = NULL;
-    tl->need_update = SCE_FALSE;
     tl->subregions = 1;
     tl->vmesh = NULL;
     tl->mesh = NULL;
     tl->wrap_x = tl->wrap_y = tl->wrap_z = 0;
     tl->enabled = SCE_TRUE;
     tl->x = tl->y = tl->z = 0;
+
+    tl->need_update = SCE_FALSE;
+    SCE_Rectangle3_Init (&tl->update_zone);
 }
 static void SCE_VTerrain_ClearLevel (SCE_SVoxelTerrainLevel *tl)
 {
@@ -309,10 +311,30 @@ static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
                                       SCE_SVoxelTerrainLevel *tl)
 {
     SCEuint x, y, z;
+    SCEuint sx, sy, sz;
+    SCEuint w, h, d;
+    int p1[3], p2[3];
+    int l;
 
-    for (z = 0; z < tl->subregions; z++) {
-        for (y = 0; y < tl->subregions; y++) {
-            for (x = 0; x < tl->subregions; x++) {
+    SCE_Rectangle3_GetPointsv (&tl->update_zone, p1, p2);
+
+    l = vt->subregion_dim - 1;
+    sx = MAX (p1[0] - 1, 0) / l;
+    sy = MAX (p1[1] - 1, 0) / l;
+    sz = MAX (p1[2] - 1, 0) / l;
+    w = p2[0] / l;
+    h = p2[1] / l;
+    d = p2[2] / l;
+    if (w >= tl->subregions)
+        w = tl->subregions - 1;
+    if (h >= tl->subregions)
+        h = tl->subregions - 1;
+    if (d >= tl->subregions)
+        d = tl->subregions - 1;
+
+    for (z = sz; z <= d; z++) {
+        for (y = sy; y <= h; y++) {
+            for (x = sx; x <= w; x++) {
                 SCEuint i = z * tl->subregions * tl->subregions;
                 SCEuint j = y * tl->subregions;
                 SCE_VRender_Hardware (&vt->template, &tl->vmesh[i + j + x],
@@ -338,8 +360,21 @@ void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
 void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level)
 {
     vt->levels[level].need_update = SCE_TRUE;
+    SCE_Rectangle3_Set (&vt->levels[level].update_zone, 0, 0, 0,
+                        vt->width - 1, vt->height - 1, vt->depth - 1);
 }
 
+void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,
+                                 SCE_SIntRect3 *r)
+{
+    if (!vt->levels[level].need_update) {
+        vt->levels[level].need_update = SCE_TRUE;
+        vt->levels[level].update_zone = *r;
+    } else {
+        SCE_Rectangle3_Union (&vt->levels[level].update_zone,
+                              r, &vt->levels[level].update_zone);
+    }
+}
 
 /**
  * \brief Gets the missing data of a grid's level
