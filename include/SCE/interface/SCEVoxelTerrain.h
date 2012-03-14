@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 05/03/2012 */
+   updated: 14/03/2012 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
@@ -31,6 +31,17 @@
 extern "C" {
 #endif
 
+/** \copydoc sce_svoxelterrainregion */
+typedef struct sce_svoxelterrainregion SCE_SVoxelTerrainRegion;
+/**
+ * \brief A single sub-region of a terrain level
+ */
+struct sce_svoxelterrainregion {
+    int x, y, z;                /**< Coordinates of this region */
+    SCE_SVoxelMesh vm;          /**< Abstract voxel mesh */
+    SCE_SListIterator it;
+};
+
 /** \copydoc sce_svoxelterrainlevel */
 typedef struct sce_svoxelterrainlevel SCE_SVoxelTerrainLevel;
 /**
@@ -41,9 +52,9 @@ struct sce_svoxelterrainlevel {
     SCE_TVector3 wrap;
     SCE_STexture *tex;       /**< GPU-side grid */
     SCEuint subregions;      /**< Number of sub-regions per side */
-    SCE_SVoxelMesh *vmesh;   /**< Abstract voxel meshes */
+    SCE_SVoxelTerrainRegion *regions;  /**< Level sub-regions */
     SCE_SMesh *mesh;         /**< Final meshes */
-    int wrap_x, wrap_y, wrap_z; /**< Subregions wrapping */
+    int wrap_x, wrap_y, wrap_z; /**< Sub-regions wrapping */
     int enabled;             /**< Is this level enabled? */
     int x, y, z;             /**< Position of the center of this level */
 
@@ -75,6 +86,11 @@ struct sce_svoxelterrain {
     int x, y, z;                /**< Position of the theoretical viewer */
     int width, height, depth;   /**< Dimensions of one level */
     int built;                  /**< Is the terrain built? */
+
+    SCE_SList to_update;        /**< List of regions to update */
+    SCEuint n_update;           /**< Size of \c to_update */
+    SCEuint max_updates;        /**< Maximum number of updated regions
+                                     per frame */
 };
 
 void SCE_VTerrain_Init (SCE_SVoxelTerrain*);

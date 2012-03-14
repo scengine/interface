@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 05/03/2012 */
+   updated: 14/03/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -26,13 +26,27 @@
 #include "SCE/interface/SCEVoxelRenderer.h"
 #include "SCE/interface/SCEVoxelTerrain.h"
 
+static void SCE_VTerrain_InitRegion (SCE_SVoxelTerrainRegion *tr)
+{
+    tr->x = tr->y = tr->z = 0;
+    SCE_VRender_InitMesh (&tr->vm);
+    SCE_List_InitIt (&tr->it);
+    SCE_List_SetData (&tr->it, tr);
+}
+static void SCE_VTerrain_ClearRegion (SCE_SVoxelTerrainRegion *tr)
+{
+    SCE_VRender_ClearMesh (&tr->vm);
+    SCE_List_Remove (&tr->it);
+}
+
+
 static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
 {
     SCE_Grid_Init (&tl->grid);
     SCE_Vector3_Set (tl->wrap, 0.0, 0.0, 0.0);
     tl->tex = NULL;
     tl->subregions = 1;
-    tl->vmesh = NULL;
+    tl->regions = NULL;
     tl->mesh = NULL;
     tl->wrap_x = tl->wrap_y = tl->wrap_z = 0;
     tl->enabled = SCE_TRUE;
@@ -50,10 +64,10 @@ static void SCE_VTerrain_ClearLevel (SCE_SVoxelTerrainLevel *tl)
 
     n = tl->subregions * tl->subregions * tl->subregions;
     for (i = 0; i < n; i++) {
-        SCE_VRender_ClearMesh (&tl->vmesh[i]);
+        SCE_VTerrain_ClearRegion (&tl->regions[i]);
         SCE_Mesh_Clear (&tl->mesh[i]);
     }
-    SCE_free (tl->vmesh);
+    SCE_free (tl->regions);
     SCE_free (tl->mesh);
 }
 
@@ -70,6 +84,10 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
     vt->x = vt->y = vt->z = 0;
     vt->width = vt->height = vt->depth = 0;
     vt->built = SCE_FALSE;
+
+    SCE_List_Init (&vt->to_update);
+    vt->n_update = 0;
+    vt->max_updates = 4;
 }
 void SCE_VTerrain_Clear (SCE_SVoxelTerrain *vt)
 {
@@ -93,6 +111,25 @@ void SCE_VTerrain_Delete (SCE_SVoxelTerrain *vt)
     if (vt) {
         SCE_VTerrain_Clear (vt);
         SCE_free (vt);
+    }
+}
+
+static void SCE_VTerrain_AddRegion (SCE_SVoxelTerrain *vt,
+                                    SCE_SVoxelTerrainRegion *tr)
+{
+    SCE_SListIterator *it = &tr->it;
+    if (!SCE_List_IsAttached (it)) {
+        SCE_List_Appendl (&vt->to_update, it);
+        vt->n_update++;
+    }
+}
+static void SCE_VTerrain_RemoveRegion (SCE_SVoxelTerrain *vt,
+                                       SCE_SVoxelTerrainRegion *tr)
+{
+    SCE_SListIterator *it = &tr->it;
+    if (SCE_List_IsAttached (it)) {
+        SCE_List_Removel (it);
+        vt->n_update--;
     }
 }
 
@@ -168,11 +205,11 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
 
     tl->subregions = vt->n_subregions;
     num = tl->subregions * tl->subregions * tl->subregions;
-    if (!(tl->vmesh = SCE_malloc (num * sizeof *tl->vmesh))) goto fail;
+    if (!(tl->regions = SCE_malloc (num * sizeof *tl->regions))) goto fail;
     if (!(tl->mesh = SCE_malloc (num * sizeof *tl->mesh))) goto fail;
 
     for (i = 0; i < num; i++) {
-        SCE_VRender_InitMesh (&tl->vmesh[i]);
+        SCE_VTerrain_InitRegion (&tl->regions[i]);
         SCE_Mesh_Init (&tl->mesh[i]);
 
         /* TODO: make sure the geometry has the good number
@@ -182,8 +219,8 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
             goto fail;
         SCE_Mesh_AutoBuild (&tl->mesh[i]);
 
-        SCE_VRender_SetVolume (&tl->vmesh[i], tl->tex);
-        SCE_VRender_SetMesh (&tl->vmesh[i], &tl->mesh[i]);
+        SCE_VRender_SetVolume (&tl->regions[i].vm, tl->tex);
+        SCE_VRender_SetMesh (&tl->regions[i].vm, &tl->mesh[i]);
     }
 
     return SCE_OK;
@@ -339,10 +376,10 @@ static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
             for (x = sx; x <= w; x++) {
                 SCEuint i = z * tl->subregions * tl->subregions;
                 SCEuint j = y * tl->subregions;
-                SCE_VRender_Hardware (&vt->template, &tl->vmesh[i + j + x],
-                                      x * (vt->subregion_dim - 1),
-                                      y * (vt->subregion_dim - 1),
-                                      z * (vt->subregion_dim - 1));
+                SCE_SVoxelTerrainRegion *region = &tl->regions[i + j + x];
+
+                region->x = x; region->y = y; region->z = z;
+                SCE_VTerrain_AddRegion (vt, region);
             }
         }
     }
@@ -352,10 +389,26 @@ static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
 void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
 {
     size_t i;
+    SCE_SListIterator *it = NULL, *pro = NULL;
 
     for (i = 0; i < vt->n_levels; i++) {
         if (vt->levels[i].need_update)
             SCE_VTerrain_UpdateLevel (vt, &vt->levels[i]);
+    }
+
+    /* dequeue some regions for update */
+    i = 0;
+    SCE_List_ForEachProtected (pro, it, &vt->to_update) {
+        SCE_SVoxelTerrainRegion *region = SCE_List_GetData (it);
+        SCE_VRender_Hardware (&vt->template, &region->vm,
+                              region->x * (vt->subregion_dim - 1),
+                              region->y * (vt->subregion_dim - 1),
+                              region->z * (vt->subregion_dim - 1));
+        SCE_VTerrain_RemoveRegion (vt, region);
+
+        i++;
+        if (i >= vt->max_updates)
+            break;
     }
 }
 
