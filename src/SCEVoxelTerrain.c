@@ -30,6 +30,7 @@ static void SCE_VTerrain_InitRegion (SCE_SVoxelTerrainRegion *tr)
 {
     tr->x = tr->y = tr->z = 0;
     SCE_VRender_InitMesh (&tr->vm);
+    tr->draw = SCE_FALSE;
     SCE_List_InitIt (&tr->it);
     SCE_List_SetData (&tr->it, tr);
 }
@@ -404,6 +405,7 @@ void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
                               region->x * (vt->subregion_dim - 1),
                               region->y * (vt->subregion_dim - 1),
                               region->z * (vt->subregion_dim - 1));
+        region->draw = SCE_TRUE;
         SCE_VTerrain_RemoveRegion (vt, region);
 
         i++;
@@ -470,17 +472,19 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrainLevel *tl,
                 SCEuint i = z * tl->subregions * tl->subregions;
                 SCEuint j = y * tl->subregions;
 
+                if (tl->regions[i + j + x].draw) {
 #define DERP 1
-                SCE_Vector3_Set
-                    (pos,
-                     (float)x * (vt->subregion_dim - DERP) / vt->width,
-                     (float)y * (vt->subregion_dim - DERP) / vt->height,
-                     (float)z * (vt->subregion_dim - DERP) / vt->depth);
-                SCE_Matrix4_SetTranslation (m, pos);
-                SCE_RLoadMatrix (SCE_MAT_OBJECT, m);
-                SCE_Mesh_Use (&tl->mesh[i + j + x]);
-                SCE_Mesh_Render ();
-                SCE_Mesh_Unuse ();
+                    SCE_Vector3_Set
+                        (pos,
+                         (float)x * (vt->subregion_dim - DERP) / vt->width,
+                         (float)y * (vt->subregion_dim - DERP) / vt->height,
+                         (float)z * (vt->subregion_dim - DERP) / vt->depth);
+                    SCE_Matrix4_SetTranslation (m, pos);
+                    SCE_RLoadMatrix (SCE_MAT_OBJECT, m);
+                    SCE_Mesh_Use (&tl->mesh[i + j + x]);
+                    SCE_Mesh_Render ();
+                    SCE_Mesh_Unuse ();
+                }
             }
         }
     }

@@ -39,6 +39,7 @@ typedef struct sce_svoxelterrainregion SCE_SVoxelTerrainRegion;
 struct sce_svoxelterrainregion {
     int x, y, z;                /**< Coordinates of this region */
     SCE_SVoxelMesh vm;          /**< Abstract voxel mesh */
+    int draw;                   /**< Whether this region should be rendered */
     SCE_SListIterator it;
 };
 
