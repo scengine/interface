@@ -345,16 +345,65 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
 }
 
 
-static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
-                                      SCE_SVoxelTerrainLevel *tl)
+void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
+{
+    size_t i;
+    SCE_SListIterator *it = NULL, *pro = NULL;
+
+    for (i = 0; i < vt->n_levels; i++) {
+        if (vt->levels[i].need_update) {
+            /* TODO: use update_zone of the level */
+            SCE_Texture_Update (vt->levels[i].tex);
+            vt->levels[i].need_update = SCE_FALSE;
+        }
+    }
+
+    /* dequeue some regions for update */
+    i = 0;
+    SCE_List_ForEachProtected (pro, it, &vt->to_update) {
+        SCE_SVoxelTerrainRegion *region = SCE_List_GetData (it);
+        SCE_VRender_Hardware (&vt->template, &region->vm,
+                              region->x * (vt->subregion_dim - 1),
+                              region->y * (vt->subregion_dim - 1),
+                              region->z * (vt->subregion_dim - 1));
+        region->draw = SCE_TRUE;
+        SCE_VTerrain_RemoveRegion (vt, region);
+
+        i++;
+        if (i >= vt->max_updates)
+            break;
+    }
+}
+
+void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level)
+{
+    SCE_SIntRect3 r;
+
+    SCE_Rectangle3_Set (&r, 0, 0, 0,
+                        vt->width - 1, vt->height - 1, vt->depth - 1);
+    SCE_VTerrain_UpdateSubGrid (vt, level, &r);
+}
+
+void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,
+                                 SCE_SIntRect3 *r)
 {
     SCEuint x, y, z;
     SCEuint sx, sy, sz;
     SCEuint w, h, d;
     int p1[3], p2[3];
     int l;
+    SCE_SVoxelTerrainLevel *tl = &vt->levels[level];
 
-    SCE_Rectangle3_GetPointsv (&tl->update_zone, p1, p2);
+    /* update 3D rectangle of updated area for 3D texture update */
+    if (!vt->levels[level].need_update) {
+        vt->levels[level].need_update = SCE_TRUE;
+        vt->levels[level].update_zone = *r;
+    } else {
+        SCE_Rectangle3_Union (&vt->levels[level].update_zone,
+                              r, &vt->levels[level].update_zone);
+    }
+
+    SCE_Rectangle3_GetPointsv (r, p1, p2);
 
     l = vt->subregion_dim - 1;
     sx = MAX (p1[0] - 1, 0) / l;
@@ -383,53 +432,6 @@ static void SCE_VTerrain_UpdateLevel (SCE_SVoxelTerrain *vt,
                 SCE_VTerrain_AddRegion (vt, region);
             }
         }
-    }
-    tl->need_update = SCE_FALSE;
-}
-
-void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
-{
-    size_t i;
-    SCE_SListIterator *it = NULL, *pro = NULL;
-
-    for (i = 0; i < vt->n_levels; i++) {
-        if (vt->levels[i].need_update)
-            SCE_VTerrain_UpdateLevel (vt, &vt->levels[i]);
-    }
-
-    /* dequeue some regions for update */
-    i = 0;
-    SCE_List_ForEachProtected (pro, it, &vt->to_update) {
-        SCE_SVoxelTerrainRegion *region = SCE_List_GetData (it);
-        SCE_VRender_Hardware (&vt->template, &region->vm,
-                              region->x * (vt->subregion_dim - 1),
-                              region->y * (vt->subregion_dim - 1),
-                              region->z * (vt->subregion_dim - 1));
-        region->draw = SCE_TRUE;
-        SCE_VTerrain_RemoveRegion (vt, region);
-
-        i++;
-        if (i >= vt->max_updates)
-            break;
-    }
-}
-
-void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level)
-{
-    vt->levels[level].need_update = SCE_TRUE;
-    SCE_Rectangle3_Set (&vt->levels[level].update_zone, 0, 0, 0,
-                        vt->width - 1, vt->height - 1, vt->depth - 1);
-}
-
-void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,
-                                 SCE_SIntRect3 *r)
-{
-    if (!vt->levels[level].need_update) {
-        vt->levels[level].need_update = SCE_TRUE;
-        vt->levels[level].update_zone = *r;
-    } else {
-        SCE_Rectangle3_Union (&vt->levels[level].update_zone,
-                              r, &vt->levels[level].update_zone);
     }
 }
 
