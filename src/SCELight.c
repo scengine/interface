@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 13/03/2008
-   updated: 11/01/2012 */
+   updated: 15/03/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -143,6 +143,7 @@ void SCE_Light_GetColorv (SCE_SLight *light, float *c)
 void SCE_Light_SetMatrix (SCE_SLight *light, const SCE_TMatrix4 mat)
 {
     SCE_Node_SetMatrix (light->node, mat);
+    SCE_Node_HasMoved (light->node);
 }
 void SCE_Light_SetPosition (SCE_SLight *light, float x, float y, float z)
 {
@@ -154,6 +155,7 @@ void SCE_Light_SetPositionv (SCE_SLight *light, const SCE_TVector3 pos)
 {
     float *mat = SCE_Node_GetMatrix (light->node, SCE_NODE_WRITE_MATRIX);
     SCE_Matrix4_SetTranslation (mat, pos);
+    SCE_Node_HasMoved (light->node);
 }
 void SCE_Light_GetPositionv (SCE_SLight *light, SCE_TVector3 pos)
 {
