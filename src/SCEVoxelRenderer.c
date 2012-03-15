@@ -690,9 +690,9 @@ static const char *indices_gs =
 
     "void main (void)"
     "{"
-    "  if (pos[0].x < 1.0 - OW &&"
-    "      pos[0].y < 1.0 - OH &&"
-    "      pos[0].z < 1.0 - OD)"
+    "  if (pos[0].x < MAXW - OW &&"
+    "      pos[0].y < MAXH - OH &&"
+    "      pos[0].z < MAXD - OD)"
     "  {"
     "    uint edges[19];"
     "    get_edges (edges);"
@@ -707,6 +707,8 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
     size_t n_points;
     const char *varyings[2] = {NULL, NULL};
     SCE_STexData tc;
+    int width, height, depth;
+    float maxw, maxh, maxd;
 
     /* create grid geometry and grid mesh */
     SCE_Grid_Init (&grid);
@@ -786,6 +788,13 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
     if (SCE_Shader_Build (vt->final_shader) < 0) goto fail;
     vt->final_offset_loc = SCE_Shader_GetIndex (vt->final_shader, "offset");
 
+    width = SCE_Math_NextPowerOfTwo (vt->width);
+    height = SCE_Math_NextPowerOfTwo (vt->height);
+    depth = SCE_Math_NextPowerOfTwo (vt->depth);
+    maxw = (float)vt->width / width;
+    maxh = (float)vt->height / height;
+    maxd = (float)vt->depth / depth;
+
     /* splat vertices index shader */
     if (!(vt->splat_shader = SCE_Shader_Create ())) goto fail;
     if (SCE_Shader_AddSource (vt->splat_shader, SCE_VERTEX_SHADER,
@@ -794,9 +803,9 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
                               splat_gs, SCE_FALSE) < 0) goto fail;
     if (SCE_Shader_AddSource (vt->splat_shader, SCE_PIXEL_SHADER,
                               splat_ps, SCE_FALSE) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->splat_shader, "W", vt->width) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->splat_shader, "H", vt->height) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->splat_shader, "D", vt->depth) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->splat_shader, "W", width) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->splat_shader, "H", height) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->splat_shader, "D", depth) < 0) goto fail;
     SCE_Shader_SetupAttributesMapping (vt->splat_shader);
     SCE_Shader_ActivateAttributesMapping (vt->splat_shader, SCE_TRUE);
     SCE_Shader_SetOutputTarget (vt->splat_shader, "fragdata",
@@ -809,9 +818,12 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
                               indices_vs, SCE_FALSE) < 0) goto fail;
     if (SCE_Shader_AddSource (vt->indices_shader, SCE_GEOMETRY_SHADER,
                               indices_gs, SCE_FALSE) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->indices_shader, "W", vt->width) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->indices_shader, "H", vt->height) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->indices_shader, "D", vt->depth) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->indices_shader, "W", width) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->indices_shader, "H", height) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->indices_shader, "D", depth) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->indices_shader, "MAXW", maxw) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->indices_shader, "MAXH", maxh) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->indices_shader, "MAXD", maxd) < 0) goto fail;
     SCE_Shader_SetVersion (vt->indices_shader, 140);
     varyings[0] = "index";
     SCE_Shader_SetupFeedbackVaryings (vt->indices_shader, 1, varyings,
@@ -823,7 +835,7 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
     /* constructing indices 3D map */
     if (!(vt->splat = SCE_Texture_Create (SCE_TEX_3D, 0, 0))) goto fail;
     SCE_TexData_Init (&tc);
-    SCE_TexData_SetDimensions (&tc, vt->width * 8, vt->height, vt->depth);
+    SCE_TexData_SetDimensions (&tc, width * 8, height, depth);
     SCE_TexData_SetDataType (&tc, SCE_UNSIGNED_INT);
     SCE_TexData_SetType (&tc, SCE_IMAGE_3D);
     SCE_TexData_SetDataFormat (&tc, SCE_IMAGE_RED);
