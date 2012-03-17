@@ -134,6 +134,22 @@ static void SCE_VTerrain_RemoveRegion (SCE_SVoxelTerrain *vt,
     }
 }
 
+static unsigned int
+SCE_VTerrain_Get (SCE_SVoxelTerrainLevel *tl, int x, int y, int z)
+{
+    x = SCE_Math_Ring (x + tl->wrap_x, tl->subregions);
+    y = SCE_Math_Ring (y + tl->wrap_y, tl->subregions);
+    z = SCE_Math_Ring (z + tl->wrap_z, tl->subregions);
+    return x + tl->subregions * (y + tl->subregions * z);
+}
+
+static SCE_SVoxelTerrainRegion*
+SCE_VTerrain_GetRegion (SCE_SVoxelTerrainLevel *tl, int x, int y, int z)
+{
+    unsigned int offset = SCE_VTerrain_Get (tl, x, y, z);
+    return &tl->regions[offset];
+}
+
 void SCE_VTerrain_SetDimensions (SCE_SVoxelTerrain *vt, int w, int h, int d)
 {
     vt->width = w; vt->height = h; vt->depth = d;
@@ -424,10 +440,8 @@ void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,
     for (z = sz; z <= d; z++) {
         for (y = sy; y <= h; y++) {
             for (x = sx; x <= w; x++) {
-                SCEuint i = z * tl->subregions * tl->subregions;
-                SCEuint j = y * tl->subregions;
-                SCE_SVoxelTerrainRegion *region = &tl->regions[i + j + x];
-
+                SCE_SVoxelTerrainRegion *region = NULL;
+                region = SCE_VTerrain_GetRegion (tl, x, y, z);
                 region->x = x; region->y = y; region->z = z;
                 SCE_VTerrain_AddRegion (vt, region);
             }
@@ -471,10 +485,9 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrainLevel *tl,
     for (z = 0; z < tl->subregions; z++) {
         for (y = 0; y < tl->subregions; y++) {
             for (x = 0; x < tl->subregions; x++) {
-                SCEuint i = z * tl->subregions * tl->subregions;
-                SCEuint j = y * tl->subregions;
+                unsigned int offset = SCE_VTerrain_Get (tl, x, y, z);
 
-                if (tl->regions[i + j + x].draw) {
+                if (tl->regions[offset].draw) {
 #define DERP 1
                     SCE_Vector3_Set
                         (pos,
@@ -483,7 +496,7 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrainLevel *tl,
                          (float)z * (vt->subregion_dim - DERP) / vt->depth);
                     SCE_Matrix4_SetTranslation (m, pos);
                     SCE_RLoadMatrix (SCE_MAT_OBJECT, m);
-                    SCE_Mesh_Use (&tl->mesh[i + j + x]);
+                    SCE_Mesh_Use (&tl->mesh[offset]);
                     SCE_Mesh_Render ();
                     SCE_Mesh_Unuse ();
                 }

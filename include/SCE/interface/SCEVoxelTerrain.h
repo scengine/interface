@@ -57,7 +57,7 @@ struct sce_svoxelterrainlevel {
     SCE_SMesh *mesh;         /**< Final meshes */
     int wrap_x, wrap_y, wrap_z; /**< Sub-regions wrapping */
     int enabled;             /**< Is this level enabled? */
-    int x, y, z;             /**< Position of the center of this level */
+    int x, y, z;             /**< Position of the origin of the regions */
 
     int need_update;         /**< Does the texture need to be updated? */
     SCE_SIntRect3 update_zone;
