@@ -135,7 +135,7 @@ static void SCE_VTerrain_RemoveRegion (SCE_SVoxelTerrain *vt,
 }
 
 static unsigned int
-SCE_VTerrain_Get (SCE_SVoxelTerrainLevel *tl, int x, int y, int z)
+SCE_VTerrain_Get (const SCE_SVoxelTerrainLevel *tl, int x, int y, int z)
 {
     x = SCE_Math_Ring (x + tl->wrap_x, tl->subregions);
     y = SCE_Math_Ring (y + tl->wrap_y, tl->subregions);
@@ -144,7 +144,7 @@ SCE_VTerrain_Get (SCE_SVoxelTerrainLevel *tl, int x, int y, int z)
 }
 
 static SCE_SVoxelTerrainRegion*
-SCE_VTerrain_GetRegion (SCE_SVoxelTerrainLevel *tl, int x, int y, int z)
+SCE_VTerrain_GetRegion (const SCE_SVoxelTerrainLevel *tl, int x, int y, int z)
 {
     unsigned int offset = SCE_VTerrain_Get (tl, x, y, z);
     return &tl->regions[offset];
