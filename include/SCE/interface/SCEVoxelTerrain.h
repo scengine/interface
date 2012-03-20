@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 14/03/2012 */
+   updated: 20/03/2012 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
@@ -31,6 +31,9 @@
 extern "C" {
 #endif
 
+/** \copydoc sce_svoxelterrainlevel */
+typedef struct sce_svoxelterrainlevel SCE_SVoxelTerrainLevel;
+
 /** \copydoc sce_svoxelterrainregion */
 typedef struct sce_svoxelterrainregion SCE_SVoxelTerrainRegion;
 /**
@@ -41,16 +44,15 @@ struct sce_svoxelterrainregion {
     SCE_SVoxelMesh vm;          /**< Abstract voxel mesh */
     int draw;                   /**< Whether this region should be rendered */
     SCE_SListIterator it;
+    SCE_SVoxelTerrainLevel *level; /**< Owner of this region */
 };
 
-/** \copydoc sce_svoxelterrainlevel */
-typedef struct sce_svoxelterrainlevel SCE_SVoxelTerrainLevel;
 /**
  * \brief Single level (in terms of LOD) of a voxel terrain
  */
 struct sce_svoxelterrainlevel {
     SCE_SGrid grid;          /**< Uniform grid of this level */
-    SCE_TVector3 wrap;
+    int wrap[3];             /**< Texture wrapping */
     SCE_STexture *tex;       /**< GPU-side grid */
     SCEuint subregions;      /**< Number of sub-regions per side */
     SCE_SVoxelTerrainRegion *regions;  /**< Level sub-regions */
@@ -125,7 +127,8 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain*, SCEuint,
 
 void SCE_VTerrain_Update (SCE_SVoxelTerrain*);
 void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain*, SCEuint);
-void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain*, SCEuint, SCE_SIntRect3*);
+void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain*, SCEuint,
+                                 SCE_SIntRect3*, int);
 
 int SCE_VTerrain_GetOffset (const SCE_SVoxelTerrain*, SCEuint,
                             int*, int*, int*);

@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 14/03/2012 */
+   updated: 20/03/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -45,7 +45,7 @@ static void SCE_VTerrain_ClearRegion (SCE_SVoxelTerrainRegion *tr)
 static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
 {
     SCE_Grid_Init (&tl->grid);
-    SCE_Vector3_Set (tl->wrap, 0.0, 0.0, 0.0);
+    tl->wrap[0] = tl->wrap[1] = tl->wrap[2] = 0;
     tl->tex = NULL;
     tl->subregions = 1;
     tl->regions = NULL;
@@ -89,7 +89,7 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
 
     SCE_List_Init (&vt->to_update);
     vt->n_update = 0;
-    vt->max_updates = 4;
+    vt->max_updates = 8;
 }
 void SCE_VTerrain_Clear (SCE_SVoxelTerrain *vt)
 {
@@ -328,24 +328,25 @@ void SCE_VTerrain_ActivateLevel (SCE_SVoxelTerrain *vt, SCEuint level,
 }
 
 
-/* TODO: update */
 void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
                                SCE_EBoxFace f, const unsigned char *slice)
 {
     SCE_STexData *texdata = NULL;
     SCE_SVoxelTerrainLevel *tl = NULL;
-    int w, h, d;
+    int w, h, d, dim;
+    SCE_SIntRect3 r;
 
     tl = &vt->levels[level];
     SCE_Grid_UpdateFace (&tl->grid, f, slice);
 
-    /* TODO: update it with grid functions */
-    tl->wrap[0] = (float)tl->grid.wrap_x / vt->width;
-    tl->wrap[1] = (float)tl->grid.wrap_y / vt->height;
-    tl->wrap[2] = (float)tl->grid.wrap_z / vt->depth;
+    /* TODO: direct access to structure attributes */
+    tl->wrap[0] = tl->grid.wrap_x;
+    tl->wrap[1] = tl->grid.wrap_y;
+    tl->wrap[2] = tl->grid.wrap_z;
 
-    /* TODO: restore proper wrapping for blelfhlhlbblehblhblbl herp */
-    /*SCE_VRender_SetWrap (&tl->vmesh, tl->wrap);*/
+    w = SCE_Grid_GetWidth (&tl->grid);
+    h = SCE_Grid_GetHeight (&tl->grid);
+    d = SCE_Grid_GetDepth (&tl->grid);
 
 #if 0
     /* TODO: take grid wrapping into account... it will be crappy */
@@ -371,6 +372,65 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
         break;
     }
 #endif
+
+    dim = (vt->subregion_dim - 1) * vt->n_subregions + 1;
+
+    switch (f) {
+    case SCE_BOX_POSX:
+        tl->x--;
+        if (tl->x < 0) {
+            tl->x += vt->subregion_dim - 1;
+            tl->wrap_x++;
+            SCE_Rectangle3_Set (&r, dim - vt->subregion_dim + 2, 0, 0, w, h, d);
+            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
+        }
+        break;
+    case SCE_BOX_NEGX:
+        tl->x++;
+        if (tl->x + dim > vt->width) {
+            tl->x -= vt->subregion_dim - 1;
+            tl->wrap_x--;
+            SCE_Rectangle3_Set (&r, 0, 0, 0, vt->subregion_dim - 2, h, d);
+            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
+        }
+        break;
+    case SCE_BOX_POSY:
+        tl->y--;
+        if (tl->y < 0) {
+            tl->y += vt->subregion_dim - 1;
+            tl->wrap_y++;
+            SCE_Rectangle3_Set (&r, 0, dim - vt->subregion_dim + 2, 0, w, h, d);
+            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
+        }
+        break;
+    case SCE_BOX_NEGY:
+        tl->y++;
+        if (tl->y + dim > vt->height) {
+            tl->y -= vt->subregion_dim - 1;
+            tl->wrap_y--;
+            SCE_Rectangle3_Set (&r, 0, 0, 0, w, vt->subregion_dim - 2, d);
+            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
+        }
+        break;
+    case SCE_BOX_POSZ:
+        tl->z--;
+        if (tl->z < 0) {
+            tl->z += vt->subregion_dim - 1;
+            tl->wrap_z++;
+            SCE_Rectangle3_Set (&r, 0, 0, dim - vt->subregion_dim + 2, w, h, d);
+            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
+        }
+        break;
+    case SCE_BOX_NEGZ:
+        tl->z++;
+        if (tl->z + dim > vt->depth) {
+            tl->z -= vt->subregion_dim - 1;
+            tl->wrap_z--;
+            SCE_Rectangle3_Set (&r, 0, 0, 0, w, h, vt->subregion_dim - 2);
+            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
+        }
+        break;
+    }
 
     tl->need_update = SCE_TRUE;
 }
@@ -419,11 +479,11 @@ void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level)
 
     SCE_Rectangle3_Set (&r, 0, 0, 0,
                         vt->width - 1, vt->height - 1, vt->depth - 1);
-    SCE_VTerrain_UpdateSubGrid (vt, level, &r);
+    SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_TRUE);
 }
-
+/* TODO: check whether this function still works since I added tl->[xyz] */
 void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,
-                                 SCE_SIntRect3 *r)
+                                 SCE_SIntRect3 *r, int draw)
 {
     SCEuint x, y, z;
     SCEuint sx, sy, sz;
@@ -443,13 +503,16 @@ void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,
 
     SCE_Rectangle3_GetPointsv (r, p1, p2);
 
+    p1[0] -= tl->x; p1[1] -= tl->y; p1[2] -= tl->z;
+    p2[0] -= tl->x; p2[1] -= tl->y; p2[2] -= tl->z;
+
     l = vt->subregion_dim - 1;
     sx = MAX (p1[0] - 1, 0) / l;
     sy = MAX (p1[1] - 1, 0) / l;
     sz = MAX (p1[2] - 1, 0) / l;
-    w = p2[0] / l;
-    h = p2[1] / l;
-    d = p2[2] / l;
+    w = MAX (p2[0], 0) / l;
+    h = MAX (p2[1], 0) / l;
+    d = MAX (p2[2], 0) / l;
     if (w >= tl->subregions)
         w = tl->subregions - 1;
     if (h >= tl->subregions)
@@ -465,6 +528,7 @@ void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,
                 SCE_SVoxelTerrainRegion *region = NULL;
                 region = SCE_VTerrain_GetRegion (tl, x, y, z);
                 SCE_VTerrain_AddRegion (vt, region);
+                region->draw = draw;
             }
         }
     }
