@@ -33,6 +33,7 @@ static void SCE_VTerrain_InitRegion (SCE_SVoxelTerrainRegion *tr)
     tr->draw = SCE_FALSE;
     SCE_List_InitIt (&tr->it);
     SCE_List_SetData (&tr->it, tr);
+    tr->level = NULL;
 }
 static void SCE_VTerrain_ClearRegion (SCE_SVoxelTerrainRegion *tr)
 {
@@ -203,6 +204,7 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
 {
     SCE_STexData *tc = NULL;
     SCEuint i, num;
+    SCEuint x, y, z;
 
     SCE_Grid_SetType (&tl->grid, SCE_UNSIGNED_BYTE);
     SCE_Grid_SetDimensions (&tl->grid, vt->width, vt->height, vt->depth);
@@ -227,6 +229,7 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
 
     for (i = 0; i < num; i++) {
         SCE_VTerrain_InitRegion (&tl->regions[i]);
+        tl->regions[i].level = tl;
         SCE_Mesh_Init (&tl->mesh[i]);
 
         /* TODO: make sure the geometry has the good number
@@ -238,6 +241,18 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
 
         SCE_VRender_SetVolume (&tl->regions[i].vm, tl->tex);
         SCE_VRender_SetMesh (&tl->regions[i].vm, &tl->mesh[i]);
+    }
+
+    /* NOTE: must be done only once; any subsequent call to BuildLevel()
+             on the same level would screw everything up.
+             shortly: wrapping must be null */
+    for (x = 0; x < tl->subregions; x++) {
+        for (y = 0; y < tl->subregions; y++) {
+            for (z = 0; z < tl->subregions; z++) {
+                SCE_SVoxelTerrainRegion *r = SCE_VTerrain_GetRegion (tl,x,y,z);
+                r->x = x; r->y = y; r->z = z;
+            }
+        }
     }
 
     return SCE_OK;
@@ -365,6 +380,7 @@ void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
 {
     size_t i;
     SCE_SListIterator *it = NULL, *pro = NULL;
+    unsigned int x, y, z;
 
     for (i = 0; i < vt->n_levels; i++) {
         if (vt->levels[i].need_update) {
@@ -377,13 +393,19 @@ void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
     /* dequeue some regions for update */
     i = 0;
     SCE_List_ForEachProtected (pro, it, &vt->to_update) {
-        SCE_SVoxelTerrainRegion *region = SCE_List_GetData (it);
-        SCE_VRender_Hardware (&vt->template, &region->vm,
-                              region->x * (vt->subregion_dim - 1),
-                              region->y * (vt->subregion_dim - 1),
-                              region->z * (vt->subregion_dim - 1));
-        region->draw = SCE_TRUE;
-        SCE_VTerrain_RemoveRegion (vt, region);
+        SCE_SVoxelTerrainRegion *tr = SCE_List_GetData (it);
+        SCE_SVoxelTerrainLevel *l = tr->level;
+
+        x = SCE_Math_Ring (tr->x - l->wrap_x, l->subregions);
+        y = SCE_Math_Ring (tr->y - l->wrap_y, l->subregions);
+        z = SCE_Math_Ring (tr->z - l->wrap_z, l->subregions);
+
+        SCE_VRender_Hardware (&vt->template, &tr->vm,
+                              l->wrap[0] + l->x + x * (vt->subregion_dim - 1),
+                              l->wrap[1] + l->y + y * (vt->subregion_dim - 1),
+                              l->wrap[2] + l->z + z * (vt->subregion_dim - 1));
+        tr->draw = SCE_TRUE;
+        SCE_VTerrain_RemoveRegion (vt, tr);
 
         i++;
         if (i >= vt->max_updates)
@@ -442,7 +464,6 @@ void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,
             for (x = sx; x <= w; x++) {
                 SCE_SVoxelTerrainRegion *region = NULL;
                 region = SCE_VTerrain_GetRegion (tl, x, y, z);
-                region->x = x; region->y = y; region->z = z;
                 SCE_VTerrain_AddRegion (vt, region);
             }
         }
