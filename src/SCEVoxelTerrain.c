@@ -520,8 +520,6 @@ void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,
     if (d >= tl->subregions)
         d = tl->subregions - 1;
 
-    SCE_Texture_Update (tl->tex);
-
     for (z = sz; z <= d; z++) {
         for (y = sy; y <= h; y++) {
             for (x = sx; x <= w; x++) {
