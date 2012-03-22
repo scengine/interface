@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 31/07/2009
-   updated: 09/02/2012 */
+   updated: 21/03/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -203,6 +203,25 @@ void SCE_Mesh_SetPrimitiveType (SCE_SMesh *mesh, SCE_EPrimitiveType t)
 {
     mesh->prim = t;
 }
+
+SCEuint SCE_Mesh_GetNumVertices (const SCE_SMesh *mesh)
+{
+    return mesh->n_vertices;
+}
+SCEuint SCE_Mesh_GetNumIndices (const SCE_SMesh *mesh)
+{
+    return mesh->n_indices;
+}
+
+void SCE_Mesh_SetNumVertices (SCE_SMesh *mesh, SCEuint n)
+{
+    mesh->n_vertices = n;
+}
+void SCE_Mesh_SetNumIndices (SCE_SMesh *mesh, SCEuint n)
+{
+    mesh->n_indices = n;
+}
+
 
 /**
  * \brief Gets the geometry of a mesh
