@@ -133,6 +133,7 @@ void SCE_VRender_InitMesh (SCE_SVoxelMesh *vm)
     vm->volume = NULL;
     SCE_Vector3_Set (vm->wrap, 0.0, 0.0, 0.0);
     vm->mesh = NULL;
+    vm->render = SCE_FALSE;
     vm->vertex_range[0] = vm->vertex_range[1] = -1;
     vm->index_range[0] = vm->index_range[1] = -1;
     vm->n_vertices = 0;
@@ -925,6 +926,19 @@ void SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_SVoxelMesh *vm,
     SCE_Mesh_Unuse ();
     SCE_Mesh_EndRenderTo (&vt->non_empty);
 
+    /* this test doesn't seem to be deterministic... */
+    if (SCE_Mesh_GetNumVertices (&vt->non_empty) != 0) {
+        vm->render = SCE_TRUE;
+    } else {
+        vm->render = SCE_FALSE;
+        /* ... so I setup those as a precaution :) */
+        SCE_Mesh_SetNumVertices (vm->mesh, 0);
+        SCE_Mesh_SetNumIndices (vm->mesh, 0);
+        SCE_Shader_Use (NULL);
+        SCE_Texture_Use (NULL);
+        return;
+    }
+
     /* 2nd pass: render a list of vertices */
     SCE_Shader_Use (vt->list_verts_shader);
     SCE_Mesh_BeginRenderTo (&vt->list_verts);
@@ -965,4 +979,10 @@ void SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_SVoxelMesh *vm,
 
     SCE_Shader_Use (NULL);
     SCE_Texture_Use (NULL);
+}
+
+
+int SCE_VRender_IsVoid (const SCE_SVoxelMesh *vm)
+{
+    return vm->render;
 }

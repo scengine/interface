@@ -59,6 +59,7 @@ struct sce_svoxelmesh {
     SCE_STexture *volume;    /**< Volume texture: raw voxel data */
     SCE_TVector3 wrap;       /**< Wrapping into \c volume */
     SCE_SMesh *mesh;         /**< Final mesh */
+    int render;              /**< Whether the mesh should be rendered */
 
     int vertex_range[2];     /**< Range of the vertex buffer to bind */
     int index_range[2];      /**< Range of the index buffer to bind */
@@ -101,6 +102,8 @@ void SCE_VRender_SetVBRange (SCE_SVoxelMesh*, const int*);
 void SCE_VRender_SetIBRange (SCE_SVoxelMesh*, const int*);
 
 void SCE_VRender_Hardware (SCE_SVoxelTemplate*, SCE_SVoxelMesh*, int, int, int);
+
+int SCE_VRender_IsVoid (const SCE_SVoxelMesh*);
 
 #ifdef __cplusplus
 } /* extern "C" */
