@@ -464,7 +464,7 @@ void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
                               l->wrap[0] + l->x + x * (vt->subregion_dim - 1),
                               l->wrap[1] + l->y + y * (vt->subregion_dim - 1),
                               l->wrap[2] + l->z + z * (vt->subregion_dim - 1));
-        tr->draw = SCE_TRUE;
+        tr->draw = SCE_VRender_IsVoid (&tr->vm);
         SCE_VTerrain_RemoveRegion (vt, tr);
 
         i++;
