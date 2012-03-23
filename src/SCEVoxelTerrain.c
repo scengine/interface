@@ -375,13 +375,14 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
 
     dim = (vt->subregion_dim - 1) * vt->n_subregions + 1;
 
+#define HERP 2
     switch (f) {
     case SCE_BOX_POSX:
         tl->x--;
         if (tl->x < 0) {
             tl->x += vt->subregion_dim - 1;
             tl->wrap_x++;
-            SCE_Rectangle3_Set (&r, dim - vt->subregion_dim + 2, 0, 0, w, h, d);
+            SCE_Rectangle3_Set (&r, w - vt->subregion_dim + HERP, 0, 0, w, h, d);
             SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
         }
         break;
@@ -399,7 +400,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
         if (tl->y < 0) {
             tl->y += vt->subregion_dim - 1;
             tl->wrap_y++;
-            SCE_Rectangle3_Set (&r, 0, dim - vt->subregion_dim + 2, 0, w, h, d);
+            SCE_Rectangle3_Set (&r, 0, h - vt->subregion_dim + HERP, 0, w, h, d);
             SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
         }
         break;
@@ -417,7 +418,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
         if (tl->z < 0) {
             tl->z += vt->subregion_dim - 1;
             tl->wrap_z++;
-            SCE_Rectangle3_Set (&r, 0, 0, dim - vt->subregion_dim + 2, w, h, d);
+            SCE_Rectangle3_Set (&r, 0, 0, d - vt->subregion_dim + HERP, w, h, d);
             SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
         }
         break;
