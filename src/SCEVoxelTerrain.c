@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 20/03/2012 */
+   updated: 27/03/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -53,6 +53,7 @@ static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
     tl->wrap_x = tl->wrap_y = tl->wrap_z = 0;
     tl->enabled = SCE_TRUE;
     tl->x = tl->y = tl->z = 0;
+    tl->map_x = tl->map_y = tl->map_z = 0;
 
     tl->need_update = SCE_FALSE;
     SCE_Rectangle3_Init (&tl->update_zone);
@@ -290,12 +291,44 @@ fail:
 }
 
 
-void SCE_VTerrain_SetPosition (SCE_SVoxelTerrain *vt, int x, int y, int z)
+void SCE_VTerrain_SetPosition (SCE_SVoxelTerrain *vt, long x, long y, long z)
 {
     vt->x = x;
     vt->y = y;
     vt->z = z;
 }
+
+void SCE_VTerrain_GetMissingSlices (const SCE_SVoxelTerrain *vt, SCEuint level,
+                                    long *x, long *y, long *z)
+{
+    long center[3];
+    SCE_SVoxelTerrainLevel *tl = &vt->levels[level];
+    long herp = 1 << level;
+
+    /* compute center in terms of the origin of the grid in the map */
+    center[0] = (tl->map_x + vt->width / 2) * herp;
+    center[1] = (tl->map_y + vt->height / 2) * herp;
+    center[2] = (tl->map_z + vt->depth / 2) * herp;
+
+    /* compute difference */
+    *x = (vt->x - center[0]) / herp;
+    *y = (vt->y - center[1]) / herp;
+    *z = (vt->z - center[2]) / herp;
+}
+
+void SCE_VTerrain_SetOrigin (SCE_SVoxelTerrain *vt, SCEuint level,
+                             long x, long y, long z)
+{
+    SCE_SVoxelTerrainLevel *tl = &vt->levels[level];
+    tl->map_x = x; tl->map_y = y; tl->map_z = z;
+}
+void SCE_VTerrain_GetOrigin (const SCE_SVoxelTerrain *vt, SCEuint level,
+                             long *x, long *y, long *z)
+{
+    const SCE_SVoxelTerrainLevel *tl = &vt->levels[level];
+    *x = tl->map_x; *y = tl->map_y; *z = tl->map_z;
+}
+
 
 void SCE_VTerrain_SetLevel (SCE_SVoxelTerrain *vt, SCEuint level,
                             const SCE_SGrid *grid)
@@ -378,6 +411,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
 #define HERP 2
     switch (f) {
     case SCE_BOX_POSX:
+        tl->map_x++;
         tl->x--;
         if (tl->x < 0) {
             tl->x += vt->subregion_dim - 1;
@@ -387,6 +421,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
         }
         break;
     case SCE_BOX_NEGX:
+        tl->map_x--;
         tl->x++;
         if (tl->x + dim > vt->width) {
             tl->x -= vt->subregion_dim - 1;
@@ -396,6 +431,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
         }
         break;
     case SCE_BOX_POSY:
+        tl->map_y++;
         tl->y--;
         if (tl->y < 0) {
             tl->y += vt->subregion_dim - 1;
@@ -405,6 +441,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
         }
         break;
     case SCE_BOX_NEGY:
+        tl->map_y--;
         tl->y++;
         if (tl->y + dim > vt->height) {
             tl->y -= vt->subregion_dim - 1;
@@ -414,6 +451,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
         }
         break;
     case SCE_BOX_POSZ:
+        tl->map_z++;
         tl->z--;
         if (tl->z < 0) {
             tl->z += vt->subregion_dim - 1;
@@ -423,6 +461,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
         }
         break;
     case SCE_BOX_NEGZ:
+        tl->map_z--;
         tl->z++;
         if (tl->z + dim > vt->depth) {
             tl->z -= vt->subregion_dim - 1;
@@ -484,25 +523,31 @@ void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level)
 }
 /* TODO: check whether this function still works since I added tl->[xyz] */
 void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,
-                                 SCE_SIntRect3 *r, int draw)
+                                 SCE_SIntRect3 *rect, int draw)
 {
     SCEuint x, y, z;
     SCEuint sx, sy, sz;
     SCEuint w, h, d;
     int p1[3], p2[3];
     int l;
+    SCE_SIntRect3 r, grid_area;
     SCE_SVoxelTerrainLevel *tl = &vt->levels[level];
+
+    /* get the intersection between the area to update and the grid area */
+    SCE_Rectangle3_Set (&grid_area, 0, 0, 0, vt->width, vt->height, vt->depth);
+    if (!SCE_Rectangle3_Intersection (&grid_area, rect, &r))
+        return;                 /* does not intersect */
 
     /* update 3D rectangle of updated area for 3D texture update */
     if (!vt->levels[level].need_update) {
         vt->levels[level].need_update = SCE_TRUE;
-        vt->levels[level].update_zone = *r;
+        vt->levels[level].update_zone = r;
     } else {
         SCE_Rectangle3_Union (&vt->levels[level].update_zone,
-                              r, &vt->levels[level].update_zone);
+                              &r, &vt->levels[level].update_zone);
     }
 
-    SCE_Rectangle3_GetPointsv (r, p1, p2);
+    SCE_Rectangle3_GetPointsv (&r, p1, p2);
 
     p1[0] -= tl->x; p1[1] -= tl->y; p1[2] -= tl->z;
     p2[0] -= tl->x; p2[1] -= tl->y; p2[2] -= tl->z;
@@ -557,14 +602,27 @@ int SCE_VTerrain_GetOffset (const SCE_SVoxelTerrain *vt, SCEuint level,
 }
 
 
-static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrainLevel *tl,
-                                      const SCE_SVoxelTerrain *vt)
+static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
+                                      SCEuint level)
 {
     SCE_TMatrix4 m;
-    SCE_TVector3 pos;
+    SCE_TVector3 pos, origin;
     SCEuint x, y, z;
+    float invw, invh, invd;
+    long scale;
+    const SCE_SVoxelTerrainLevel *tl = &vt->levels[level];
 
-    SCE_Matrix4_Identity (m);
+    scale = 1 << level;
+
+    invw = 1.0 / vt->width;
+    invh = 1.0 / vt->height;
+    invd = 1.0 / vt->depth;
+
+    /* wtf? why -0.5 ? */
+    SCE_Vector3_Set (origin,
+                     (tl->map_x + tl->x - 0.5) * invw,
+                     (tl->map_y + tl->y - 0.5) * invh,
+                     (tl->map_z + tl->z - 0.5) * invd);
 
     for (z = 0; z < tl->subregions; z++) {
         for (y = 0; y < tl->subregions; y++) {
@@ -575,10 +633,13 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrainLevel *tl,
 #define DERP 1
                     SCE_Vector3_Set
                         (pos,
-                         (float)x * (vt->subregion_dim - DERP) / vt->width,
-                         (float)y * (vt->subregion_dim - DERP) / vt->height,
-                         (float)z * (vt->subregion_dim - DERP) / vt->depth);
-                    SCE_Matrix4_SetTranslation (m, pos);
+                         (float)x * (vt->subregion_dim - DERP) * invw,
+                         (float)y * (vt->subregion_dim - DERP) * invh,
+                         (float)z * (vt->subregion_dim - DERP) * invd);
+                    SCE_Vector3_Operator1v (pos, +=, origin);
+                    SCE_Matrix4_Identity (m);
+                    SCE_Matrix4_SetScale (m, scale, scale, scale);
+                    SCE_Matrix4_MulTranslatev (m, pos);
                     SCE_RLoadMatrix (SCE_MAT_OBJECT, m);
                     SCE_Mesh_Use (&tl->mesh[offset]);
                     SCE_Mesh_Render ();
@@ -594,7 +655,7 @@ void SCE_VTerrain_Render (const SCE_SVoxelTerrain *vt)
     size_t i;
 
     for (i = 0; i < vt->n_levels; i++) {
-        SCE_VTerrain_RenderLevel (&vt->levels[i], vt);
+        SCE_VTerrain_RenderLevel (vt, i);
         /* TODO: clear depth buffer or add an offset or whatev. */
     }
 }

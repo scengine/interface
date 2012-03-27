@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 20/03/2012 */
+   updated: 27/03/2012 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
@@ -61,6 +61,8 @@ struct sce_svoxelterrainlevel {
     int enabled;             /**< Is this level enabled? */
     int x, y, z;             /**< Position of the origin of the regions */
 
+    long map_x, map_y, map_z;/**< Origin of the grid in the map */
+
     int need_update;         /**< Does the texture need to be updated? */
     SCE_SIntRect3 update_zone;
 };
@@ -86,7 +88,7 @@ struct sce_svoxelterrain {
     SCEuint n_subregions;       /**< Number of subregions per side */
     SCE_SVoxelTerrainLevel levels[SCE_MAX_VTERRAIN_LEVELS];
     size_t n_levels;
-    int x, y, z;                /**< Position of the theoretical viewer */
+    long x, y, z;               /**< Position of the theoretical viewer */
     int width, height, depth;   /**< Dimensions of one level */
     int built;                  /**< Is the terrain built? */
 
@@ -117,7 +119,13 @@ void SCE_VTerrain_SetNumSubRegions (SCE_SVoxelTerrain*, SCEuint);
 
 int SCE_VTerrain_Build (SCE_SVoxelTerrain*);
 
-void SCE_VTerrain_SetPosition (SCE_SVoxelTerrain*, int, int, int);
+void SCE_VTerrain_SetPosition (SCE_SVoxelTerrain*, long, long, long);
+void SCE_VTerrain_GetMissingSlices (const SCE_SVoxelTerrain*, SCEuint, long*,
+                                    long*, long*);
+void SCE_VTerrain_SetOrigin (SCE_SVoxelTerrain*, SCEuint, long, long, long);
+void SCE_VTerrain_GetOrigin (const SCE_SVoxelTerrain*, SCEuint,
+                             long*, long*, long*);
+
 void SCE_VTerrain_SetLevel (SCE_SVoxelTerrain*, SCEuint, const SCE_SGrid*);
 SCE_SGrid* SCE_VTerrain_GetLevelGrid (SCE_SVoxelTerrain*, SCEuint);
 void SCE_VTerrain_ActivateLevel (SCE_SVoxelTerrain*, SCEuint, int);
