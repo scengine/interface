@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 27/03/2012 */
+   updated: 28/03/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -610,7 +610,10 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
     SCEuint x, y, z;
     float invw, invh, invd;
     long scale;
-    const SCE_SVoxelTerrainLevel *tl = &vt->levels[level];
+    const SCE_SVoxelTerrainLevel *tl = &vt->levels[level], *tl2 = NULL;
+
+    if (level > 0)
+        tl2 = &vt->levels[level - 1];
 
     scale = 1 << level;
 
@@ -628,8 +631,34 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
         for (y = 0; y < tl->subregions; y++) {
             for (x = 0; x < tl->subregions; x++) {
                 unsigned int offset = SCE_VTerrain_Get (tl, x, y, z);
+                int draw = SCE_TRUE, p1[3], p2[3];
+                SCE_SIntRect3 inner_lod, region;
 
-                if (tl->regions[offset].draw) {
+                if (tl2) {
+                    /* compute current region area */
+                    p1[0] = 2 * (tl->map_x + tl->x + x * (vt->subregion_dim-1));
+                    p1[1] = 2 * (tl->map_y + tl->y + y * (vt->subregion_dim-1));
+                    p1[2] = 2 * (tl->map_z + tl->z + z * (vt->subregion_dim-1));
+                    p2[0] = p1[0] + 2 * vt->subregion_dim;
+                    p2[1] = p1[1] + 2 * vt->subregion_dim;
+                    p2[2] = p1[2] + 2 * vt->subregion_dim;
+                    SCE_Rectangle3_Setv (&region, p1, p2);
+
+                    /* compute inner LOD grid area */
+                    p1[0] = tl2->map_x + tl2->x;
+                    p1[1] = tl2->map_y + tl2->y;
+                    p1[2] = tl2->map_z + tl2->z;
+                    p2[0] = 1+p1[0] + vt->n_subregions * (vt->subregion_dim-1);
+                    p2[1] = 1+p1[1] + vt->n_subregions * (vt->subregion_dim-1);
+                    p2[2] = 1+p1[2] + vt->n_subregions * (vt->subregion_dim-1);
+                    SCE_Rectangle3_Setv (&inner_lod, p1, p2);
+
+                    draw = !SCE_Rectangle3_IsInside (&inner_lod, &region);
+                }
+
+                draw = draw && tl->regions[offset].draw;
+
+                if (draw) {
 #define DERP 1
                     SCE_Vector3_Set
                         (pos,
