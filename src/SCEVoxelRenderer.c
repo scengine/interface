@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 14/02/2012
-   updated: 15/02/2012 */
+   updated: 30/03/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -363,6 +363,7 @@ static const char *final_vs =
     "  p6 = texture3D (sce_tex0, tc + vec3 (OW, OH, 0.)).x;"
     "  p7 = texture3D (sce_tex0, tc + vec3 (0., OH, 0.)).x;"
        /* corners */
+    /* TODO: - 0.5 ? aren't vertices divided by 2 ? */
     "  vec4 corners[5] = {"
     "    vec4 (p,                     p0 - 0.5),"
     "    vec4 (p + vec3 (OW, 0., 0.), p1 - 0.5),"
@@ -397,16 +398,6 @@ static const char *final_vs =
     "           texture3D (sce_tex0, tc + vec3 (0., -OH, 0.)).x;"
     "  grad.z = texture3D (sce_tex0, tc + vec3 (0., 0., OD)).x -"
     "           texture3D (sce_tex0, tc + vec3 (0., 0., -OD)).x;"
-    "  const float c = 2.3;"
-    "  vec3 grad2;"
-    "  grad2.x = texture3D (sce_tex0, tc + c * vec3 (OW, 0., 0.)).x -"
-    "            texture3D (sce_tex0, tc + c * vec3 (-OW, 0., 0.)).x;"
-    "  grad2.y = texture3D (sce_tex0, tc + c * vec3 (0., OH, 0.)).x -"
-    "            texture3D (sce_tex0, tc + c * vec3 (0., -OH, 0.)).x;"
-    "  grad2.z = texture3D (sce_tex0, tc + c * vec3 (0., 0., OD)).x -"
-    "            texture3D (sce_tex0, tc + c * vec3 (0., 0., -OD)).x;"
-    "  w = 0.5;"
-    "  grad = grad * w + grad2 * (1.0 - w);"
     "  nor = -normalize (grad);"
     "}";
 
