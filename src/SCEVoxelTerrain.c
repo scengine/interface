@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 28/03/2012 */
+   updated: 30/03/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -41,15 +41,34 @@ static void SCE_VTerrain_ClearRegion (SCE_SVoxelTerrainRegion *tr)
     SCE_List_Remove (&tr->it);
 }
 
+static void SCE_VTerrain_InitTransition (SCE_SVoxelTerrainTransition *trans)
+{
+    SCE_Geometry_Init (&trans->geom);
+    SCE_Mesh_Init (&trans->mesh);
+    SCE_Rectangle3_Set (&trans->area, 0, 0, 0, 0, 0, 0);
+    trans->voxels = NULL;
+    trans->w = trans->h = trans->d = 0;
+    SCE_List_InitIt (&trans->it);
+    SCE_List_SetData (&trans->it, trans);
+}
+static void SCE_VTerrain_ClearTransition (SCE_SVoxelTerrainTransition *trans)
+{
+    SCE_Geometry_Clear (&trans->geom);
+    SCE_Mesh_Clear (&trans->mesh);
+    SCE_List_Remove (&trans->it);
+}
 
 static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
 {
+    int i;
     SCE_Grid_Init (&tl->grid);
     tl->wrap[0] = tl->wrap[1] = tl->wrap[2] = 0;
     tl->tex = NULL;
     tl->subregions = 1;
     tl->regions = NULL;
     tl->mesh = NULL;
+    for (i = 0; i < 6; i++)
+        tl->trans[i] = NULL;
     tl->wrap_x = tl->wrap_y = tl->wrap_z = 0;
     tl->enabled = SCE_TRUE;
     tl->x = tl->y = tl->z = 0;
@@ -60,18 +79,30 @@ static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
 }
 static void SCE_VTerrain_ClearLevel (SCE_SVoxelTerrainLevel *tl)
 {
-    SCEuint i, n;
+    SCEuint i, j, n;
 
     SCE_Grid_Clear (&tl->grid);
     SCE_Texture_Delete (tl->tex);
 
-    n = tl->subregions * tl->subregions * tl->subregions;
-    for (i = 0; i < n; i++) {
-        SCE_VTerrain_ClearRegion (&tl->regions[i]);
-        SCE_Mesh_Clear (&tl->mesh[i]);
+    n = tl->subregions * tl->subregions;
+    for (i = 0; i < 6; i++) {
+        if (tl->trans[i]) {
+            for (j = 0; j < n; j++)
+                SCE_VTerrain_ClearTransition (&tl->trans[i][j]);
+            SCE_free (tl->trans[i]);
+        }
     }
-    SCE_free (tl->regions);
-    SCE_free (tl->mesh);
+    n *= tl->subregions;
+    if (tl->regions) {
+        for (i = 0; i < n; i++)
+            SCE_VTerrain_ClearRegion (&tl->regions[i]);
+        SCE_free (tl->regions);
+    }
+    if (tl->mesh) {
+        for (i = 0; i < n; i++)
+            SCE_Mesh_Clear (&tl->mesh[i]);
+        SCE_free (tl->mesh);
+    }
 }
 
 void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
@@ -204,9 +235,11 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
                                     SCE_SVoxelTerrainLevel *tl)
 {
     SCE_STexData *tc = NULL;
-    SCEuint i, num;
+    SCEuint i, j, num;
     SCEuint x, y, z;
 
+
+    /* setup volume */
     SCE_Grid_SetType (&tl->grid, SCE_UNSIGNED_BYTE);
     SCE_Grid_SetDimensions (&tl->grid, vt->width, vt->height, vt->depth);
     if (SCE_Grid_Build (&tl->grid) < 0)
@@ -223,6 +256,8 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
     SCE_Texture_AddTexData (tl->tex, SCE_TEX_3D, tc);
     SCE_Texture_Build (tl->tex, SCE_FALSE);
 
+
+    /* setup regions */
     tl->subregions = vt->n_subregions;
     num = tl->subregions * tl->subregions * tl->subregions;
     if (!(tl->regions = SCE_malloc (num * sizeof *tl->regions))) goto fail;
@@ -255,6 +290,17 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
             }
         }
     }
+
+
+    /* setup LOD transition structures */
+    num = tl->subregions * tl->subregions;
+    for (i = 0; i < 6; i++) {
+        if (!(tl->trans[i] = SCE_malloc (num * sizeof *tl->trans[i])))
+            goto fail;
+        for (j = 0; j < num; j++)
+            SCE_VTerrain_InitTransition (&tl->trans[i][j]);
+    }
+
 
     return SCE_OK;
 fail:

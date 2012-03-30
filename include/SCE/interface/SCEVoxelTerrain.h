@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 27/03/2012 */
+   updated: 30/03/2012 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
@@ -47,6 +47,21 @@ struct sce_svoxelterrainregion {
     SCE_SVoxelTerrainLevel *level; /**< Owner of this region */
 };
 
+/** \copydoc sce_svoxelterraintransition */
+typedef struct sce_svoxelterraintransition SCE_SVoxelTerrainTransition;
+/**
+ * \brief Structure to store stuff for seamless transition between
+ * two consecutive LOD. Structure name is of Funes.
+ */
+struct sce_svoxelterraintransition {
+    SCE_SGeometry geom;         /**< Generated geomtry */
+    SCE_SMesh mesh;             /**< Generated mesh */
+    SCE_SIntRect3 area;         /**< Area in the voxel field */
+    const unsigned char *voxels; /**< Derp :) */
+    SCEuint w, h, d;             /**< Voxel field dimensions */
+    SCE_SListIterator it;        /**< For the "to update" list */
+};
+
 /**
  * \brief Single level (in terms of LOD) of a voxel terrain
  */
@@ -57,6 +72,7 @@ struct sce_svoxelterrainlevel {
     SCEuint subregions;      /**< Number of sub-regions per side */
     SCE_SVoxelTerrainRegion *regions;  /**< Level sub-regions */
     SCE_SMesh *mesh;         /**< Final meshes */
+    SCE_SVoxelTerrainTransition *trans[6]; /**< LOD transition meshes */
     int wrap_x, wrap_y, wrap_z; /**< Sub-regions wrapping */
     int enabled;             /**< Is this level enabled? */
     int x, y, z;             /**< Position of the origin of the regions */
