@@ -268,8 +268,7 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
         tl->regions[i].level = tl;
         SCE_Mesh_Init (&tl->mesh[i]);
 
-        /* TODO: make sure the geometry has the good number
-           of vertices/indices */
+        /* NOTE: this makes this function non-reentrant */
         if (SCE_Mesh_SetGeometry (&tl->mesh[i], SCE_VRender_GetFinalGeometry (),
                                   SCE_FALSE) < 0)
             goto fail;
@@ -462,7 +461,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
         if (tl->x < 1) {
             tl->x += vt->subregion_dim - 1;
             tl->wrap_x++;
-            SCE_Rectangle3_Set (&r, w - vt->subregion_dim + HERP, 0, 0, w, h, d);
+            SCE_Rectangle3_Set (&r, tl->x + dim - HERP, 0, 0, w, h, d);
             SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
         }
         break;
@@ -482,7 +481,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
         if (tl->y < 1) {
             tl->y += vt->subregion_dim - 1;
             tl->wrap_y++;
-            SCE_Rectangle3_Set (&r, 0, h - vt->subregion_dim + HERP, 0, w, h, d);
+            SCE_Rectangle3_Set (&r, 0, tl->y + dim - HERP, 0, w, h, d);
             SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
         }
         break;
@@ -502,7 +501,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
         if (tl->z < 1) {
             tl->z += vt->subregion_dim - 1;
             tl->wrap_z++;
-            SCE_Rectangle3_Set (&r, 0, 0, d - vt->subregion_dim + HERP, w, h, d);
+            SCE_Rectangle3_Set (&r, 0, 0, tl->z + dim - HERP, w, h, d);
             SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
         }
         break;
@@ -567,7 +566,7 @@ void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level)
                         vt->width - 1, vt->height - 1, vt->depth - 1);
     SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_TRUE);
 }
-/* TODO: check whether this function still works since I added tl->[xyz] */
+
 void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,
                                  SCE_SIntRect3 *rect, int draw)
 {
@@ -593,10 +592,8 @@ void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,
                               &r, &vt->levels[level].update_zone);
     }
 
+    SCE_Rectangle3_Move (&r, -tl->x, -tl->y, -tl->z);
     SCE_Rectangle3_GetPointsv (&r, p1, p2);
-
-    p1[0] -= tl->x; p1[1] -= tl->y; p1[2] -= tl->z;
-    p2[0] -= tl->x; p2[1] -= tl->y; p2[2] -= tl->z;
 
     l = vt->subregion_dim - 1;
     sx = MAX (p1[0] - 1, 0) / l;
