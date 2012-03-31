@@ -459,7 +459,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
     case SCE_BOX_POSX:
         tl->map_x++;
         tl->x--;
-        if (tl->x < 0) {
+        if (tl->x < 1) {
             tl->x += vt->subregion_dim - 1;
             tl->wrap_x++;
             SCE_Rectangle3_Set (&r, w - vt->subregion_dim + HERP, 0, 0, w, h, d);
@@ -469,7 +469,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
     case SCE_BOX_NEGX:
         tl->map_x--;
         tl->x++;
-        if (tl->x + dim > vt->width) {
+        if (tl->x + dim >= vt->width) {
             tl->x -= vt->subregion_dim - 1;
             tl->wrap_x--;
             SCE_Rectangle3_Set (&r, 0, 0, 0, vt->subregion_dim - 2, h, d);
@@ -479,7 +479,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
     case SCE_BOX_POSY:
         tl->map_y++;
         tl->y--;
-        if (tl->y < 0) {
+        if (tl->y < 1) {
             tl->y += vt->subregion_dim - 1;
             tl->wrap_y++;
             SCE_Rectangle3_Set (&r, 0, h - vt->subregion_dim + HERP, 0, w, h, d);
@@ -489,7 +489,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
     case SCE_BOX_NEGY:
         tl->map_y--;
         tl->y++;
-        if (tl->y + dim > vt->height) {
+        if (tl->y + dim >= vt->height) {
             tl->y -= vt->subregion_dim - 1;
             tl->wrap_y--;
             SCE_Rectangle3_Set (&r, 0, 0, 0, w, vt->subregion_dim - 2, d);
@@ -499,7 +499,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
     case SCE_BOX_POSZ:
         tl->map_z++;
         tl->z--;
-        if (tl->z < 0) {
+        if (tl->z < 1) {
             tl->z += vt->subregion_dim - 1;
             tl->wrap_z++;
             SCE_Rectangle3_Set (&r, 0, 0, d - vt->subregion_dim + HERP, w, h, d);
@@ -509,7 +509,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
     case SCE_BOX_NEGZ:
         tl->map_z--;
         tl->z++;
-        if (tl->z + dim > vt->depth) {
+        if (tl->z + dim >= vt->depth) {
             tl->z -= vt->subregion_dim - 1;
             tl->wrap_z--;
             SCE_Rectangle3_Set (&r, 0, 0, 0, w, h, vt->subregion_dim - 2);
