@@ -870,12 +870,12 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
                     SCE_Rectangle3_Setv (&region, p1, p2);
 
                     /* compute inner LOD grid area */
-                    p1[0] = tl2->map_x + tl2->x;
-                    p1[1] = tl2->map_y + tl2->y;
-                    p1[2] = tl2->map_z + tl2->z;
-                    p2[0] = 1+p1[0] + vt->n_subregions * (vt->subregion_dim-1);
-                    p2[1] = 1+p1[1] + vt->n_subregions * (vt->subregion_dim-1);
-                    p2[2] = 1+p1[2] + vt->n_subregions * (vt->subregion_dim-1);
+                    p1[0] = tl2->map_x + tl2->x + 1;
+                    p1[1] = tl2->map_y + tl2->y + 1;
+                    p1[2] = tl2->map_z + tl2->z + 1;
+                    p2[0] = p1[0] + vt->n_subregions * (vt->subregion_dim-1);
+                    p2[1] = p1[1] + vt->n_subregions * (vt->subregion_dim-1);
+                    p2[2] = p1[2] + vt->n_subregions * (vt->subregion_dim-1);
                     SCE_Rectangle3_Setv (&inner_lod, p1, p2);
 
                     draw = !SCE_Rectangle3_IsInside (&inner_lod, &region);
