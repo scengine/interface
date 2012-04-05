@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 30/03/2012 */
+   updated: 05/04/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -122,6 +122,12 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
     SCE_List_Init (&vt->to_update);
     vt->n_update = 0;
     vt->max_updates = 8;
+
+    vt->regions_loc = vt->current_loc = SCE_SHADER_BAD_INDEX;
+    vt->wrapping0_loc = vt->wrapping1_loc = SCE_SHADER_BAD_INDEX;
+    vt->enabled_loc = vt->tcorigin_loc = SCE_SHADER_BAD_INDEX;
+    vt->lodtrans_enabled = SCE_TRUE;
+    vt->shader = NULL;
 }
 void SCE_VTerrain_Clear (SCE_SVoxelTerrain *vt)
 {
@@ -307,6 +313,137 @@ fail:
     return SCE_ERROR;
 }
 
+
+static const char *shader_vs =
+    "\n#define OW (1.0/W)\n"
+    "\n#define OH (1.0/H)\n"
+    "\n#define OD (1.0/D)\n"
+
+    "in vec3 sce_position;"
+    "\n#define SCE_COMPUTE_NORMAL 0\n"
+    "\n#if !SCE_COMPUTE_NORMAL\n"
+    "in vec3 sce_normal;"
+    "\n#endif\n"
+
+    "uniform sampler3D sce_tex0;" /* high LOD */
+    "uniform sampler3D sce_tex1;" /* low LOD */
+
+    /* in pixels, origin of regions in the low LOD 3D texture*/
+    "uniform vec3 regions_origin;"
+    /* region_origin = lod0.xyz + lod0.map_xyz - 2 * lod1.map_xyz */
+
+    /* in pixels/dimension, origin of the current region in the high LOD 3D texture
+       relative to the beginning of the texture */
+    "uniform vec3 tc_origin;"
+    /* tc_origin = lod0.xyz / dimension */
+
+    /* in pixels/dimension, origin of the current region relative to regions_origin */
+    "uniform vec3 current_origin;"
+    /* current_origin = region_pos * (subregion_dim - 1) / dimension */
+
+    /* texture wrapping offsets */
+    "uniform vec3 wrapping0;"
+    "uniform vec3 wrapping1;"
+
+    "uniform bool enabled;"
+
+    "vec3 light (vec3 normal, vec3 pos, vec3 color)"
+    "{"
+    "  return color * clamp (dot (normalize (pos), normal), 0.0, 1.0);"
+    "}"
+
+    "void main (void)"
+    "{"
+    "  vec3 offset = current_origin + sce_position;"
+       /* border position */
+    "  const float LIMIT = ((SUBREGION_DIM - 1) * N_SUBREGIONS + 1) / W;"
+       /* TODO: tmp color */
+    "  vec3 color = vec3 (1.0);"
+    "  vec3 grad, nor;"
+       /* how much we are close to the border */
+    "  float weight = 0.0;"
+
+       /* this threshold defines vertex selection accuracy;
+          bigger values select more vertices, smaller values less vertices */
+    "  \n#define threshold (0.034)\n"
+    "  weight = max (weight, W * (offset.x - (LIMIT - threshold)));"
+    "  weight = max (weight, H * (offset.y - (LIMIT - threshold)));"
+    "  weight = max (weight, D * (offset.z - (LIMIT - threshold)));"
+    "  weight = max (weight, W * (threshold - offset.x));"
+    "  weight = max (weight, H * (threshold - offset.y));"
+    "  weight = max (weight, D * (threshold - offset.z));"
+    "  weight = clamp (weight * 0.5, 0.0, 1.0);"
+
+    "\n#if !SCE_COMPUTE_NORMAL\n"
+    "  nor = normalize (sce_normal);"
+    "\n#else\n"
+    "  vec3 tc = offset + tc_origin + wrapping0;"
+    "  grad.x = texture3D (sce_tex0, tc + vec3 (OW, 0., 0.)).x -"
+    "           texture3D (sce_tex0, tc + vec3 (-OW, 0., 0.)).x;"
+    "  grad.y = texture3D (sce_tex0, tc + vec3 (0., OH, 0.)).x -"
+    "           texture3D (sce_tex0, tc + vec3 (0., -OH, 0.)).x;"
+    "  grad.z = texture3D (sce_tex0, tc + vec3 (0., 0., OD)).x -"
+    "           texture3D (sce_tex0, tc + vec3 (0., 0., -OD)).x;"
+
+    "  grad = -normalize (grad);"
+    "  nor = grad;"
+    "\n#endif\n"
+
+//    "  if (weight > 0.001) {"
+    "  if (weight > 0.001 && enabled) {"
+    "    int i;"
+    "    float diff = 0.0;"
+
+    "    vec3 tc0 = offset + tc_origin + wrapping0;"
+    "    vec3 texcoord = 0.5 * (regions_origin / vec3 (W, H, D) + offset);"
+         /* + 0.2 ? wtf??? */
+    "    vec3 tc1 = texcoord + 0.2 * vec3 (OW, OH, OD) + wrapping1;"
+    "    diff = texture3D (sce_tex1, tc1).x - texture3D (sce_tex0, tc0).x;"
+
+//    "    if (enabled)"
+    "    {"
+    "      vec3 move = offset;"
+
+           /* move the vertex along normal vector */
+    "      offset = 4.0 * weight * diff * nor * vec3 (OW, OH, OD);"
+    "      move += offset;"
+
+    "      vec3 texcoord = 0.5 * (regions_origin / vec3 (W, H, D) + move);"
+
+           /* compute low resolution normal */
+    "      vec3 tc = tc1;"
+    "      grad.x = texture3D (sce_tex1, tc + vec3 (OW, 0., 0.)).x -"
+    "               texture3D (sce_tex1, tc + vec3 (-OW, 0., 0.)).x;"
+    "      grad.y = texture3D (sce_tex1, tc + vec3 (0., OH, 0.)).x -"
+    "               texture3D (sce_tex1, tc + vec3 (0., -OH, 0.)).x;"
+    "      grad.z = texture3D (sce_tex1, tc + vec3 (0., 0., OD)).x -"
+    "               texture3D (sce_tex1, tc + vec3 (0., 0., -OD)).x;"
+    "      grad = -normalize (grad);"
+
+           /* interpolate low and high resolution normals */
+    "      nor = grad * weight + nor * (1.0 - weight);"
+    "      nor = normalize (nor);"
+    "    }"
+//    "    else { offset = vec3 (0.0);}"
+
+//    "    color = vec3 (weight, 0.0, 0.0);"
+    "  } else { offset = vec3 (0.0);}"
+
+    "  vec3 lighting;"
+    "  lighting = 0.6 * light (nor, vec3 (0.0, 0.0, 2.0), vec3 (0.7, 0.8, 1.0));"
+    "  lighting += 0.6 * light (nor, vec3 (3.0, 3.0, 2.0), vec3 (1.0, 0.5, 0.4));"
+
+    "  gl_Position = gl_ModelViewProjectionMatrix * vec4 (sce_position + offset, 1.0);"
+    "  gl_FrontColor = vec4 (color * lighting, 1.0);"
+    "}";
+
+static const char *shader_ps =
+    "void main (void)"
+    "{"
+    "  gl_FragColor = gl_Color;"
+    "}";
+
+
 int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
 {
     size_t i;
@@ -326,6 +463,30 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
         if (SCE_VTerrain_BuildLevel (vt, &vt->levels[i]) < 0)
             goto fail;
     }
+
+    /* build shaders */
+    if (!(vt->shader = SCE_Shader_Create ())) goto fail;
+    if (SCE_Shader_AddSource (vt->shader, SCE_VERTEX_SHADER,
+                              shader_vs, SCE_FALSE) < 0) goto fail;
+    if (SCE_Shader_AddSource (vt->shader, SCE_PIXEL_SHADER,
+                              shader_ps, SCE_FALSE) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->shader, "W", vt->width) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->shader, "H", vt->height) < 0) goto fail;
+    if (SCE_Shader_Globalf (vt->shader, "D", vt->depth) < 0) goto fail;
+    if (SCE_Shader_Globali (vt->shader, "SUBREGION_DIM",
+                            vt->subregion_dim) < 0) goto fail;
+    if (SCE_Shader_Globali (vt->shader, "N_SUBREGIONS",
+                            vt->n_subregions) < 0) goto fail;
+    SCE_Shader_SetupAttributesMapping (vt->shader);
+    SCE_Shader_ActivateAttributesMapping (vt->shader, SCE_TRUE);
+    if (SCE_Shader_Build (vt->shader) < 0) goto fail;
+
+    vt->regions_loc = SCE_Shader_GetIndex (vt->shader, "regions_origin");
+    vt->current_loc = SCE_Shader_GetIndex (vt->shader, "current_origin");
+    vt->wrapping0_loc = SCE_Shader_GetIndex (vt->shader, "wrapping0");
+    vt->wrapping1_loc = SCE_Shader_GetIndex (vt->shader, "wrapping1");
+    vt->tcorigin_loc = SCE_Shader_GetIndex (vt->shader, "tc_origin");
+    vt->enabled_loc = SCE_Shader_GetIndex (vt->shader, "enabled");
 
     vt->built = SCE_TRUE;
 
@@ -654,6 +815,8 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
     float invw, invh, invd;
     long scale;
     const SCE_SVoxelTerrainLevel *tl = &vt->levels[level], *tl2 = NULL;
+    SCE_SVoxelTerrainLevel *tl3 = NULL;
+    SCE_TVector3 v, invv;
 
     if (level > 0)
         tl2 = &vt->levels[level - 1];
@@ -663,12 +826,31 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
     invw = 1.0 / vt->width;
     invh = 1.0 / vt->height;
     invd = 1.0 / vt->depth;
+    SCE_Vector3_Set (invv, invw, invh, invd);
 
     /* wtf? why -0.5 ? */
     SCE_Vector3_Set (origin,
                      (tl->map_x + tl->x - 0.5) * invw,
                      (tl->map_y + tl->y - 0.5) * invh,
                      (tl->map_z + tl->z - 0.5) * invd);
+
+    if (level < vt->n_levels - 1) {
+        tl3 = &vt->levels[level + 1];
+        SCE_Texture_Use (tl->tex);
+        SCE_Texture_SetUnit (tl3->tex, 1);
+        SCE_Texture_Use (tl3->tex);
+        SCE_Shader_Use (vt->shader);
+
+        SCE_Vector3_Set (v, tl->x + tl->map_x - tl3->map_x * 2.0,
+                         tl->y + tl->map_y - tl3->map_y * 2.0,
+                         tl->z + tl->map_z - tl3->map_z * 2.0);
+        SCE_Shader_SetParam3fv (vt->regions_loc, 1, v);
+        SCE_Vector3_Operator2v (v, =, tl->wrap, *, invv);
+        SCE_Shader_SetParam3fv (vt->wrapping0_loc, 1, v);
+        SCE_Vector3_Operator2v (v, =, tl3->wrap, *, invv);
+        SCE_Shader_SetParam3fv (vt->wrapping1_loc, 1, v);
+        SCE_Shader_SetParam (vt->enabled_loc, vt->lodtrans_enabled);
+    }
 
     for (z = 0; z < tl->subregions; z++) {
         for (y = 0; y < tl->subregions; y++) {
@@ -708,6 +890,12 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
                          (float)x * (vt->subregion_dim - DERP) * invw,
                          (float)y * (vt->subregion_dim - DERP) * invh,
                          (float)z * (vt->subregion_dim - DERP) * invd);
+
+                    SCE_Shader_SetParam3fv (vt->current_loc, 1, pos);
+
+                    SCE_Vector3_Set (v, tl->x * invw, tl->y * invh, tl->z * invd);
+                    SCE_Shader_SetParam3fv (vt->tcorigin_loc, 1, v);
+
                     SCE_Vector3_Operator1v (pos, +=, origin);
                     SCE_Matrix4_Identity (m);
                     SCE_Matrix4_SetScale (m, scale, scale, scale);
@@ -720,14 +908,28 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
             }
         }
     }
+
+    if (level < vt->n_levels - 1) {
+        SCE_Shader_Use (NULL);
+        SCE_Texture_Use (NULL);
+        /* ?? */
+        SCE_Texture_Use (NULL);
+        SCE_Texture_SetUnit (tl3->tex, 0);
+    }
 }
 
 void SCE_VTerrain_Render (const SCE_SVoxelTerrain *vt)
 {
-    size_t i;
+    int i;
+
+    SCE_RSetStencilOp (SCE_KEEP, SCE_KEEP, SCE_REPLACE);
+    SCE_RClearStencil (255);
+    SCE_RClear (SCE_STENCIL_BUFFER_BIT);
+    SCE_REnableStencilTest ();
 
     for (i = 0; i < vt->n_levels; i++) {
+        SCE_RSetStencilFunc (SCE_LEQUAL, i + 1, ~0U);
         SCE_VTerrain_RenderLevel (vt, i);
-        /* TODO: clear depth buffer or add an offset or whatev. */
     }
+    SCE_RDisableStencilTest ();
 }

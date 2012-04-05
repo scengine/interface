@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 30/03/2012 */
+   updated: 04/04/2012 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
@@ -112,6 +112,14 @@ struct sce_svoxelterrain {
     SCEuint n_update;           /**< Size of \c to_update */
     SCEuint max_updates;        /**< Maximum number of updated regions
                                      per frame */
+
+    int regions_loc;
+    int current_loc;
+    int wrapping0_loc, wrapping1_loc;
+    int tcorigin_loc;
+    int enabled_loc;
+    int lodtrans_enabled;
+    SCE_SShader *shader;
 };
 
 void SCE_VTerrain_Init (SCE_SVoxelTerrain*);
