@@ -719,13 +719,13 @@ void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
     }
 }
 
-void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level)
+void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level, int draw)
 {
     SCE_SIntRect3 r;
 
     SCE_Rectangle3_Set (&r, 0, 0, 0,
                         vt->width - 1, vt->height - 1, vt->depth - 1);
-    SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_TRUE);
+    SCE_VTerrain_UpdateSubGrid (vt, level, &r, draw);
 }
 
 void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,

@@ -158,7 +158,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain*, SCEuint,
                                SCE_EBoxFace, const unsigned char*);
 
 void SCE_VTerrain_Update (SCE_SVoxelTerrain*);
-void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain*, SCEuint);
+void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain*, SCEuint, int);
 void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain*, SCEuint,
                                  SCE_SIntRect3*, int);
 
