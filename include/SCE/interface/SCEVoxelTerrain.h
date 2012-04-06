@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 04/04/2012 */
+   updated: 05/04/2012 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
@@ -113,13 +113,25 @@ struct sce_svoxelterrain {
     SCEuint max_updates;        /**< Maximum number of updated regions
                                      per frame */
 
-    int regions_loc;
-    int current_loc;
-    int wrapping0_loc, wrapping1_loc;
-    int tcorigin_loc;
-    int enabled_loc;
+    SCE_SShader *lod_shd;       /**< Seamless LOD transition shader */
+    int lodregions_loc;
+    int lodcurrent_loc;
+    int lodwrapping0_loc, lodwrapping1_loc;
+    int lodtcorigin_loc;
+    int lodenabled_loc;
+    int lodtopdiffuse_loc;
+    int lodsidediffuse_loc;
     int lodtrans_enabled;
-    SCE_SShader *shader;
+
+    SCE_SShader *def_shd;       /**< Simple terrain rendering shader */
+    int defwrapping0_loc;
+    int deftcorigin_loc;
+    int deftopdiffuse_loc;
+    int defsidediffuse_loc;
+
+    /** \brief Diffuse textures of the terrain */
+    SCE_STexture *top_diffuse;
+    SCE_STexture *side_diffuse;
 };
 
 void SCE_VTerrain_Init (SCE_SVoxelTerrain*);
@@ -140,6 +152,11 @@ SCEuint SCE_VTerrain_GetNumLevels (const SCE_SVoxelTerrain*);
 
 void SCE_VTerrain_SetSubRegionDimension (SCE_SVoxelTerrain*, SCEuint);
 void SCE_VTerrain_SetNumSubRegions (SCE_SVoxelTerrain*, SCEuint);
+
+void SCE_VTerrain_SetTopDiffuseTexture (SCE_SVoxelTerrain*, SCE_STexture*);
+SCE_STexture* SCE_VTerrain_GetTopDiffuseTexture (SCE_SVoxelTerrain*);
+void SCE_VTerrain_SetSideDiffuseTexture (SCE_SVoxelTerrain*, SCE_STexture*);
+SCE_STexture* SCE_VTerrain_GetSideDiffuseTexture (SCE_SVoxelTerrain*);
 
 int SCE_VTerrain_Build (SCE_SVoxelTerrain*);
 
