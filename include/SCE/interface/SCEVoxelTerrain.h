@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 05/04/2012 */
+   updated: 07/04/2012 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
@@ -118,6 +118,8 @@ struct sce_svoxelterrain {
     int lodcurrent_loc;
     int lodwrapping0_loc, lodwrapping1_loc;
     int lodtcorigin_loc;
+    int lodhightex_loc;
+    int lodlowtex_loc;
     int lodenabled_loc;
     int lodtopdiffuse_loc;
     int lodsidediffuse_loc;
