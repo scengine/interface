@@ -106,6 +106,8 @@ struct sce_svoxelterrain {
     size_t n_levels;
     long x, y, z;               /**< Position of the theoretical viewer */
     int width, height, depth;   /**< Dimensions of one level */
+    float unit;                 /**< Distance between two consecutive voxels */
+    float scale;                /**< Scale to apply to the terrain */
     int built;                  /**< Is the terrain built? */
 
     SCE_SList to_update;        /**< List of regions to update */
@@ -149,6 +151,8 @@ int SCE_VTerrain_GetWidth (const SCE_SVoxelTerrain*);
 int SCE_VTerrain_GetHeight (const SCE_SVoxelTerrain*);
 int SCE_VTerrain_GetDepth (const SCE_SVoxelTerrain*);
 
+void SCE_VTerrain_SetUnit (SCE_SVoxelTerrain*, float);
+
 void SCE_VTerrain_SetNumLevels (SCE_SVoxelTerrain*, SCEuint);
 SCEuint SCE_VTerrain_GetNumLevels (const SCE_SVoxelTerrain*);
 
@@ -184,7 +188,7 @@ void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain*, SCEuint,
 int SCE_VTerrain_GetOffset (const SCE_SVoxelTerrain*, SCEuint,
                             int*, int*, int*);
 
-void SCE_VTerrain_Render (const SCE_SVoxelTerrain*);
+void SCE_VTerrain_Render (SCE_SVoxelTerrain*);
 
 #ifdef __cplusplus
 } /* extern "C" */

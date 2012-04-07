@@ -117,6 +117,8 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
 
     vt->x = vt->y = vt->z = 0;
     vt->width = vt->height = vt->depth = 0;
+    vt->unit = 1.0;
+    vt->scale = 1.0;
     vt->built = SCE_FALSE;
 
     SCE_List_Init (&vt->to_update);
@@ -225,6 +227,13 @@ int SCE_VTerrain_GetDepth (const SCE_SVoxelTerrain *vt)
 {
     return vt->depth;
 }
+
+
+void SCE_VTerrain_SetUnit (SCE_SVoxelTerrain *vt, float unit)
+{
+    vt->unit = unit;
+}
+
 
 void SCE_VTerrain_SetNumLevels (SCE_SVoxelTerrain *vt, SCEuint n_levels)
 {
@@ -1012,7 +1021,7 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
     SCE_TVector3 pos, origin;
     SCEuint x, y, z;
     float invw, invh, invd;
-    long scale;
+    float scale;
     const SCE_SVoxelTerrainLevel *tl = &vt->levels[level], *tl2 = NULL;
     SCE_SVoxelTerrainLevel *tl3 = NULL;
     SCE_TVector3 v, invv;
@@ -1021,6 +1030,7 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
         tl2 = &vt->levels[level - 1];
 
     scale = 1 << level;
+    scale *= vt->scale;
 
     invw = 1.0 / vt->width;
     invh = 1.0 / vt->height;
@@ -1151,9 +1161,11 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
         SCE_Texture_SetUnit (tl3->tex, 0);
 }
 
-void SCE_VTerrain_Render (const SCE_SVoxelTerrain *vt)
+void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 {
     int i;
+
+    vt->scale = vt->width * vt->unit;
 
     SCE_RSetStencilOp (SCE_KEEP, SCE_KEEP, SCE_REPLACE);
     SCE_RClearStencil (255);
