@@ -83,6 +83,21 @@ struct sce_svoxelterrainlevel {
     SCE_SIntRect3 update_zone;
 };
 
+
+typedef struct sce_svoxelterrainshader SCE_SVoxelTerrainShader;
+struct sce_svoxelterrainshader {
+    SCE_SShader *shd;
+    int regions_loc;
+    int current_loc;
+    int wrapping0_loc, wrapping1_loc;
+    int tcorigin_loc;
+    int hightex_loc;
+    int lowtex_loc;
+    int enabled_loc;
+    int topdiffuse_loc;
+    int sidediffuse_loc;
+};
+
 #define SCE_MAX_VTERRAIN_LEVELS 16
 
 /** \copydoc sce_svoxelterrain */
@@ -115,23 +130,9 @@ struct sce_svoxelterrain {
     SCEuint max_updates;        /**< Maximum number of updated regions
                                      per frame */
 
-    SCE_SShader *lod_shd;       /**< Seamless LOD transition shader */
-    int lodregions_loc;
-    int lodcurrent_loc;
-    int lodwrapping0_loc, lodwrapping1_loc;
-    int lodtcorigin_loc;
-    int lodhightex_loc;
-    int lodlowtex_loc;
-    int lodenabled_loc;
-    int lodtopdiffuse_loc;
-    int lodsidediffuse_loc;
-    int lodtrans_enabled;
-
-    SCE_SShader *def_shd;       /**< Simple terrain rendering shader */
-    int defwrapping0_loc;
-    int deftcorigin_loc;
-    int deftopdiffuse_loc;
-    int defsidediffuse_loc;
+    int trans_enabled;
+    SCE_SVoxelTerrainShader lod_shd; /**< Seamless transition shader */
+    SCE_SVoxelTerrainShader def_shd; /**< Simple terrain rendering shader */
 
     /** \brief Diffuse textures of the terrain */
     SCE_STexture *top_diffuse;
