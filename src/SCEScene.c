@@ -531,11 +531,9 @@ void SCE_Scene_AddEntityResources (SCE_SScene *scene, SCE_SSceneEntity *entity)
     res = SCE_SceneEntity_GetShader (entity);
     if (res && !SCE_SceneResource_IsResourceAdded (res)) {
         SCE_SShader *shader = SCE_SceneResource_GetResource (res);
-        if (scene->deferred) {
+        if (scene->deferred)
             SCE_Deferred_BuildShader (scene->deferred, shader);
-        } else {
-            SCE_Shader_Build (shader);
-        }
+        SCE_Shader_Build (shader);
         SCE_Shader_SetupMatricesMapping (shader);
         SCE_Shader_ActivateMatricesMapping (shader, SCE_TRUE);
         SCE_Scene_AddResource (scene, SCE_SCENE_SHADERS_GROUP, res);
@@ -901,6 +899,8 @@ int SCE_Scene_SetDeferred (SCE_SScene *scene, SCE_SDeferred *def)
                                   sce_def_ps, SCE_FALSE) < 0) goto fail;
         if (SCE_Deferred_BuildShader (def, scene->deferred_shader) < 0)
             goto fail;
+        /* TODO: only if Deferred_BuildShader() doesnt... build the shader. */
+        if (SCE_Shader_Build (scene->deferred_shader) < 0) goto fail;
         SCE_Shader_SetupMatricesMapping (scene->deferred_shader);
         SCE_Shader_ActivateMatricesMapping (scene->deferred_shader, SCE_TRUE);
         SCE_Scene_AddResource (scene, SCE_SCENE_SHADERS_GROUP,
@@ -1705,6 +1705,8 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
 
     /* rendering with default shader */
     SCE_SceneEntity_SetDefaultShader (scene->deferred_shader);
+    if (scene->vterrain)
+        SCE_VTerrain_Render (scene->vterrain);
     SCE_Scene_RenderEntities (scene, &scene->entities);
     SCE_SceneEntity_SetDefaultShader (NULL);
 

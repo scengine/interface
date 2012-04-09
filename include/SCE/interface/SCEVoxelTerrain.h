@@ -159,6 +159,9 @@ SCEuint SCE_VTerrain_GetNumLevels (const SCE_SVoxelTerrain*);
 void SCE_VTerrain_SetSubRegionDimension (SCE_SVoxelTerrain*, SCEuint);
 void SCE_VTerrain_SetNumSubRegions (SCE_SVoxelTerrain*, SCEuint);
 
+void SCE_VTerrain_SetLodShader (SCE_SVoxelTerrain*, SCE_SShader*);
+void SCE_VTerrain_SetDefaultShader (SCE_SVoxelTerrain*, SCE_SShader*);
+
 void SCE_VTerrain_SetTopDiffuseTexture (SCE_SVoxelTerrain*, SCE_STexture*);
 SCE_STexture* SCE_VTerrain_GetTopDiffuseTexture (SCE_SVoxelTerrain*);
 void SCE_VTerrain_SetSideDiffuseTexture (SCE_SVoxelTerrain*, SCE_STexture*);

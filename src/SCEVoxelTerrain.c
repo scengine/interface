@@ -254,6 +254,16 @@ void SCE_VTerrain_SetNumSubRegions (SCE_SVoxelTerrain *vt, SCEuint n)
     vt->n_subregions = n;
 }
 
+
+void SCE_VTerrain_SetLodShader (SCE_SVoxelTerrain *vt, SCE_SShader *shader)
+{
+    vt->lod_shd = shader;
+}
+void SCE_VTerrain_SetDefaultShader (SCE_SVoxelTerrain *vt, SCE_SShader *shader)
+{
+    vt->def_shd = shader;
+}
+
 void SCE_VTerrain_SetTopDiffuseTexture (SCE_SVoxelTerrain *vt, SCE_STexture *tex)
 {
     vt->top_diffuse = tex;

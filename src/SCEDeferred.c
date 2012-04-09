@@ -547,7 +547,6 @@ int SCE_Deferred_BuildShader (SCE_SDeferred *def, SCE_SShader *shader)
                               sce_pack_normal_fun, SCE_TRUE) < 0) goto fail;
     if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
                               sce_pack_position_fun, SCE_TRUE) < 0) goto fail;
-    if (SCE_Shader_Build (shader) < 0) goto fail;
 
     return SCE_OK;
 fail:
