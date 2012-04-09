@@ -293,7 +293,7 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
     /* TODO: luminance format is deprecated */
     SCE_Grid_ToTexture (&tl->grid, tc, SCE_PXF_LUMINANCE);
 
-    if (!(tl->tex = SCE_Texture_Create (SCE_TEX_3D, 0, 0)))
+    if (!(tl->tex = SCE_Texture_Create (SCE_TEX_3D, 0, 0, 0)))
         goto fail;
     SCE_Texture_AddTexData (tl->tex, SCE_TEX_3D, tc);
     SCE_Texture_Build (tl->tex, SCE_FALSE);
@@ -610,7 +610,6 @@ static const char *default_main_vs =
 int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
 {
     size_t i;
-    SCE_STexData tc;
 
     if (vt->built)
         return SCE_OK;

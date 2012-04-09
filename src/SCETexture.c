@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 11/03/2007
-   updated: 15/02/2012 */
+   updated: 08/04/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -95,7 +95,8 @@ static void SCE_Texture_Init (SCE_STexture *tex)
     tex->tex = NULL;
     tex->unit = 0;
     SCE_Matrix4_Identity (tex->matrix);
-    tex->type = 0;
+    tex->type = SCE_TEX_1D;
+    tex->w = tex->h = tex->d = 0;
     tex->used = SCE_FALSE;
     tex->toremove = SCE_FALSE;
     SCE_List_InitIt (&tex->it);
@@ -104,136 +105,37 @@ static void SCE_Texture_Init (SCE_STexture *tex)
     SCE_SceneResource_SetResource (&tex->s_resource, tex);
 }
 
-static void SCE_Texture_SetupParameters (SCE_STexture *tex)
-{
-    int type = tex->type;
-    /* assignation de quelques parametres pour les textures cubemap */
-    if (type == SCE_RENDER_COLOR_CUBE || type == SCE_TEX_CUBE ||
-        type == SCE_RENDER_DEPTH_CUBE || type == SCE_RENDER_DEPTH ||
-        type == SCE_RENDER_COLOR) {
-        SCE_RSetTextureParam (tex->tex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        SCE_RSetTextureParam (tex->tex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        SCE_RSetTextureParam (tex->tex, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    }
-}
-
-static int SCE_Texture_MakeRender (SCE_STexture *tex, SCE_RBufferType type)
-{
-    SCE_STexData tc;
-    SCE_TexData_Init (&tc);
-    SCE_TexData_SetDimensions (&tc, tex->w, tex->h, 0);
-    SCE_TexData_SetDataType (&tc, SCE_UNSIGNED_BYTE);
-    if (type == SCE_DEPTH_BUFFER) {
-        SCE_TexData_SetPixelFormat (&tc, SCE_PXF_DEPTH24);
-        SCE_TexData_SetDataFormat (&tc, SCE_IMAGE_DEPTH);
-    } else {
-        SCE_TexData_SetPixelFormat (&tc, SCE_PXF_RGBA);
-        SCE_TexData_SetDataFormat (&tc, SCE_IMAGE_RGBA);
-    }
-    if (!(tex->tex = SCE_RCreateTexture (SCE_TEX_2D))) goto fail;
-    if (!SCE_Texture_AddTexDataDup (tex, 0, &tc)) goto fail;
-    SCE_Texture_Build (tex, SCE_FALSE);
-
-    if (SCE_Texture_SetupFramebuffer (tex, 0, SCE_TRUE) < 0) goto fail;
-
-    return SCE_OK;
-fail:
-    SCEE_LogSrc ();
-    return SCE_ERROR;
-}
-
-static int SCE_Texture_MakeRenderCube (SCE_STexture *tex, SCE_RBufferType type)
-{
-    unsigned int i = 0;
-    int w = tex->w, h = tex->h/*, d*/;
-    SCE_STexData data;
-
-    if (!(tex->tex = SCE_RCreateTexture (SCE_TEX_CUBE))) goto fail;
-
-    SCE_TexData_Init (&data);
-    SCE_TexData_SetDimensions (&data, w, h, 0);
-    SCE_TexData_SetDataType (&data, SCE_UNSIGNED_BYTE);
-
-    if (type == SCE_DEPTH_BUFFER) {
-        SCE_TexData_SetDataFormat (&data, SCE_IMAGE_DEPTH);
-        SCE_TexData_SetPixelFormat (&data, SCE_PXF_DEPTH24);
-    } else {
-        SCE_TexData_SetDataFormat (&data, SCE_IMAGE_RGBA);
-        SCE_TexData_SetPixelFormat (&data, SCE_PXF_RGBA);
-    }
-
-    for (i = 0; i < 6; i++) {
-        if (!SCE_RAddTextureTexDataDup (tex->tex, SCE_TEX_POSX + i, &data))
-            goto fail;
-    }
-
-    SCE_RBuildTexture (tex->tex, SCE_FALSE, SCE_FALSE);
-
-    if (SCE_Texture_SetupFramebuffer (tex, 0, SCE_TRUE) < 0) goto fail;
-
-    return SCE_OK;
-fail:
-    SCEE_LogSrc ();
-    return SCE_ERROR;
-}
-
 /**
  * \brief Creates a new texture or a new render texture
- * \param type defines the type of the texture to create, can be SCE_TEX_1D,
- * SCE_TEX_2D, SCE_TEX_3D or SCE_TEX_CUBE to make a simple texture, to make
- * a render texture, you may use the following types : SCE_RENDER_COLOR,
- * SCE_RENDER_COLOR_CUBE, SCE_RENDER_DEPTH or SCE_RENDER_DEPTH_CUBE
+ * \param type texture type
  * \param w the width of the new texture
  * \param h the height of the new texture
  * \returns the new texture
  */
-SCE_STexture* SCE_Texture_Create (SCEenum type, int w, int h/*, int d*/)
+SCE_STexture* SCE_Texture_Create (SCE_RTexType type, int w, int h, int d)
 {
     SCE_STexture *tex = NULL;
 
-    tex = SCE_malloc (sizeof *tex);
-    if (!tex)
-        goto failure;
+    if (!(tex = SCE_malloc (sizeof *tex)))
+        goto fail;
+    SCE_Texture_Init (tex);
+
     tex->w = w;
     tex->h = h;
-    /*tex->d = d;*/
-
-    SCE_Texture_Init (tex);
+    tex->d = d;
     tex->type = type;
-    switch (type) {
-    case SCE_RENDER_DEPTH:
-        type = SCE_DEPTH_BUFFER;
-    case SCE_RENDER_COLOR:
-        if (type == SCE_RENDER_COLOR)
-            type = SCE_COLOR_BUFFER;
-        if (SCE_Texture_MakeRender (tex, type) < 0)
-            goto failure;
-        break;
 
-    case SCE_RENDER_DEPTH_CUBE:
-        type = SCE_DEPTH_BUFFER;
-    case SCE_RENDER_COLOR_CUBE:
-        if (type == SCE_RENDER_COLOR_CUBE)
-            type = SCE_COLOR_BUFFER;
-        if (SCE_Texture_MakeRenderCube (tex, type) < 0)
-            goto failure;
-        break;
-
-    default:
-        /* not a render type, just a normal texture */
-        tex->tex = SCE_RCreateTexture (type);
-        if (!tex->tex)
-            goto failure;
-    }
-    SCE_Texture_SetupParameters (tex);
+    if (!(tex->tex = SCE_RCreateTexture (type)))
+        goto fail;
+    if (type == SCE_TEX_CUBE)
+        SCE_RSetTextureWrapMode (tex->tex, SCE_TEX_CLAMP);
 
     return tex;
-failure:
+fail:
     SCE_Texture_Delete (tex);
     SCEE_LogSrc ();
     return NULL;
 }
-
 
 /**
  * \brief Deletes an existing texture
@@ -378,25 +280,19 @@ void SCE_Texture_ForceFormat (int force, SCE_EImageFormat fmt)
 
 
 /**
- * \brief Gets the \p tex 's type that has been given to SCE_Texture_Create()
+ * \brief Gets \p tex 's type that has been given to SCE_Texture_Create()
+ * \param tex a texture
  */
-int SCE_Texture_GetType (SCE_STexture *tex)
+SCE_RTexType SCE_Texture_GetType (SCE_STexture *tex)
 {
     return tex->type;
 }
-/**
- * \brief Gets the type of the core texture used by \p tex
- * this function calls SCE_RGetTextureType()
- */
-int SCE_Texture_GetCType (SCE_STexture *tex)
-{
-    return SCE_RGetTextureType (tex->tex);
-}
 
 /**
- * \brief Gets the core texture used by \p tex
+ * \brief Gets renderer's texture used by \p tex
+ * \param tex a texture
  */
-SCE_RTexture* SCE_Texture_GetCTexture (SCE_STexture *tex)
+SCE_RTexture* SCE_Texture_GetRTexture (SCE_STexture *tex)
 {
     return tex->tex;
 }
@@ -404,60 +300,59 @@ SCE_RTexture* SCE_Texture_GetCTexture (SCE_STexture *tex)
 /**
  * \brief Adds a new texture data to a texture
  * \param tex a texture
- * \param target target of the data (SCE_TEX_1D, 2D, 3D, or SCE_TEX_POSX + i)
+ * \param face cube face (ignored if \p tex is not a cubemap)
  * \param d a texture data
  * \sa SCE_RAddTextureTexData(), SCE_Texture_AddTexDataDup()
  */
-void SCE_Texture_AddTexData (SCE_STexture *tex, int target, SCE_STexData *d)
+void SCE_Texture_AddTexData (SCE_STexture *tex, SCE_RTexCubeFace face,
+                             SCE_STexData *d)
 {
-    SCE_RAddTextureTexData (tex->tex, target, d);
+    SCE_RAddTextureTexData (tex->tex, face, d);
 }
 /**
  * \brief Duplicates and adds a new texture data to a texture
  * \param tex a texture
- * \param target target of the data (SCE_TEX_1D, 2D, 3D, or SCE_TEX_POSX + i)
+ * \param face cube face (ignored if \p tex is not a cubemap)
  * \param d a texture data
  * \sa SCE_RAddTextureTexDataDup(), SCE_Texture_AddTexData()
  */
-SCE_STexData* SCE_Texture_AddTexDataDup (SCE_STexture *tex, int target,
-                                         const SCE_STexData *d)
+SCE_STexData*
+SCE_Texture_AddTexDataDup (SCE_STexture *tex, SCE_RTexCubeFace face,
+                           const SCE_STexData *d)
 {
-    return SCE_RAddTextureTexDataDup (tex->tex, target, d);
+    return SCE_RAddTextureTexDataDup (tex->tex, face, d);
 }
 
 
 /**
  * \brief Gets the width of a texture
  *
- * This function calls SCE_RGetTextureWidth (SCE_Texture_GetCTexture (\p tex),
- * \p target, \p level)
+ * This function calls SCE_RGetTextureWidth (SCE_Texture_GetRTexture (\p tex))
  * \sa SCE_Texture_GetDepth(), SCE_Texture_GetHeight(), SCE_RGetTextureWidth()
  */
-int SCE_Texture_GetWidth (SCE_STexture *tex, int target, int level)
+int SCE_Texture_GetWidth (SCE_STexture *tex)
 {
-    return SCE_RGetTextureWidth (tex->tex, target, level);
+    return SCE_RGetTextureWidth (tex->tex);
 }
 /**
  * \brief Gets the height of a texture
  *
- * This function calls SCE_RGetTextureHeight (SCE_Texture_GetCTexture (\p tex),
- * \p target, \p level)
+ * This function calls SCE_RGetTextureHeight (SCE_Texture_GetRTexture (\p tex))
  * \sa SCE_Texture_GetWidth(), SCE_Texture_GetDepth(), SCE_RGetTextureHeight()
  */
-int SCE_Texture_GetHeight (SCE_STexture *tex, int target, int level)
+int SCE_Texture_GetHeight (SCE_STexture *tex)
 {
-    return SCE_RGetTextureHeight (tex->tex, target, level);
+    return SCE_RGetTextureHeight (tex->tex);
 }
 /**
  * \brief Gets the depth of a texture
  *
- * This function calls SCE_RGetTextureDepth (SCE_Texture_GetCTexture (\p tex),
- * \p target, \p level)
+ * This function calls SCE_RGetTextureDepth (SCE_Texture_GetRTexture (\p tex))
  * \sa SCE_Texture_GetWidth(), SCE_Texture_GetHeight(), SCE_RGetTextureDepth()
  */
-int SCE_Texture_GetDepth (SCE_STexture *tex, int target, int level)
+int SCE_Texture_GetDepth (SCE_STexture *tex)
 {
-    return SCE_RGetTextureDepth (tex->tex, target, level);
+    return SCE_RGetTextureDepth (tex->tex);
 }
 
 
@@ -480,7 +375,7 @@ int SCE_Texture_Build (SCE_STexture *tex, int use_mipmap)
     if (!SCE_RHasTextureData (tex->tex)) {
         SCE_STexData d;
         SCE_TexData_Init (&d);
-        SCE_TexData_SetDimensions (&d, tex->w, tex->h, 0);
+        SCE_TexData_SetDimensions (&d, tex->w, tex->h, tex->d);
         if (!SCE_RAddTextureTexDataDup (tex->tex, tex->type /* hope */, &d)) {
             SCEE_LogSrc ();
             return SCE_ERROR;
@@ -503,88 +398,58 @@ void SCE_Texture_Update (SCE_STexture *tex)
 }
 
 
-static int SCE_Texture_SetupFramebufferOther (SCE_STexture *tex, int depth)
+/**
+ * \brief Constructs a default texture data structure for renderable texture
+ * \param tex a texture
+ * \param rtype the render texture type
+ * \param tc texture data to fill
+ */
+void SCE_Texture_MakeRenderTexData (const SCE_STexture *tex,
+                                    SCE_ETexRenderType rtype, SCE_STexData *tc)
 {
-    SCE_STexData *tc = NULL;
-
-    if (!(tex->fb[0] = SCE_RCreateFramebuffer ())) goto fail;
-
-    tc = SCE_RGetTextureTexData (tex->tex, 0, 0);
-    if (SCE_TexData_IsDepthFormat (tc)) {
-        if (SCE_RAddRenderTexture (tex->fb[0], SCE_DEPTH_BUFFER, 0, tex->tex,
-                                   0, SCE_FALSE) < 0)
-            goto fail;
-    } else {
-        if (SCE_RAddRenderTexture (tex->fb[0], SCE_COLOR_BUFFER0, 0, tex->tex,
-                                   0, SCE_FALSE) < 0)
-            goto fail;
-        if (depth && SCE_RGetTextureType (tex->tex) == SCE_TEX_2D) {
-            int w, h;
-            w = SCE_Texture_GetWidth (tex, 0, 0);
-            h = SCE_Texture_GetHeight (tex, 0, 0);
-            if (SCE_RAddRenderBuffer (tex->fb[0], SCE_DEPTH_BUFFER,
-                                      SCE_IMAGE_NONE, w, h) < 0)
-                goto fail;
-        }
+    switch (rtype) {
+    case SCE_RENDER_COLOR:
+        SCE_TexData_SetDimensions (tc, tex->w, tex->h, tex->d);
+        SCE_TexData_SetDataType (tc, SCE_UNSIGNED_BYTE);
+        SCE_TexData_SetDataFormat (tc, SCE_IMAGE_RGBA);
+        SCE_TexData_SetPixelFormat (tc, SCE_PXF_RGBA);
+        break;
+    case SCE_RENDER_DEPTH:
+        /* no 3D depth texture is allowed */
+        SCE_TexData_SetDimensions (tc, tex->w, tex->h, 0);
+        SCE_TexData_SetDataType (tc, SCE_UNSIGNED_BYTE);
+        SCE_TexData_SetDataFormat (tc, SCE_IMAGE_DEPTH);
+        SCE_TexData_SetPixelFormat (tc, SCE_PXF_DEPTH32);
+        break;
+    case SCE_RENDER_STENCIL: break; /* :) */
+    case SCE_RENDER_DEPTH_STENCIL:
+        /* no 3D depth-stencil texture is allowed */
+        SCE_TexData_SetDimensions (tc, tex->w, tex->h, 0);
+        SCE_TexData_SetDataType (tc, SCE_UNSIGNED_INT_24_8);
+        SCE_TexData_SetDataFormat (tc, SCE_IMAGE_DEPTH_STENCIL);
+        SCE_TexData_SetPixelFormat (tc, SCE_PXF_DEPTH24_STENCIL8);
     }
-
-    return SCE_OK;
-fail:
-    SCEE_LogSrc ();
-    return SCE_ERROR;
 }
 
-static int SCE_Texture_SetupFramebufferCube (SCE_STexture *tex, int depth)
-{
-    unsigned int i = 0;
-    SCE_STexData *tc = NULL;
-
-    tc = SCE_RGetTextureTexData (tex->tex, 0, 0);
-    if (SCE_TexData_IsDepthFormat (tc)) {
-        for (i = 0; i < 6; i++) {
-            if (!(tex->fb[i] = SCE_RCreateFramebuffer ())) goto fail;
-            if (SCE_RAddRenderTexture (tex->fb[i], SCE_DEPTH_BUFFER,
-                                       SCE_TEX_POSX + i, tex->tex, 0,
-                                       SCE_FALSE) < 0)
-                goto fail;
-        }
-    } else {
-        for (i = 0; i < 6; i++) {
-            if (!(tex->fb[i] = SCE_RCreateFramebuffer ())) goto fail;
-            if (SCE_RAddRenderTexture (tex->fb[i], SCE_COLOR_BUFFER0,
-                                       SCE_TEX_POSX + i, tex->tex, 0,
-                                       SCE_FALSE) < 0)
-                goto fail;
-
-            if (depth) {
-                int w, h;
-                w = SCE_Texture_GetWidth (tex, 0, 0);
-                h = SCE_Texture_GetHeight (tex, 0, 0);
-                if (SCE_RAddRenderBuffer (tex->fb[i], SCE_DEPTH_BUFFER,
-                                          SCE_IMAGE_NONE, w, h) < 0)
-                    goto fail;
-            }
-        }
-    }
-
-    return SCE_OK;
-fail:
-    SCEE_LogSrc ();
-    return SCE_ERROR;
-}
 /**
  * \brief Setup a texture for render-to-texture
  * \param tex a texture
+ * \param rtype render texture type
  * \param layer not used yet
- * \param depthbuffer SCE_TRUE creates a depth render buffer when the texture
+ * \param depth SCE_TRUE creates a depth render buffer when the texture
  * is either a cube map or a 2D texture, SCE_FALSE disables render depth buffer
+ * \param stencil SCE_TRUE creates a stencil render buffer when the texture
+ * is either a cube map or a 2D texture, SCE_FALSE disables render stencil buffer
  * \return SCE_ERROR on error, SCE_OK otherwise
  * \sa SCE_Texture_RenderTo(), SCE_RFramebuffer
  */
-int SCE_Texture_SetupFramebuffer (SCE_STexture *tex, SCEuint layer,
-                                  int depthbuffer)
+int SCE_Texture_SetupFramebuffer (SCE_STexture *tex, SCE_ETexRenderType rtype,
+                                  SCEuint layer, int depth, int stencil)
 {
-    unsigned int i;
+    unsigned int i, num = 1;
+    int w, h;
+    int c = 0;                  /* code */
+    SCE_RTexCubeFace face;
 
     (void)layer;
     for (i = 0; i < 6; i++)
@@ -592,10 +457,84 @@ int SCE_Texture_SetupFramebuffer (SCE_STexture *tex, SCEuint layer,
 
     SCE_RSetTextureWrapMode (tex->tex, SCE_TEX_CLAMP);
 
-    if (SCE_RGetTextureType (tex->tex) == SCE_TEX_CUBE)
-        return SCE_Texture_SetupFramebufferCube (tex, depthbuffer);
-    else
-        return SCE_Texture_SetupFramebufferOther (tex, depthbuffer);
+    /* setup cube face and loop iterations */
+    if (SCE_RGetTextureType (tex->tex) == SCE_TEX_CUBE) {
+        face = SCE_TEX_POSX;
+        num = 6;
+    } else {
+        face = 0;
+        num = 1;
+    }
+
+    /* do not allow depth or stencil render buffers on other types than
+       TEX_2D and TEX_CUBE */
+    if (SCE_RGetTextureType (tex->tex) != SCE_TEX_2D &&
+        SCE_RGetTextureType (tex->tex) != SCE_TEX_CUBE)
+        depth = stencil = SCE_FALSE;
+
+    /* build a default texture if none specified */
+    if (!SCE_RHasTextureData (tex->tex)) {
+        SCE_STexData tc;
+        SCE_TexData_Init (&tc);
+        SCE_Texture_MakeRenderTexData (tex, rtype, &tc);
+
+        for (i = 0; i < num; i++) {
+            if (!SCE_RAddTextureTexDataDup (tex->tex, face + i, &tc))
+                goto fail;
+        }
+        SCE_RBuildTexture (tex->tex, SCE_FALSE, SCE_FALSE);
+    }
+
+    w = SCE_Texture_GetWidth (tex);
+    h = SCE_Texture_GetHeight (tex);
+
+    for (i = 0; i < num; i++) {
+        if (!(tex->fb[i] = SCE_RCreateFramebuffer ())) {
+            c = -1;
+            break;
+        }
+
+        switch (rtype) {
+        case SCE_RENDER_COLOR:
+            c += SCE_RAddRenderTexture (tex->fb[i], SCE_COLOR_BUFFER0,
+                                        face + i, tex->tex, 0, SCE_FALSE);
+            /* use packed depth stencil by default */
+            if (depth && stencil) {
+                c += SCE_RAddRenderBuffer (tex->fb[i], SCE_DEPTH_STENCIL_BUFFER,
+                                           SCE_PXF_NONE, w, h);
+            } else {
+                if (depth)
+                    c += SCE_RAddRenderBuffer (tex->fb[i], SCE_DEPTH_BUFFER,
+                                               SCE_PXF_NONE, w, h);
+                if (stencil)
+                    c += SCE_RAddRenderBuffer (tex->fb[i], SCE_STENCIL_BUFFER,
+                                               SCE_PXF_NONE, w, h);
+            }
+            break;
+
+        case SCE_RENDER_DEPTH:
+            c += SCE_RAddRenderTexture (tex->fb[i], SCE_DEPTH_BUFFER,
+                                        face + i, tex->tex, 0, SCE_FALSE);
+            if (stencil)
+                c += SCE_RAddRenderBuffer (tex->fb[i], SCE_STENCIL_BUFFER,
+                                           SCE_PXF_NONE, w, h);
+            break;
+
+        case SCE_RENDER_STENCIL: break; /* who wants to do that. */
+
+        case SCE_RENDER_DEPTH_STENCIL:
+            c += SCE_RAddRenderTexture (tex->fb[i], SCE_DEPTH_STENCIL_BUFFER,
+                                        face + i, tex->tex, 0, SCE_FALSE);
+            break;
+        }
+    }
+
+    if (c < 0) {
+    fail:
+        SCEE_LogSrc ();
+        return SCE_ERROR;
+    }
+    return SCE_OK;
 }
 
 
@@ -615,7 +554,7 @@ static void* SCE_Texture_LoadResource (const char *name, int force, void *data)
     type = rinfo->type;
     w = rinfo->w; h = rinfo->h; d = rinfo->d;
 
-    tex = SCE_Texture_Create (type, w, h);
+    tex = SCE_Texture_Create (type, w, h, d);
     if (!tex) {
         SCEE_LogSrc ();
         return NULL;
@@ -630,8 +569,8 @@ static void* SCE_Texture_LoadResource (const char *name, int force, void *data)
     if (!tex->tex) {
         SCE_Texture_Delete (tex), tex = NULL;
         SCEE_LogSrc ();
-    } else
-        SCE_Texture_SetupParameters (tex);
+    } else if (tex->type == SCE_TEX_CUBE)
+        SCE_RSetTextureWrapMode (tex->tex, SCE_TEX_CLAMP);
 
     return tex;
 }
@@ -704,8 +643,7 @@ SCE_STexture* SCE_Texture_Load (int type, int w, int h, int d, int force, ...)
 /**
  * \brief Adds a texture as a new render target's
  * \param tex the texture to add a new render texture
- * \param id render target's identifier (SCE_COLOR_BUFFER, SCE_DEPTH_BUFFER
- * or SCE_STENCIL_BUFFER)
+ * \param attach attachment point
  * \param ctex the texture to add as a render target (is a core texture)
  * \returns SCE_ERROR on error, SCE_OK otherwise
  * \note If \p ctex has different dimensions or pixel format of \p tex,
@@ -719,7 +657,7 @@ SCE_STexture* SCE_Texture_Load (int type, int w, int h, int d, int force, ...)
  * function calls SCE_RAddRenderTexture() under the frame buffer of \p tex.
  * \sa SCE_RAddRenderTexture()
  */
-int SCE_Texture_AddRenderCTexture (SCE_STexture *tex, int id,
+int SCE_Texture_AddRenderRTexture (SCE_STexture *tex, SCE_RBufferType attach,
                                    SCE_RTexture *ctex)
 {
     SCEenum target;
@@ -737,14 +675,14 @@ int SCE_Texture_AddRenderCTexture (SCE_STexture *tex, int id,
 
     /* adding texture to framebuffer */
     if (target == SCE_TEX_CUBE)
-        for (i=0; i<6; i++) {
-            if (SCE_RAddRenderTexture (tex->fb[i], id, SCE_TEX_POSX + i, ctex,
-                                       SCE_TRUE, SCE_FALSE) < 0) {
+        for (i = 0; i < 6; i++) {
+            if (SCE_RAddRenderTexture (tex->fb[i], attach, SCE_TEX_POSX + i,
+                                       ctex, SCE_TRUE, SCE_FALSE) < 0) {
                 SCEE_LogSrc ();
                 return SCE_ERROR;
             }
         }
-    else if (SCE_RAddRenderTexture (tex->fb[0], id, target,
+    else if (SCE_RAddRenderTexture (tex->fb[0], attach, target,
                                     ctex, SCE_TRUE, SCE_FALSE) < 0) {
         SCEE_LogSrc ();
         return SCE_ERROR;
@@ -754,14 +692,14 @@ int SCE_Texture_AddRenderCTexture (SCE_STexture *tex, int id,
 /**
  * \brief Adds a texture as a new render target's
  *
- * This function calls SCE_Texture_AddRenderCTexture() like this:
- * SCE_Texture_AddRenderCTexture (\p tex, \p id, SCE_Texture_GetCTexture
+ * This function calls SCE_Texture_AddRenderRTexture() like this:
+ * SCE_Texture_AddRenderRTexture (\p tex, \p id, SCE_Texture_GetRTexture
  * (\p new), SCE_FALSE).
  */
 int SCE_Texture_AddRenderTexture (SCE_STexture *tex, int id,
                                   SCE_STexture *new)
 {
-    return SCE_Texture_AddRenderCTexture (tex, id, new->tex);
+    return SCE_Texture_AddRenderRTexture (tex, id, new->tex);
 }
 
 /**
@@ -780,8 +718,8 @@ void SCE_Texture_Blit (SCE_SIntRect *rdst, SCE_STexture *dst,
     int h = 1;
     if (rdst) {
         if (dst) {
-            w = SCE_Texture_GetWidth (dst, 0, 0);
-            h = SCE_Texture_GetHeight (dst, 0, 0);
+            w = SCE_Texture_GetWidth (dst);
+            h = SCE_Texture_GetHeight (dst);
         }
         r1.p1[0] = (float)rdst->p1[0] / (float)w;
         r1.p1[1] = (float)rdst->p1[1] / (float)h;
@@ -789,8 +727,8 @@ void SCE_Texture_Blit (SCE_SIntRect *rdst, SCE_STexture *dst,
         r1.p2[1] = (float)rdst->p2[1] / (float)h;
     }
     if (rsrc) {
-        w = SCE_Texture_GetWidth (src, 0, 0);
-        h = SCE_Texture_GetHeight (src, 0, 0);
+        w = SCE_Texture_GetWidth (src);
+        h = SCE_Texture_GetHeight (src);
         r2.p1[0] = (float)rsrc->p1[0] / (float)w;
         r2.p1[1] = (float)rsrc->p1[1] / (float)h;
         r2.p2[0] = (float)rsrc->p2[0] / (float)w;
@@ -831,7 +769,7 @@ static void SCE_Texture_Set (SCE_STexture*);
  *
  * If \p dst doesn't have a frame buffer, a frame buffer is created and added to
  * \p dst, the frame buffer created has only one render target that is
- * SCE_Texture_GetCTexture (\p dst), when calling SCE_Texture_RenderTo() on the
+ * SCE_Texture_GetRTexture (\p dst), when calling SCE_Texture_RenderTo() on the
  * frame buffer. The \p rdst and \p rsrc parameters specifies the texture's
  * coordinates between 0 and 1. \p dst can be NULL then the render is done on
  * the default OpenGL render buffer.
@@ -859,8 +797,8 @@ void SCE_Texture_GenericBlit (SCE_SFloatRect *rdst, SCE_STexture *dst,
         SCE_Texture_RenderTo (dst, 0);
         if (rdst) {
             int w, h;
-            w = SCE_Texture_GetWidth (dst, 0, 0);
-            h = SCE_Texture_GetHeight (dst, 0, 0);
+            w = SCE_Texture_GetWidth (dst);
+            h = SCE_Texture_GetHeight (dst);
             SCE_RViewport (rdst->p1[0] * w, rdst->p1[1] * h,
                            SCE_Rectangle_GetWidthf (rdst) * w,
                            SCE_Rectangle_GetHeightf (rdst) * h);

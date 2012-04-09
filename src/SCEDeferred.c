@@ -308,14 +308,19 @@ int SCE_Deferred_Build (SCE_SDeferred *def,
 {
     int i;
 
-#define SCECREATE(a, b)                                         \
-    def->targets[a] = SCE_Texture_Create (b, (int)def->w, (int)def->h)
-    SCECREATE (SCE_DEFERRED_DEPTH_TARGET, SCE_RENDER_DEPTH);
-    SCECREATE (SCE_DEFERRED_LIGHT_TARGET, SCE_RENDER_COLOR);
-    SCECREATE (SCE_DEFERRED_COLOR_TARGET, SCE_TEX_2D);
-    SCECREATE (SCE_DEFERRED_NORMAL_TARGET, SCE_TEX_2D);
-    SCECREATE (SCE_DEFERRED_SPECULAR_TARGET, SCE_TEX_2D);
-#undef SCECREATE
+    for (i = 0; i < 5; i++) {
+        def->targets[i] = SCE_Texture_Create (SCE_TEX_2D, def->w, def->h, 0);
+        if (!def->targets[i])
+            goto fail;
+    }
+
+    /* TODO: use an option to choose between depth and packed depth/stencil */
+    if (SCE_Texture_SetupFramebuffer (def->targets[SCE_DEFERRED_DEPTH_TARGET],
+                                      SCE_RENDER_DEPTH_STENCIL, 0, 0, 0) < 0)
+        goto fail;
+    if (SCE_Texture_SetupFramebuffer (def->targets[SCE_DEFERRED_LIGHT_TARGET],
+                                      SCE_RENDER_COLOR, 0, 0, 0) < 0)
+        goto fail;
 
     def->gbuf = def->targets[0];
     def->n_targets = 4;
@@ -343,14 +348,25 @@ int SCE_Deferred_Build (SCE_SDeferred *def,
        light type, also lights may request for a particular resolution
        (for tiny lights that dont require much) */
     if (!(def->shadowmaps[SCE_POINT_LIGHT] =
-          SCE_Texture_Create (SCE_RENDER_DEPTH_CUBE, def->sm_w, def->sm_h)))
+          SCE_Texture_Create (SCE_TEX_CUBE, def->sm_w, def->sm_h, 0)))
         goto fail;
     if (!(def->shadowmaps[SCE_SPOT_LIGHT] =
-          SCE_Texture_Create (SCE_RENDER_DEPTH, def->sm_w, def->sm_h)))
+          SCE_Texture_Create (SCE_TEX_2D, def->sm_w, def->sm_h, 0)))
         goto fail;
     if (!(def->shadowmaps[SCE_SUN_LIGHT] =
-          SCE_Texture_Create (SCE_RENDER_DEPTH,
-                              def->sm_w * def->cascaded_splits, def->sm_h)))
+          SCE_Texture_Create (SCE_TEX_2D, def->sm_w * def->cascaded_splits,
+                              def->sm_h, 0)))
+        goto fail;
+
+    /* TODO: we might want a stencil buffer (think about the terrain) */
+    if (SCE_Texture_SetupFramebuffer (def->shadowmaps[SCE_POINT_LIGHT],
+                                      SCE_RENDER_DEPTH, 0, 0, 0) < 0)
+        goto fail;
+    if (SCE_Texture_SetupFramebuffer (def->shadowmaps[SCE_SPOT_LIGHT],
+                                      SCE_RENDER_DEPTH, 0, 0, 0) < 0)
+        goto fail;
+    if (SCE_Texture_SetupFramebuffer (def->shadowmaps[SCE_SUN_LIGHT],
+                                      SCE_RENDER_DEPTH, 0, 0, 0) < 0)
         goto fail;
 
     for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++)

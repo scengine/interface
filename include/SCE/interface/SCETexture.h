@@ -51,13 +51,12 @@ extern "C" {
 #define SCE_FILTER_LANCZOS3     ILU_SCALE_LANCZOS3
 #define SCE_FILTER_MITCHELL     ILU_SCALE_MITCHELL
 
-/* types supplementaires acceptables pour la creation d'une texture */
-/* NOTE: ces constantes doivent toutes etre differentes
-         de celles de CFramebuffer... */
-#define SCE_RENDER_COLOR 1
-#define SCE_RENDER_COLOR_CUBE 2
-#define SCE_RENDER_DEPTH 3
-#define SCE_RENDER_DEPTH_CUBE 4
+typedef enum {
+    SCE_RENDER_COLOR,
+    SCE_RENDER_DEPTH,
+    SCE_RENDER_STENCIL,
+    SCE_RENDER_DEPTH_STENCIL
+} SCE_ETexRenderType;
 
 /* some aliases for compatibility */
 #define SCE_RENDER_POSX SCE_BOX_POSX
@@ -80,7 +79,7 @@ struct sce_stexture {
     SCE_RTexture *tex;       /**< Core texture */
     unsigned int unit;       /**< Texture unit */
     SCE_TMatrix4 matrix;     /**< Texture matrix */
-    int type;                /**< Type of the texture */
+    SCE_RTexType type;       /**< Type of the texture */
     int w, h, d;             /**< Used to save Create() input */
     int used;                /**< Is texture used for rendering? */
     int toremove;            /**< Internal use (like everything lol) */
@@ -93,7 +92,7 @@ struct sce_stexture {
 int SCE_Init_Texture (void);
 void SCE_Quit_Texture (void);
 
-SCE_STexture* SCE_Texture_Create (SCEenum, int, int);
+SCE_STexture* SCE_Texture_Create (SCE_RTexType, int, int, int);
 void SCE_Texture_Delete (SCE_STexture*);
 
 SCE_SSceneResource* SCE_Texture_GetSceneResource (SCE_STexture*);
@@ -115,29 +114,30 @@ void SCE_Texture_ForcePixelFormat (int, SCE_EPixelFormat);
 void SCE_Texture_ForceType (int, SCE_EType);
 void SCE_Texture_ForceFormat (int, SCE_EImageFormat);
 
-/* renvoie le type de la texture (peut etre de type RENDER_<...>) */
-int SCE_Texture_GetType (SCE_STexture*);
-/* renvoie le type de la texture coeur (target opengl... lol. TODO) */
-int SCE_Texture_GetCType (SCE_STexture*);
+SCE_RTexType SCE_Texture_GetType (SCE_STexture*);
 
-SCE_RTexture* SCE_Texture_GetCTexture (SCE_STexture*);
-void SCE_Texture_AddTexData (SCE_STexture*, int, SCE_STexData*);
-SCE_STexData* SCE_Texture_AddTexDataDup (SCE_STexture*, int,
+SCE_RTexture* SCE_Texture_GetRTexture (SCE_STexture*);
+void SCE_Texture_AddTexData (SCE_STexture*, SCE_RTexCubeFace, SCE_STexData*);
+SCE_STexData* SCE_Texture_AddTexDataDup (SCE_STexture*, SCE_RTexCubeFace,
                                          const SCE_STexData*);
 
-int SCE_Texture_GetWidth (SCE_STexture*, int, int);
-int SCE_Texture_GetHeight (SCE_STexture*, int, int);
-int SCE_Texture_GetDepth (SCE_STexture*, int, int);
+int SCE_Texture_GetWidth (SCE_STexture*);
+int SCE_Texture_GetHeight (SCE_STexture*);
+int SCE_Texture_GetDepth (SCE_STexture*);
 
 int SCE_Texture_Build (SCE_STexture*, int);
 void SCE_Texture_Update (SCE_STexture*);
 
-int SCE_Texture_SetupFramebuffer (SCE_STexture*, SCEuint, int);
+void SCE_Texture_MakeRenderTexData (const SCE_STexture*, SCE_ETexRenderType,
+                                    SCE_STexData*);
+int SCE_Texture_SetupFramebuffer (SCE_STexture*, SCE_ETexRenderType,
+                                  SCEuint, int, int);
 
 SCE_STexture* SCE_Texture_Loadv (int, int, int, int, int, const char**);
 SCE_STexture* SCE_Texture_Load (int, int, int, int, int, ...);
 
-int SCE_Texture_AddRenderCTexture (SCE_STexture*, int, SCE_RTexture*);
+int SCE_Texture_AddRenderRTexture (SCE_STexture*, SCE_RBufferType,
+                                   SCE_RTexture*);
 int SCE_Texture_AddRenderTexture (SCE_STexture*, int, SCE_STexture*);
 
 void SCE_Texture_GenericBlit (SCE_SFloatRect*, SCE_STexture*,

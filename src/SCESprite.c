@@ -156,8 +156,8 @@ void SCE_Sprite_Render (const SCE_SSprite *sprite, const SCE_SCamera *cam,
                                            * (float)screen_w / screen_h);
         } else {
             int w, h;
-            w = SCE_Texture_GetWidth (sprite->texture, 0, 0);
-            h = SCE_Texture_GetHeight (sprite->texture, 0, 0);
+            w = SCE_Texture_GetWidth (sprite->texture);
+            h = SCE_Texture_GetHeight (sprite->texture);
             SCE_Rectangle_SetFromCenterfv (&r, pos,
                                            (float)w/screen_w, (float)h/screen_h);
         }

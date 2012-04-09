@@ -123,8 +123,7 @@ int SCE_Skybox_SetTexture (SCE_SSkybox *skybox, SCE_STexture *tex,
     SCE_Box_Set (&box, center, 1.0f, 1.0f, 1.0f);
 
     type = SCE_Texture_GetType (tex);
-    if (type == SCE_TEX_CUBE || type == SCE_RENDER_COLOR_CUBE ||
-        type == SCE_RENDER_DEPTH_CUBE) {
+    if (type == SCE_TEX_CUBE) {
         geom = SCE_BoxGeom_Create (&box, SCE_TRIANGLES,
                                    SCE_BOX_CUBEMAP_TEXCOORD);
     } else {

@@ -865,7 +865,7 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
     if (SCE_Shader_Build (vt->indices_shader) < 0) goto fail;
 
     /* constructing indices 3D map */
-    if (!(vt->splat = SCE_Texture_Create (SCE_TEX_3D, 0, 0))) goto fail;
+    if (!(vt->splat = SCE_Texture_Create (SCE_TEX_3D, 0, 0, 0))) goto fail;
     SCE_TexData_Init (&tc);
     SCE_TexData_SetDimensions (&tc, width * 8, height, depth);
     SCE_TexData_SetDataType (&tc, SCE_UNSIGNED_INT);
@@ -878,7 +878,9 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
     SCE_Texture_Pixelize (vt->splat, SCE_TRUE);
     SCE_Texture_SetFilter (vt->splat, SCE_TEX_NEAREST);
     SCE_Texture_Build (vt->splat, SCE_FALSE);
-    if (SCE_Texture_SetupFramebuffer (vt->splat, 0, SCE_FALSE) < 0) goto fail;
+    if (SCE_Texture_SetupFramebuffer (vt->splat, SCE_RENDER_COLOR,
+                                      0, SCE_FALSE, SCE_FALSE) < 0)
+        goto fail;
 
     return SCE_OK;
 fail:
@@ -939,9 +941,9 @@ void SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_SVoxelMesh *vm,
     float w, h, d;
     int i;
 
-    w = SCE_Texture_GetWidth (vm->volume, 0, 0);
-    h = SCE_Texture_GetHeight (vm->volume, 0, 0);
-    d = SCE_Texture_GetDepth (vm->volume, 0, 0);
+    w = SCE_Texture_GetWidth (vm->volume);
+    h = SCE_Texture_GetHeight (vm->volume);
+    d = SCE_Texture_GetDepth (vm->volume);
     SCE_Vector3_Copy (wrap, vm->wrap);
     wrap[0] += (float)x / w;
     wrap[1] += (float)y / h;
