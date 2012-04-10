@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 07/04/2012 */
+   updated: 10/04/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -140,8 +140,11 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
     vt->max_updates = 8;
 
     vt->trans_enabled = SCE_TRUE;
-    SCE_VTerrain_InitShader (&vt->lod_shd);
-    SCE_VTerrain_InitShader (&vt->def_shd);
+    vt->shadow_mode = SCE_FALSE;
+
+    vt->pipeline = NULL;
+    for (i = 0; i < SCE_NUM_VTERRAIN_SHADERS; i++)
+        SCE_VTerrain_InitShader (&vt->shaders[i]);
 
     vt->top_diffuse = vt->side_diffuse = NULL;
 }
@@ -150,8 +153,8 @@ void SCE_VTerrain_Clear (SCE_SVoxelTerrain *vt)
     size_t i;
 
     SCE_VRender_Clear (&vt->template);
-    SCE_VTerrain_ClearShader (&vt->lod_shd);
-    SCE_VTerrain_ClearShader (&vt->def_shd);
+    for (i = 0; i < SCE_NUM_VTERRAIN_SHADERS; i++)
+        SCE_VTerrain_ClearShader (&vt->shaders[i]);
     for (i = 0; i < SCE_MAX_VTERRAIN_LEVELS; i++)
         SCE_VTerrain_ClearLevel (&vt->levels[i]);
 }
@@ -263,15 +266,19 @@ void SCE_VTerrain_SetNumSubRegions (SCE_SVoxelTerrain *vt, SCEuint n)
 }
 
 
-void SCE_VTerrain_SetLodShader (SCE_SVoxelTerrain *vt, SCE_SShader *shader)
+/**
+ * \brief Set the shader that will be used for rendering
+ * \param vt a voxel terrain
+ * \param shader a shader
+ *
+ * You must call SCE_VTerrain_BuildShader() upon \p shader before
+ * building your terrain with SCE_VTerrain_Build(). \p shader should
+ * implement every combination of the voxel terrain shader flags
+ * SCE_VTERRAIN_USE_LOD and SCE_VTERRAIN_USE_SHADOWS
+ */
+void SCE_VTerrain_SetShader (SCE_SVoxelTerrain *vt, SCE_SShader *shader)
 {
-    vt->lod_shd.shd = shader;
-}
-void SCE_VTerrain_SetDefaultShader (SCE_SVoxelTerrain *vt, SCE_SShader *shader)
-{
-    vt->def_shd.shd = shader;
-}
-
+    vt->pipeline = shader;
 }
 
 void SCE_VTerrain_SetTopDiffuseTexture (SCE_SVoxelTerrain *vt, SCE_STexture *tex)
@@ -370,7 +377,7 @@ fail:
 }
 
 
-static const char *seamlesslod_fun =
+static const char *vs_fun =
     "uniform sampler3D sce_hightex;" /* high LOD */
     "uniform sampler3D sce_lowtex;" /* low LOD */
 
@@ -391,9 +398,9 @@ static const char *seamlesslod_fun =
     "uniform vec3 sce_wrapping0;"
     "uniform vec3 sce_wrapping1;"
 
-    "void sce_seamless_lod (in out vec3 pos, in out vec3 nor)"
+    "void sce_vterrain_seamlesslod (in out vec3 pos, in out vec3 nor)"
     "{"
-       /* assuming */
+       /* assuming ... assuming what? */
     "  vec3 offset = sce_current_origin + pos;"
        /* border position */
     "  const float limit = ((SCE_SUBREGION_DIM-1)*SCE_N_SUBREGIONS + 1)/SCE_W;"
@@ -444,9 +451,15 @@ static const char *seamlesslod_fun =
          /* interpolate low and high resolution normals */
     "    nor = normalize (grad * weight + nor * (1.0 - weight));"
     "  }"
+    "}"
+
+    "vec3 sce_vterrain_shadowoffset (vec3 pos, vec3 nor)"
+    "{"
+    "  const float weight = /* clever maths */ -0.002;"
+    "  return pos + weight * nor;"
     "}";
 
-static const char *triplanar_fun =
+static const char *ps_fun =
     "vec3 sce_triplanar (in vec3 pos, in out vec3 nor,"
                         "out vec2 tc1, out vec2 tc2, out vec2 tc3)"
     "{"
@@ -466,12 +479,13 @@ static const char *triplanar_fun =
     "}";
 
 
-static const char *seamlesslod_main_vs =
+static const char *vs_main =
     "\n#define OW (1.0/SCE_W)\n"
     "\n#define OH (1.0/SCE_H)\n"
     "\n#define OD (1.0/SCE_D)\n"
 
     "in vec3 sce_position;"
+    /* TODO: blblbl */
     "\n#define SCE_COMPUTE_NORMAL 0\n" /* xD */
     "\n#if !SCE_COMPUTE_NORMAL\n"
     "in vec3 sce_normal;"
@@ -498,6 +512,7 @@ static const char *seamlesslod_main_vs =
     "  vec3 normal;"
 
        /* retrieve normal */
+    /* TODO: make SCE_COMPUTE_NORMAL a vterrain shader flag too */
     "\n#if !SCE_COMPUTE_NORMAL\n"
     "  normal = normalize (sce_normal);"
     "\n#else\n"
@@ -510,13 +525,17 @@ static const char *seamlesslod_main_vs =
     "           texture3D (sce_tex0, tc + vec3 (0., -OH, 0.)).x;"
     "  grad.z = texture3D (sce_tex0, tc + vec3 (0., 0., OD)).x -"
     "           texture3D (sce_tex0, tc + vec3 (0., 0., -OD)).x;"
-    "  grad = -normalize (grad);"
-    "  nor = grad;"
+    "  normal = -normalize (grad);"
     "\n#endif\n"
 
+    "\n#if "SCE_VTERRAIN_USE_LOD_NAME"\n"
     "  if (enabled)"
-    "    sce_seamless_lod (position, normal);"
+    "    sce_vterrain_seamlesslod (position, normal);"
+    "\n#endif\n"
     "  nor = normal;"
+    "\n#if "SCE_VTERRAIN_USE_SHADOWS_NAME"\n"
+    "  position = sce_vterrain_shadowoffset (position, normal);"
+    "\n#endif\n"
 
     "  vec3 amb = vec3 (0.1, 0.1, 0.1);"
     "  vec3 lighting = amb;"
@@ -531,7 +550,13 @@ static const char *seamlesslod_main_vs =
     "  gl_Position = final_matrix * p;"
     "}";
 
-static const char *triplanar_main_ps =
+static const char *ps_main =
+    "\n#if "SCE_VTERRAIN_USE_SHADOWS_NAME"\n"
+    "void main (void)"
+    "{"
+    "  gl_FragColor = vec4 (0.0);" /* ?? */
+    "}"
+    "\n#else\n"
     "in vec3 pos;"
     "in vec3 nor;"
     "in vec4 col;"
@@ -555,76 +580,31 @@ static const char *triplanar_main_ps =
 
     "  vec4 color = weights.x * col1 + weights.y * col2 + weights.z * col3;"
     "  gl_FragColor = col * color;"
-    "}";
-
-static const char *default_main_vs =
-    "\n#define OW (1.0/SCE_W)\n"
-    "\n#define OH (1.0/SCE_H)\n"
-    "\n#define OD (1.0/SCE_D)\n"
-
-    "in vec3 sce_position;"
-    "\n#define SCE_COMPUTE_NORMAL 0\n" /* xD */
-    "\n#if !SCE_COMPUTE_NORMAL\n"
-    "in vec3 sce_normal;"
-    "\n#endif\n"
-
-    "out vec3 pos;"
-    "out vec3 nor;"
-    "out vec4 col;"
-
-    "uniform mat4 sce_objectmatrix;"
-    "uniform mat4 sce_cameramatrix;"
-    "uniform mat4 sce_projectionmatrix;"
-
-    "\n#if SCE_COMPUTE_NORMAL\n"
-    "uniform sampler3D sce_tex0;" /* high LOD */
-    "uniform vec3 sce_wrapping0;" /* texture wrapping offset */
-    "uniform vec3 sce_tc_origin;"
-    "\n#endif\n"
-
-    /* in pixels/dimension, origin of the current region relative to regions_origin */
-    "uniform vec3 sce_current_origin;"
-    /* current_origin = region_pos * (subregion_dim - 1) / dimension */
-
-    "vec3 light (vec3 normal, vec3 lightpos, vec3 color)"
-    "{"
-    "  return color * clamp (dot (normalize (lightpos), normal), 0.0, 1.0);"
     "}"
+    "\n#endif\n";
 
-    "void main (void)"
-    "{"
-    "  vec3 offset = sce_current_origin + sce_position;"
 
-       /* retrieve normal */
-    "\n#if !SCE_COMPUTE_NORMAL\n"
-    "  nor = normalize (sce_normal);"
-    "\n#else\n"
-    "  vec3 grad;"
-    "  vec3 tc = offset + sce_tc_origin + sce_wrapping0;"
-    "  grad.x = texture3D (sce_tex0, tc + vec3 (OW, 0., 0.)).x -"
-    "           texture3D (sce_tex0, tc + vec3 (-OW, 0., 0.)).x;"
-    "  grad.y = texture3D (sce_tex0, tc + vec3 (0., OH, 0.)).x -"
-    "           texture3D (sce_tex0, tc + vec3 (0., -OH, 0.)).x;"
-    "  grad.z = texture3D (sce_tex0, tc + vec3 (0., 0., OD)).x -"
-    "           texture3D (sce_tex0, tc + vec3 (0., 0., -OD)).x;"
-    "  grad = -normalize (grad);"
-    "  nor = grad;"
-    "\n#endif\n"
+int SCE_VTerrain_BuildShader (SCE_SVoxelTerrain *vt, SCE_SShader *shd)
+{
+    (void)vt;
+    /* add functions code */
+    if (SCE_Shader_AddSource (shd, SCE_VERTEX_SHADER, vs_fun, SCE_TRUE) < 0)
+        goto fail;
+    if (SCE_Shader_AddSource (shd, SCE_PIXEL_SHADER, ps_fun, SCE_TRUE) < 0)
+        goto fail;
+    if (SCE_Shader_Globalf (shd, "SCE_W", vt->width) < 0) goto fail;
+    if (SCE_Shader_Globalf (shd, "SCE_H", vt->height) < 0) goto fail;
+    if (SCE_Shader_Globalf (shd, "SCE_D", vt->depth) < 0) goto fail;
+    if (SCE_Shader_Globali (shd, "SCE_SUBREGION_DIM",
+                            vt->subregion_dim) < 0) goto fail;
+    if (SCE_Shader_Globali (shd, "SCE_N_SUBREGIONS",
+                            vt->n_subregions) < 0) goto fail;
 
-       /* lighting */
-    "  vec3 amb = vec3 (0.1, 0.1, 0.1);"
-    "  vec3 lighting = amb;"
-    "  lighting += 0.3 * light (nor, vec3 (0.0, 0.0, 2.0), vec3 (0.6, 0.7, 1.0));"
-    "  lighting += 0.7 * light (nor, vec3 (1.0, 1.0, 2.0), vec3 (1.0, 0.9, 0.8));"
-    "  col = vec4 (lighting, 1.0);"
-
-       /* vertex transform */
-    "  vec4 p = sce_objectmatrix * vec4 (sce_position, 1.0);"
-    "  pos = p.xyz;"
-    "  mat4 final_matrix = sce_projectionmatrix * sce_cameramatrix;"
-    "  gl_Position = final_matrix * p;"
-    "}";
-
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
+}
 
 
 int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
@@ -646,78 +626,60 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
             goto fail;
     }
 
+    if (!vt->pipeline) {
+        /* user hasn't specified any: use default main code */
+        if (!(vt->pipeline = SCE_Shader_Create ())) goto fail;
+        if (SCE_Shader_AddSource (vt->pipeline, SCE_VERTEX_SHADER,
+                                  vs_main, SCE_FALSE) < 0) goto fail;
+        if (SCE_Shader_AddSource (vt->pipeline, SCE_PIXEL_SHADER,
+                                  ps_main, SCE_FALSE) < 0) goto fail;
+        /* completely ridiculous: */
+        if (SCE_VTerrain_BuildShader (vt, vt->pipeline) < 0) goto fail;
+    }
+
+    {
+        const char *states[2] = {
+            /* order matters */
+            SCE_VTERRAIN_USE_LOD_NAME,
+            SCE_VTERRAIN_USE_SHADOWS_NAME
+        };
+        SCE_SRenderState rs;
+
+        SCE_RenderState_Init (&rs);
+        if (SCE_RenderState_SetStates (&rs, states, 2) < 0)
+            goto fail;
+        if (SCE_Shader_SetupPipeline (vt->pipeline, &rs) < 0) goto fail;
+        SCE_RenderState_Clear (&rs);
+    }
+
     /* build shaders */
-    /* LOD shader */
-    /* user hasn't specified any: use default main code */
-    if (!vt->lod_shd.shd) {
-        if (!(vt->lod_shd.shd = SCE_Shader_Create ())) goto fail;
-        if (SCE_Shader_AddSource (vt->lod_shd.shd, SCE_VERTEX_SHADER,
-                                  seamlesslod_main_vs, SCE_FALSE) < 0) goto fail;
-        if (SCE_Shader_AddSource (vt->lod_shd.shd, SCE_PIXEL_SHADER,
-                                  triplanar_main_ps, SCE_FALSE) < 0) goto fail;
-    }
-    /* add functions code */
-    if (SCE_Shader_AddSource (vt->lod_shd.shd, SCE_VERTEX_SHADER,
-                              seamlesslod_fun, SCE_TRUE) < 0) goto fail;
-    if (SCE_Shader_AddSource (vt->lod_shd.shd, SCE_PIXEL_SHADER,
-                              triplanar_fun, SCE_TRUE) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->lod_shd.shd, "SCE_W", vt->width) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->lod_shd.shd, "SCE_H", vt->height) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->lod_shd.shd, "SCE_D", vt->depth) < 0) goto fail;
-    if (SCE_Shader_Globali (vt->lod_shd.shd, "SCE_SUBREGION_DIM",
-                            vt->subregion_dim) < 0) goto fail;
-    if (SCE_Shader_Globali (vt->lod_shd.shd, "SCE_N_SUBREGIONS",
-                            vt->n_subregions) < 0) goto fail;
-    SCE_Shader_SetupAttributesMapping (vt->lod_shd.shd);
-    SCE_Shader_ActivateAttributesMapping (vt->lod_shd.shd, SCE_TRUE);
-    if (SCE_Shader_Build (vt->lod_shd.shd) < 0) goto fail;
-    /* must be done when the shader is built */
-    SCE_Shader_SetupMatricesMapping (vt->lod_shd.shd);
-    SCE_Shader_ActivateMatricesMapping (vt->lod_shd.shd, SCE_TRUE);
+    if (SCE_Shader_Build (vt->pipeline) < 0) goto fail;
 
-#define SCE_LOC(el, name)                                               \
-    vt->lod_shd.el = SCE_Shader_GetIndex (vt->lod_shd.shd, name)
-    SCE_LOC (regions_loc, "sce_regions_origin");
-    SCE_LOC (current_loc, "sce_current_origin");
-    SCE_LOC (wrapping0_loc, "sce_wrapping0");
-    SCE_LOC (wrapping1_loc, "sce_wrapping1");
-    SCE_LOC (tcorigin_loc, "sce_tc_origin");
-    SCE_LOC (hightex_loc, "sce_hightex");
-    SCE_LOC (lowtex_loc, "sce_lowtex");
-    SCE_LOC (enabled_loc, "enabled");
-    SCE_LOC (topdiffuse_loc, "sce_top_diffuse");
-    SCE_LOC (sidediffuse_loc, "sce_side_diffuse");
+    /* get uniform locations and setup mapping */
+    for (i = 0; i < SCE_NUM_VTERRAIN_SHADERS; i++) {
+        SCE_SVoxelTerrainShader *shd = &vt->shaders[i];
+
+        shd->shd = SCE_Shader_GetShader (vt->pipeline, i);
+        SCE_Shader_SetupAttributesMapping (shd->shd);
+        SCE_Shader_ActivateAttributesMapping (shd->shd, SCE_TRUE);
+        SCE_Shader_SetupMatricesMapping (shd->shd);
+        SCE_Shader_ActivateMatricesMapping (shd->shd, SCE_TRUE);
+
+#define SCE_LOC(el, name)                               \
+        shd->el = SCE_Shader_GetIndex (shd->shd, name)
+        SCE_LOC (regions_loc, "sce_regions_origin");
+        SCE_LOC (current_loc, "sce_current_origin");
+        SCE_LOC (wrapping0_loc, "sce_wrapping0");
+        SCE_LOC (wrapping1_loc, "sce_wrapping1");
+        SCE_LOC (tcorigin_loc, "sce_tc_origin");
+        SCE_LOC (hightex_loc, "sce_hightex");
+        SCE_LOC (lowtex_loc, "sce_lowtex");
+        SCE_LOC (enabled_loc, "enabled");
+        SCE_LOC (topdiffuse_loc, "sce_top_diffuse");
+        SCE_LOC (sidediffuse_loc, "sce_side_diffuse");
 #undef SCE_LOC
 
-    /* default shader */
-    /* user hasn't specified any: use default main code */
-    if (!vt->def_shd.shd) {
-        if (!(vt->def_shd.shd = SCE_Shader_Create ())) goto fail;
-        if (SCE_Shader_AddSource (vt->def_shd.shd, SCE_VERTEX_SHADER,
-                                  default_main_vs, SCE_FALSE) < 0) goto fail;
-        if (SCE_Shader_AddSource (vt->def_shd.shd, SCE_PIXEL_SHADER,
-                                  triplanar_main_ps, SCE_FALSE) < 0) goto fail;
     }
-    /* add functions code */
-    if (SCE_Shader_AddSource (vt->def_shd.shd, SCE_PIXEL_SHADER,
-                              triplanar_fun, SCE_TRUE) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->def_shd.shd, "SCE_W", vt->width) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->def_shd.shd, "SCE_H", vt->height) < 0) goto fail;
-    if (SCE_Shader_Globalf (vt->def_shd.shd, "SCE_D", vt->depth) < 0) goto fail;
-    SCE_Shader_SetupAttributesMapping (vt->def_shd.shd);
-    SCE_Shader_ActivateAttributesMapping (vt->def_shd.shd, SCE_TRUE);
-    if (SCE_Shader_Build (vt->def_shd.shd) < 0) goto fail;
-    /* must be done when the shader is built */
-    SCE_Shader_SetupMatricesMapping (vt->def_shd.shd);
-    SCE_Shader_ActivateMatricesMapping (vt->def_shd.shd, SCE_TRUE);
-
-#define SCE_LOC(el, name)                                               \
-    vt->def_shd.el = SCE_Shader_GetIndex (vt->def_shd.shd, name)
-    SCE_LOC (wrapping0_loc, "sce_wrapping0");
-    SCE_LOC (tcorigin_loc, "sce_tc_origin");
-    SCE_LOC (topdiffuse_loc, "sce_top_diffuse");
-    SCE_LOC (sidediffuse_loc, "sce_side_diffuse");
-#undef SCE_LOC
 
     vt->built = SCE_TRUE;
 
@@ -801,7 +763,6 @@ void SCE_VTerrain_ActivateLevel (SCE_SVoxelTerrain *vt, SCEuint level,
 void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
                                SCE_EBoxFace f, const unsigned char *slice)
 {
-    SCE_STexData *texdata = NULL;
     SCE_SVoxelTerrainLevel *tl = NULL;
     int w, h, d, dim;
     SCE_SIntRect3 r;
@@ -1037,8 +998,21 @@ int SCE_VTerrain_GetOffset (const SCE_SVoxelTerrain *vt, SCEuint level,
 }
 
 
-static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
-                                      SCEuint level)
+/**
+ * \brief Activate/deactivate shadow rendering mode
+ * \param vt a voxel terrain
+ * \param shadow SCE_TRUE to activate, SCE_FALSE to deactivate
+ * \sa SCE_VTerrain_SetLodShadowShader(), SCE_VTerrain_SetDefaultShadowShader()
+ */
+void SCE_VTerrain_ActivateShadowMode (SCE_SVoxelTerrain *vt, int shadow)
+{
+    vt->shadow_mode = shadow;
+}
+
+static void
+SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt, SCEuint level,
+                          SCE_SVoxelTerrainShader *lod_shd,
+                          SCE_SVoxelTerrainShader *def_shd)
 {
     SCE_TMatrix4 m;
     SCE_TVector3 pos, origin;
@@ -1046,7 +1020,7 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
     float invw, invh, invd;
     float scale;
     const SCE_SVoxelTerrainLevel *tl = &vt->levels[level], *tl2 = NULL;
-    SCE_SVoxelTerrainLevel *tl3 = NULL;
+    const SCE_SVoxelTerrainLevel *tl3 = NULL;
     SCE_TVector3 v, invv;
 
     if (level > 0)
@@ -1079,21 +1053,21 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
         SCE_Texture_Use (vt->side_diffuse);
         SCE_Texture_EndLot ();
 
-        SCE_Shader_Use (vt->lod_shd.shd);
+        SCE_Shader_Use (lod_shd->shd);
 
         SCE_Vector3_Set (v, tl->x + tl->map_x - tl3->map_x * 2.0,
                          tl->y + tl->map_y - tl3->map_y * 2.0,
                          tl->z + tl->map_z - tl3->map_z * 2.0);
-        SCE_Shader_SetParam3fv (vt->lod_shd.regions_loc, 1, v);
+        SCE_Shader_SetParam3fv (lod_shd->regions_loc, 1, v);
         SCE_Vector3_Operator2v (v, =, tl->wrap, *, invv);
-        SCE_Shader_SetParam3fv (vt->lod_shd.wrapping0_loc, 1, v);
+        SCE_Shader_SetParam3fv (lod_shd->wrapping0_loc, 1, v);
         SCE_Vector3_Operator2v (v, =, tl3->wrap, *, invv);
-        SCE_Shader_SetParam3fv (vt->lod_shd.wrapping1_loc, 1, v);
-        SCE_Shader_SetParam (vt->lod_shd.enabled_loc, vt->trans_enabled);
-        SCE_Shader_SetParam (vt->lod_shd.hightex_loc, 0);
-        SCE_Shader_SetParam (vt->lod_shd.lowtex_loc, 1);
-        SCE_Shader_SetParam (vt->lod_shd.topdiffuse_loc, 2);
-        SCE_Shader_SetParam (vt->lod_shd.sidediffuse_loc, 3);
+        SCE_Shader_SetParam3fv (lod_shd->wrapping1_loc, 1, v);
+        SCE_Shader_SetParam (lod_shd->enabled_loc, vt->trans_enabled);
+        SCE_Shader_SetParam (lod_shd->hightex_loc, 0);
+        SCE_Shader_SetParam (lod_shd->lowtex_loc, 1);
+        SCE_Shader_SetParam (lod_shd->topdiffuse_loc, 2);
+        SCE_Shader_SetParam (lod_shd->sidediffuse_loc, 3);
     } else {
 
         SCE_Texture_BeginLot ();
@@ -1105,15 +1079,15 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
         SCE_Texture_Use (vt->side_diffuse);
         SCE_Texture_EndLot ();
 
-        SCE_Shader_Use (vt->def_shd.shd);
+        SCE_Shader_Use (def_shd->shd);
 
         if (0/*generate_normals*/) {
             SCE_Vector3_Operator2v (v, =, tl->wrap, *, invv);
-            SCE_Shader_SetParam3fv (vt->def_shd.wrapping0_loc, 1, v);
+            SCE_Shader_SetParam3fv (def_shd->wrapping0_loc, 1, v);
         }
-        /*SCE_Shader_SetParam (vt->def_shd.hightex_loc, 0);*/
-        SCE_Shader_SetParam (vt->def_shd.topdiffuse_loc, 1);
-        SCE_Shader_SetParam (vt->def_shd.sidediffuse_loc, 2);
+        /*SCE_Shader_SetParam (def_shd->hightex_loc, 0);*/
+        SCE_Shader_SetParam (def_shd->topdiffuse_loc, 1);
+        SCE_Shader_SetParam (def_shd->sidediffuse_loc, 2);
     }
 
     for (z = 0; z < tl->subregions; z++) {
@@ -1156,14 +1130,14 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
                          (float)z * (vt->subregion_dim - DERP) * invd);
 
                     if (level < vt->n_levels - 1)
-                        SCE_Shader_SetParam3fv (vt->lod_shd.current_loc, 1, pos);
+                        SCE_Shader_SetParam3fv (lod_shd->current_loc, 1, pos);
 
                     SCE_Vector3_Set (v, tl->x * invw, tl->y * invh, tl->z * invd);
 
                     if (level < vt->n_levels - 1)
-                        SCE_Shader_SetParam3fv (vt->lod_shd.tcorigin_loc, 1, v);
+                        SCE_Shader_SetParam3fv (lod_shd->tcorigin_loc, 1, v);
                     else
-                        SCE_Shader_SetParam3fv (vt->def_shd.tcorigin_loc, 1, v);
+                        SCE_Shader_SetParam3fv (def_shd->tcorigin_loc, 1, v);
 
                     SCE_Vector3_Operator1v (pos, +=, origin);
                     SCE_Matrix4_Identity (m);
@@ -1187,17 +1161,30 @@ static void SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt,
 void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 {
     int i;
+    SCE_SVoxelTerrainShader *lodshd = NULL, *defshd = NULL;
+    unsigned int state = 0;
 
     vt->scale = vt->width * vt->unit;
 
-    SCE_RSetStencilOp (SCE_KEEP, SCE_KEEP, SCE_REPLACE);
-    SCE_RClearStencil (255);
-    SCE_RClear (SCE_STENCIL_BUFFER_BIT);
-    SCE_REnableStencilTest ();
+    if (vt->shadow_mode) {
+        state = SCE_VTERRAIN_USE_SHADOWS;
+        lodshd = &vt->shaders[state | SCE_VTERRAIN_USE_LOD];
+        defshd = &vt->shaders[state];
+        for (i = 0; i < vt->n_levels; i++) {
+            SCE_VTerrain_RenderLevel (vt, i, lodshd, defshd);
+        }
+    } else {
+        lodshd = &vt->shaders[SCE_VTERRAIN_USE_LOD];
+        defshd = &vt->shaders[0];
+        SCE_RSetStencilOp (SCE_KEEP, SCE_KEEP, SCE_REPLACE);
+        SCE_RClearStencil (255);
+        SCE_RClear (SCE_STENCIL_BUFFER_BIT);
+        SCE_REnableStencilTest ();
 
-    for (i = 0; i < vt->n_levels; i++) {
-        SCE_RSetStencilFunc (SCE_LEQUAL, i + 1, ~0U);
-        SCE_VTerrain_RenderLevel (vt, i);
+        for (i = 0; i < vt->n_levels; i++) {
+            SCE_RSetStencilFunc (SCE_LEQUAL, i + 1, ~0U);
+            SCE_VTerrain_RenderLevel (vt, i, lodshd, defshd);
+        }
+        SCE_RDisableStencilTest ();
     }
-    SCE_RDisableStencilTest ();
 }

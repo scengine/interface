@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 07/04/2012 */
+   updated: 10/04/2012 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
@@ -98,6 +98,16 @@ struct sce_svoxelterrainshader {
     int sidediffuse_loc;
 };
 
+/* shader flags */
+#define SCE_VTERRAIN_USE_LOD (0x00000001)
+#define SCE_VTERRAIN_USE_SHADOWS (0x00000002)
+/* number of flags combinations (2^2 = 4) */
+#define SCE_NUM_VTERRAIN_SHADERS (SCE_VTERRAIN_USE_SHADOWS << 1)
+
+#define SCE_VTERRAIN_USE_LOD_NAME "SCE_VTERRAIN_USE_LOD"
+#define SCE_VTERRAIN_USE_SHADOWS_NAME "SCE_VTERRAIN_USE_SHADOWS"
+
+/* maximum number of terrain levels */
 #define SCE_MAX_VTERRAIN_LEVELS 16
 
 /** \copydoc sce_svoxelterrain */
@@ -131,8 +141,10 @@ struct sce_svoxelterrain {
                                      per frame */
 
     int trans_enabled;
-    SCE_SVoxelTerrainShader lod_shd; /**< Seamless transition shader */
-    SCE_SVoxelTerrainShader def_shd; /**< Simple terrain rendering shader */
+    int shadow_mode;                 /**< Whether we are filling shadow maps */
+
+    SCE_SShader *pipeline;           /**< Pipeline of all shaders below */
+    SCE_SVoxelTerrainShader shaders[SCE_NUM_VTERRAIN_SHADERS];
 
     /** \brief Diffuse textures of the terrain */
     SCE_STexture *top_diffuse;
@@ -160,14 +172,14 @@ SCEuint SCE_VTerrain_GetNumLevels (const SCE_SVoxelTerrain*);
 void SCE_VTerrain_SetSubRegionDimension (SCE_SVoxelTerrain*, SCEuint);
 void SCE_VTerrain_SetNumSubRegions (SCE_SVoxelTerrain*, SCEuint);
 
-void SCE_VTerrain_SetLodShader (SCE_SVoxelTerrain*, SCE_SShader*);
-void SCE_VTerrain_SetDefaultShader (SCE_SVoxelTerrain*, SCE_SShader*);
+void SCE_VTerrain_SetShader (SCE_SVoxelTerrain*, SCE_SShader*);
 
 void SCE_VTerrain_SetTopDiffuseTexture (SCE_SVoxelTerrain*, SCE_STexture*);
 SCE_STexture* SCE_VTerrain_GetTopDiffuseTexture (SCE_SVoxelTerrain*);
 void SCE_VTerrain_SetSideDiffuseTexture (SCE_SVoxelTerrain*, SCE_STexture*);
 SCE_STexture* SCE_VTerrain_GetSideDiffuseTexture (SCE_SVoxelTerrain*);
 
+int SCE_VTerrain_BuildShader (SCE_SVoxelTerrain*, SCE_SShader*);
 int SCE_VTerrain_Build (SCE_SVoxelTerrain*);
 
 void SCE_VTerrain_SetPosition (SCE_SVoxelTerrain*, long, long, long);
@@ -192,6 +204,7 @@ void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain*, SCEuint,
 int SCE_VTerrain_GetOffset (const SCE_SVoxelTerrain*, SCEuint,
                             int*, int*, int*);
 
+void SCE_VTerrain_ActivateShadowMode (SCE_SVoxelTerrain*, int);
 void SCE_VTerrain_Render (SCE_SVoxelTerrain*);
 
 #ifdef __cplusplus
