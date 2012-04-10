@@ -257,9 +257,9 @@ static void* SCE_Shader_LoadSources (FILE *fp, const char *fname)
     long pos[SCE_NUM_SHADER_TYPES];
     long begin[SCE_NUM_SHADER_TYPES];
     long end[SCE_NUM_SHADER_TYPES];
-    int type;
     SCE_RShaderType i;
 
+    (void)fname;
     if (!(srcs = SCE_malloc (SCE_NUM_SHADER_TYPES * sizeof *srcs))) {
         SCEE_LogSrc ();
         return NULL;
@@ -315,6 +315,7 @@ void* SCE_Shader_LoadSourceFromFile (FILE *fp, const char *fname, void *uusd)
     char *ptr = NULL;
     char **srcs = NULL;
 
+    (void)uusd;
     srcs = SCE_Shader_LoadSources (fp, fname);
     if (!srcs) {
         SCEE_LogSrc ();
@@ -358,10 +359,10 @@ void* SCE_Shader_LoadSourceFromFile (FILE *fp, const char *fname, void *uusd)
 
 static void* SCE_Shader_LoadResource (const char *name, int force, void *data)
 {
-    SCE_RShaderType i;
     SCE_SShader *shader = NULL;
     char **srcs = NULL;
 
+    (void)data;
     if (force > 0)
         force--;
 
@@ -420,16 +421,31 @@ int SCE_Shader_SetupPipeline (SCE_SShader *shader,
         goto fail;
     shader->pipeline.n_shaders = n_states;
 
-    for (i = 0; i < n_states; i++) {
+    shader->pipeline.shaders[0] = shader; /* tkt */
 
-        if (i == 0)
-            shader->pipeline.shaders[0] = shader; /* tkt */
-        else {
-            /* 1 to force reloading shader but not source code */
-            if (!(shader->pipeline.shaders[i] =SCE_Shader_Load(shader->path,1)))
+    for (i = 1; i < n_states; i++) {
+        SCE_SShader *shd = NULL;
+
+        /* 1 to force reloading shader but not source code */
+        if (shader->path)
+            shd = SCE_Shader_Load (shader->path, 1);
+        else
+            shd = SCE_Shader_Create ();
+        if (!shd) goto fail;
+
+        /* also add additional code */
+        for (j = 0; j < SCE_NUM_SHADER_TYPES; j++) {
+            if (shader->addsrc[j] &&
+                !(shd->addsrc[j] = SCE_String_Dup (shader->addsrc[j])))
                 goto fail;
         }
 
+        shader->pipeline.shaders[i] = shd;
+    }
+
+    /* define macros in a separate loop otherwise it will result in
+       duplicate code */
+    for (i = 0; i < n_states; i++) {
         for (j = 0; j < state->n_states; j++) {
             const char *foo = "0";
             if (i & (1 << j))
