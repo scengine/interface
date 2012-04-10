@@ -199,11 +199,13 @@ static int SCE_Shader_SetPosFile (FILE *fp, const char *str, int at_end)
         cur++;
 
         for (i = 0; i < lenstr; i++) {
-            buf[i] = fgetc (fp);
-            if (buf[i] == EOF) {
+            int c = fgetc (fp);
+            if (c == EOF) {
+                buf[i] = 0;
                 fseek (fp, curo, SEEK_SET);
                 return 0;
             }
+            buf[i] = c;
         }
 
         if (SCE_String_Cmp (str, buf, SCE_FALSE) == 0) {
