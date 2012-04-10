@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 08/02/2012 */
+   updated: 10/04/2012 */
 
 #ifndef SCESHADERS_H
 #define SCESHADERS_H
@@ -173,6 +173,7 @@ void SCE_Shader_Disable (void);
 
 void SCE_Shader_Use (SCE_SShader*);
 void SCE_Shader_UsePipeline (SCE_SShader*, SCEuint);
+size_t SCE_Shader_GetNumShaders (SCE_SShader*);
 SCE_SShader* SCE_Shader_GetShader (SCE_SShader*, SCEuint);
 
 void SCE_Shader_Lock (void);

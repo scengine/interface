@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 06/03/2007
-   updated: 08/02/2012 */
+   updated: 10/04/2012 */
 
 #include <ctype.h>
 #include <SCE/utils/SCEUtils.h>
@@ -932,6 +932,16 @@ void SCE_Shader_UsePipeline (SCE_SShader *shader, SCEuint state)
 SCE_SShader* SCE_Shader_GetShader (SCE_SShader *shader, SCEuint state)
 {
     return shader->pipeline.shaders[state];
+}
+/**
+ * \brief Gives the number of shaders in the pipeline
+ * \param shader a shader
+ * \return the number of shaders in \p shader
+ * \sa SCE_Shader_GetShader()
+ */
+size_t SCE_Shader_GetNumShaders (SCE_SShader *shader)
+{
+    return shader->pipeline.n_shaders;
 }
 
 
