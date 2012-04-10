@@ -69,7 +69,7 @@ typedef struct sce_sscenestates SCE_SSceneStates;
  * \todo add contribution_size, clear colors, and other stuff
  */
 struct sce_sscenestates {
-    SCEuint state;
+    SCEuint state;              /**< Bitfield of activated states */
     int clearcolor, cleardepth; /**< Clear the buffers? */
     int frustum_culling; /**< Use frustum culling? */
     int lighting;        /**< Use lighting? */

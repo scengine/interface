@@ -1220,8 +1220,11 @@ static void SCE_Scene_ForwardRender (SCE_SScene *scene, SCE_SCamera *cam,
             SCE_Light_Use (SCE_List_GetData (it));
     }
 
-    if (scene->vterrain)
+    if (scene->vterrain) {
+        int mode = scene->state->state & SCE_SCENE_SHADOW_MAP_STATE;
+        SCE_VTerrain_ActivateShadowMode (scene->vterrain, mode);
         SCE_VTerrain_Render (scene->vterrain);
+    }
     SCE_Scene_RenderEntities (scene, &scene->entities);
 
     SCE_Light_Use (NULL);
@@ -1705,8 +1708,11 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
 
     /* rendering with default shader */
     SCE_SceneEntity_SetDefaultShader (scene->deferred_shader);
-    if (scene->vterrain)
+    if (scene->vterrain) {
+        int mode = scene->state->state & SCE_SCENE_SHADOW_MAP_STATE;
+        SCE_VTerrain_ActivateShadowMode (scene->vterrain, mode);
         SCE_VTerrain_Render (scene->vterrain);
+    }
     SCE_Scene_RenderEntities (scene, &scene->entities);
     SCE_SceneEntity_SetDefaultShader (NULL);
 

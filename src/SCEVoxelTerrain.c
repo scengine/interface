@@ -1167,12 +1167,14 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
     vt->scale = vt->width * vt->unit;
 
     if (vt->shadow_mode) {
+        SCE_Shader_Unlock ();       /* haxxx */
         state = SCE_VTERRAIN_USE_SHADOWS;
         lodshd = &vt->shaders[state | SCE_VTERRAIN_USE_LOD];
         defshd = &vt->shaders[state];
         for (i = 0; i < vt->n_levels; i++) {
             SCE_VTerrain_RenderLevel (vt, i, lodshd, defshd);
         }
+        SCE_Shader_Lock ();
     } else {
         lodshd = &vt->shaders[SCE_VTERRAIN_USE_LOD];
         defshd = &vt->shaders[0];
