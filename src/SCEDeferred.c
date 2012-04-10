@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 04/08/2011
-   updated: 16/11/2011 */
+   updated: 10/04/2012 */
 
 #include <SCE/core/SCECore.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -94,7 +94,6 @@ static void SCE_Deferred_Clear (SCE_SDeferred *def)
     SCE_Shader_Delete (def->final_shader);
     SCE_Shader_Delete (def->skybox_shader);
     for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
-        int j;
         SCE_Shader_Delete (def->shadow_shaders[i]);
         SCE_Texture_Delete (def->shadowmaps[i]);
         /* only delete the first shader, let's just hope the lighting shader
@@ -222,59 +221,84 @@ static const char *sce_skybox_ps =
     "}";
 
 
-static const char *sce_shadow_vs[SCE_NUM_LIGHT_TYPES] = {
+static const char *sce_shadow_add_vs[SCE_NUM_LIGHT_TYPES] = {
+    /* point */
+    "out vec4 "SCE_DEFERRED_CAMERA_SPACE_POS_NAME";",
+    /* spot */
+    "out vec4 "SCE_DEFERRED_CAMERA_SPACE_POS_NAME";",
+    /* sun */
+    "out float "SCE_DEFERRED_PROJECTION_SPACE_Z_NAME";"
+};
+static const char *sce_shadow_main_vs[SCE_NUM_LIGHT_TYPES] = {
     /* point */
     "uniform mat4 sce_modelviewmatrix;"
     "uniform mat4 sce_projectionmatrix;"
-    "varying vec4 pos;"
     "void main (void)"
     "{"
     "  vec4 p = sce_modelviewmatrix * gl_Vertex;"
-    "  pos = p;"
+    "  "SCE_DEFERRED_CAMERA_SPACE_POS_NAME" = p;"
     "  gl_Position = sce_projectionmatrix * p;"
     "}",
     /* spot */
     "uniform mat4 sce_modelviewmatrix;"
     "uniform mat4 sce_projectionmatrix;"
-    "varying vec4 pos;"
     "void main (void)"
     "{"
     "  vec4 p = sce_modelviewmatrix * gl_Vertex;"
-    "  pos = p;"
+    "  "SCE_DEFERRED_CAMERA_SPACE_POS_NAME" = p;"
     "  gl_Position = sce_projectionmatrix * p;"
     "}",
     /* sun */
     "uniform mat4 sce_modelviewmatrix;"
     "uniform mat4 sce_projectionmatrix;"
-    "varying float z;"
     "void main (void)"
     "{"
     "  vec4 p = sce_projectionmatrix * sce_modelviewmatrix * gl_Vertex;"
-    "  z = p.z;"
+    "  "SCE_DEFERRED_PROJECTION_SPACE_Z_NAME" = p.z;"
     "  gl_Position = p;"
     "}"
 };
-static const char *sce_shadow_ps[SCE_NUM_LIGHT_TYPES] = {
+
+static const char *sce_shadow_add_ps[SCE_NUM_LIGHT_TYPES] = {
     /* point */
     "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
-    "varying vec4 pos;"
-    "void main (void)"
+    "in vec4 "SCE_DEFERRED_CAMERA_SPACE_POS_NAME";"
+    "float sce_deferred_getdepth (void)"
     "{"
-    "  gl_FragDepth = length (pos) * "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
+    "  return length ("SCE_DEFERRED_CAMERA_SPACE_POS_NAME") *"
+    "                "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
     "}",
     /* spot */
     "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
-    "varying vec4 pos;"
-    "void main (void)"
+    "in vec4 "SCE_DEFERRED_CAMERA_SPACE_POS_NAME";"
+    "float sce_deferred_getdepth (void)"
     "{"
-    "  gl_FragDepth = length (pos) * "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
+    "  return length ("SCE_DEFERRED_CAMERA_SPACE_POS_NAME") *"
+    "                "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
     "}",
     /* sun */
-    "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
-    "varying float z;"
+    "in float "SCE_DEFERRED_PROJECTION_SPACE_Z_NAME";"
+    "float sce_deferred_getdepth (void)"
+    "{"
+    "  return "SCE_DEFERRED_PROJECTION_SPACE_Z_NAME";"
+    "}"
+
+};
+static const char *sce_shadow_main_ps[SCE_NUM_LIGHT_TYPES] = {
+    /* point */
     "void main (void)"
     "{"
-    "  gl_FragDepth = z;"
+    "  gl_FragDepth = sce_deferred_getdepth ();"
+    "}",
+    /* spot */
+    "void main (void)"
+    "{"
+    "  gl_FragDepth = sce_deferred_getdepth ();"
+    "}",
+    /* sun */
+    "void main (void)"
+    "{"
+    "  gl_FragDepth = sce_deferred_getdepth ();"
     "}"
 };
 
@@ -421,16 +445,18 @@ int SCE_Deferred_Build (SCE_SDeferred *def,
         if (!(def->shadow_shaders[i] = SCE_Shader_Create ()))
             goto fail;
         if (SCE_Shader_AddSource (def->shadow_shaders[i], SCE_VERTEX_SHADER,
-                                  sce_shadow_vs[i], SCE_FALSE) < 0)
+                                  sce_shadow_main_vs[i], SCE_FALSE) < 0)
             goto fail;
         if (SCE_Shader_AddSource (def->shadow_shaders[i], SCE_PIXEL_SHADER,
-                                  sce_shadow_ps[i], SCE_FALSE) < 0)
+                                  sce_shadow_main_ps[i], SCE_FALSE) < 0)
             goto fail;
         /* TODO: do this. */
 #if 0
         if (SCE_Shader_Global (def->shadow_shaders[i], "lighttype", "1") < 0)
             goto fail;
 #endif
+        if (SCE_Deferred_BuildShadowShader (def, def->shadow_shaders[i], i) < 0)
+            goto fail;
         if (SCE_Shader_Build (def->shadow_shaders[i]) < 0)
             goto fail;
         def->factor_loc[i] =
@@ -531,9 +557,8 @@ static const char *sce_unpack_position_fun =
  * \param def a deferred renderer
  * \param shader the shader to build
  *
- * This function comes in replacement of SCE_Shader_Build(). It adds
- * some code to the shader to make it work well with the given renderer.
- * 
+ * Adds code to make a shader work for use with the given deferred renderer
+ *
  * \returns SCE_ERROR on error, SCE_OK otherwise
  * \deprecated
  * \todo deprecated... no it's not deprecated.
@@ -553,6 +578,32 @@ fail:
     SCEE_LogSrc ();
     return SCE_ERROR;
 }
+
+/**
+ * \brief Shaders factory
+ * \param def a deferred renderer
+ * \param shader the shader to build
+ *
+ * Adds code to make a shader work for use with the given deferred renderer
+ *
+ * \returns SCE_ERROR on error, SCE_OK otherwise
+ */
+int SCE_Deferred_BuildShadowShader (SCE_SDeferred *def, SCE_SShader *shader,
+                                    SCE_ELightType type)
+{
+    (void)def;
+    if (SCE_Shader_AddSource (shader, SCE_VERTEX_SHADER,
+                              sce_shadow_add_vs[type], SCE_TRUE) < 0)
+        goto fail;
+    if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
+                              sce_shadow_add_ps[type], SCE_TRUE) < 0)
+        goto fail;
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
+}
+
 
 
 static const char *sce_final_uniforms_code[SCE_NUM_LIGHT_TYPES] = {

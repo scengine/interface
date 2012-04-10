@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2011  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 04/08/2011
-   updated: 24/10/2011 */
+   updated: 10/04/2012 */
 
 #ifndef SCEDEFERRED_H
 #define SCEDEFERRED_H
@@ -70,6 +70,10 @@ extern "C" {
 #define SCE_DEFERRED_USE_SOFT_SHADOWS_NAME "SCE_DEFERRED_USE_SOFT_SHADOWS"
 #define SCE_DEFERRED_USE_SPECULAR_NAME "SCE_DEFERRED_USE_SPECULAR"
 #define SCE_DEFERRED_USE_IMAGE_NAME "SCE_DEFERRED_USE_IMAGE"
+
+/* huhu. */
+#define SCE_DEFERRED_CAMERA_SPACE_POS_NAME "sce_camera_space_pos"
+#define SCE_DEFERRED_PROJECTION_SPACE_Z_NAME "sce_projection_space_z"
 
 #define SCE_MAX_DEFERRED_CASCADED_SPLITS 16
 
@@ -157,6 +161,8 @@ int SCE_Deferred_GetLightFlagsMask (SCE_SDeferred*);
 
 int SCE_Deferred_Build (SCE_SDeferred*, const char*[SCE_NUM_LIGHT_TYPES]);
 int SCE_Deferred_BuildShader (SCE_SDeferred*, SCE_SShader*);
+int SCE_Deferred_BuildShadowShader (SCE_SDeferred*, SCE_SShader*,
+                                    SCE_ELightType);
 int SCE_Deferred_BuildLightShader (SCE_SDeferred*, SCE_ELightType,
                                    SCE_SDeferredLightingShader*, const char*);
 
