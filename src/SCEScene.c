@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2008
-   updated: 02/02/2012 */
+   updated: 11/04/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -1261,7 +1261,6 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
     if (!(flags & SCE_DEFERRED_USE_SHADOWS)) {
         SCE_Shader_Use (shader->shader);
     } else {
-        float coeff;
         SCE_STexture *sm = def->shadowmaps[type]; /* shadow map */
         /* TODO: matrix type */
         float *mat = NULL;
@@ -1275,15 +1274,12 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_Node_Attach (node, SCE_Camera_GetNode (def->cam));
         SCE_Node_TransformNoScale (SCE_Camera_GetNode (def->cam));
 
-        coeff = 1.0 / SCE_Light_GetRadius (light);
-        SCE_Shader_Use (def->shadow_shaders[type]);
-        /* TODO: omg ugly, should be named depthfactor_loc and mdr */
-        SCE_Shader_SetParamf (def->factor_loc[type], coeff);
-
         /* TODO: setup states */
         SCE_RSetState (GL_BLEND, SCE_FALSE);
+        SCE_RActivateColorBuffer (SCE_FALSE); /* ensure depth-only rendering */
         SCE_Deferred_PopStates (def);
         SCE_Scene_PushStates (scene);
+        SCE_Shader_Use (def->shadowcube_shader);
         SCE_Shader_Lock ();
         scene->state->state = SCE_SCENE_SHADOW_MAP_STATE;
         scene->state->lighting = SCE_FALSE;
@@ -1320,6 +1316,7 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_Shader_Unlock ();
         SCE_Scene_PopStates (scene);
         SCE_Deferred_PushStates (def);
+        SCE_RActivateColorBuffer (SCE_TRUE);
         /* TODO: LOL glnames + crap set state */
         SCE_RSetState (GL_BLEND, SCE_TRUE);
         SCE_RSetBlending (GL_ONE, GL_ONE);
@@ -1330,7 +1327,6 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
         /* TODO: light's matrix missing: light rotations wont work */
         SCE_Shader_SetMatrix4 (shader->lightviewproj_loc,
                                SCE_Camera_GetFinalViewInverse (cam));
-        SCE_Shader_SetParamf (shader->depthfactor_loc, coeff);
     }
 
     /* get light's position in view space */
@@ -1453,7 +1449,6 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
         float dist;
         float splits[SCE_MAX_DEFERRED_CASCADED_SPLITS + 1];
         SCE_TMatrix4 matrices[SCE_MAX_DEFERRED_CASCADED_SPLITS];
-        float coeff[SCE_MAX_DEFERRED_CASCADED_SPLITS];
         float far;
 
         dist = 10000.0;  /* TODO: use octree's size to setup the distance */
@@ -1464,15 +1459,16 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
 
         /* TODO: setup states */
         SCE_RSetState (GL_BLEND, SCE_FALSE);
+        SCE_RActivateColorBuffer (SCE_FALSE); /* ensure depth-only rendering */
         SCE_Deferred_PopStates (def);
         SCE_Scene_PushStates (scene);
-        SCE_Shader_Use (def->shadow_shaders[type]);
+        SCE_Shader_Use (NULL);
         SCE_Shader_Lock ();
         scene->state->state = SCE_SCENE_SHADOW_MAP_STATE;
         scene->state->lighting = SCE_FALSE;
         scene->state->deferred = SCE_FALSE;
         scene->state->skybox = NULL;
-        scene->state->clearcolor = SCE_TRUE;
+        scene->state->clearcolor = SCE_TRUE; /* wtf? */
         scene->state->cleardepth = SCE_TRUE;
         scene->state->rendertarget = NULL;
 
@@ -1517,7 +1513,6 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
                in world space */
             SCE_Matrix4_MulCopy (matrices[i],
                                  SCE_Camera_GetFinalViewInverse (cam));
-            coeff[i] = SCE_Matrix4_GetOrthoDepth (proj);
         }
         /* shadow map is now filled!1 */
 
@@ -1525,6 +1520,7 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_Scene_PopStates (scene);
         SCE_Deferred_PushStates (def);
 
+        SCE_RActivateColorBuffer (SCE_TRUE);
         /* TODO: LOL glnames + crap set state */
         SCE_RSetState (GL_BLEND, SCE_TRUE);
         SCE_RSetBlending (GL_ONE, GL_ONE);
@@ -1535,8 +1531,6 @@ SCE_Deferred_RenderSun (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_Shader_SetMatrix4v (shader->lightviewproj_loc, matrices,
                                 def->cascaded_splits);
         SCE_Shader_SetParam (shader->csmnumsplits_loc, def->cascaded_splits);
-        SCE_Shader_SetParamfv (shader->depthfactor_loc, def->cascaded_splits,
-                               coeff);
     }
 
     /* get light's position in view space */
@@ -1585,8 +1579,6 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
     if (!(flags & SCE_DEFERRED_USE_SHADOWS)) {
         SCE_Shader_Use (shader->shader);
     } else {
-        float coeff;
-
         /* render shadow map */
         SCE_Camera_SetViewport (def->cam, 0, 0, def->sm_w, def->sm_h);
         SCE_Camera_SetProjectionFromCone (def->cam, &cone, 0.1);
@@ -1595,15 +1587,12 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_Node_Attach (node, SCE_Camera_GetNode (def->cam));
         SCE_Node_SetMatrix (SCE_Camera_GetNode (def->cam), sce_matrix4_id);
 
-        coeff = 1.0 / SCE_Cone_GetHeight (&cone);
-        SCE_Shader_Use (def->shadow_shaders[type]);
-        /* TODO: omg ugly, should be named depthfactor_loc and mdr */
-        SCE_Shader_SetParamf (def->factor_loc[type], coeff);
-
         /* TODO: setup states */
         SCE_RSetState (GL_BLEND, SCE_FALSE);
+        SCE_RActivateColorBuffer (SCE_FALSE); /* ensure depth-only rendering */
         SCE_Deferred_PopStates (def);
         SCE_Scene_PushStates (scene);
+        SCE_Shader_Use (NULL);
         SCE_Shader_Lock ();
         scene->state->state = SCE_SCENE_SHADOW_MAP_STATE;
         scene->state->lighting = SCE_FALSE;
@@ -1618,6 +1607,7 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_Shader_Unlock ();
         SCE_Scene_PopStates (scene);
         SCE_Deferred_PushStates (def);
+        SCE_RActivateColorBuffer (SCE_TRUE);
         /* TODO: LOL glnames + crap set state */
         SCE_RSetState (GL_BLEND, SCE_TRUE);
         SCE_RSetBlending (GL_ONE, GL_ONE);
@@ -1632,7 +1622,6 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
                in world space */
             SCE_Shader_SetMatrix4 (shader->lightviewproj_loc, mat);
         }
-        SCE_Shader_SetParamf (shader->depthfactor_loc, coeff);
 
         /* reset camera */
         SCE_Node_Detach (SCE_Camera_GetNode (def->cam));

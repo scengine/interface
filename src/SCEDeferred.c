@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 04/08/2011
-   updated: 10/04/2012 */
+   updated: 11/04/2012 */
 
 #include <SCE/core/SCECore.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -69,14 +69,15 @@ static void SCE_Deferred_Init (SCE_SDeferred *def)
 
     def->amb_color[0] = def->amb_color[1] = def->amb_color[2] = 0.1f;
 
-    def->skybox_shader = NULL;
+    def->skybox_shader = def->final_shader = NULL;
     def->lightflags_mask = SCE_DEFERRED_USE_ALL;
+
+    def->shadowcube_shader = NULL;
+    def->shadowcube_factor_loc = SCE_SHADER_BAD_INDEX;
 
     for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
         int j;
-        def->shadow_shaders[i] = NULL;
         def->shadowmaps[i] = NULL;
-        def->factor_loc[i] = -1;
         for (j = 0; j < SCE_NUM_DEFERRED_LIGHT_FLAGS; j++)
             SCE_Deferred_InitLightingShader (&def->shaders[i][j]);
     }
@@ -93,8 +94,8 @@ static void SCE_Deferred_Clear (SCE_SDeferred *def)
 
     SCE_Shader_Delete (def->final_shader);
     SCE_Shader_Delete (def->skybox_shader);
+    SCE_Shader_Delete (def->shadowcube_shader);
     for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
-        SCE_Shader_Delete (def->shadow_shaders[i]);
         SCE_Texture_Delete (def->shadowmaps[i]);
         /* only delete the first shader, let's just hope the lighting shader
            structure doesn't have other pointers to free than the shader */
@@ -221,16 +222,20 @@ static const char *sce_skybox_ps =
     "}";
 
 
-static const char *sce_shadow_add_vs[SCE_NUM_LIGHT_TYPES] = {
-    /* point */
-    "out vec4 "SCE_DEFERRED_CAMERA_SPACE_POS_NAME";",
-    /* spot */
-    "out vec4 "SCE_DEFERRED_CAMERA_SPACE_POS_NAME";",
-    /* sun */
-    "out float "SCE_DEFERRED_PROJECTION_SPACE_Z_NAME";"
-};
-static const char *sce_shadow_main_vs[SCE_NUM_LIGHT_TYPES] = {
-    /* point */
+#define SCE_MY_STR_(a) #a
+#define SCE_MY_STR(a) SCE_MY_STR_(a)
+
+static const char *shadowcube_vs_fun =
+    "out vec4 "SCE_DEFERRED_CAMERA_SPACE_POS_NAME";";
+static const char *shadowcube_ps_fun =
+    "in vec4 "SCE_DEFERRED_CAMERA_SPACE_POS_NAME";"
+    "float sce_deferred_getdepth (void)"
+    "{"
+    "  return "SCE_MY_STR (SCE_DEFERRED_POINT_LIGHT_DEPTH_FACTOR)""
+    "        * length ("SCE_DEFERRED_CAMERA_SPACE_POS_NAME");"
+    "}";
+
+static const char *shadowcube_main_vs =
     "uniform mat4 sce_modelviewmatrix;"
     "uniform mat4 sce_projectionmatrix;"
     "void main (void)"
@@ -238,69 +243,14 @@ static const char *sce_shadow_main_vs[SCE_NUM_LIGHT_TYPES] = {
     "  vec4 p = sce_modelviewmatrix * gl_Vertex;"
     "  "SCE_DEFERRED_CAMERA_SPACE_POS_NAME" = p;"
     "  gl_Position = sce_projectionmatrix * p;"
-    "}",
-    /* spot */
-    "uniform mat4 sce_modelviewmatrix;"
-    "uniform mat4 sce_projectionmatrix;"
-    "void main (void)"
-    "{"
-    "  vec4 p = sce_modelviewmatrix * gl_Vertex;"
-    "  "SCE_DEFERRED_CAMERA_SPACE_POS_NAME" = p;"
-    "  gl_Position = sce_projectionmatrix * p;"
-    "}",
-    /* sun */
-    "uniform mat4 sce_modelviewmatrix;"
-    "uniform mat4 sce_projectionmatrix;"
-    "void main (void)"
-    "{"
-    "  vec4 p = sce_projectionmatrix * sce_modelviewmatrix * gl_Vertex;"
-    "  "SCE_DEFERRED_PROJECTION_SPACE_Z_NAME" = p.z;"
-    "  gl_Position = p;"
-    "}"
-};
+    "}";
 
-static const char *sce_shadow_add_ps[SCE_NUM_LIGHT_TYPES] = {
-    /* point */
-    "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
-    "in vec4 "SCE_DEFERRED_CAMERA_SPACE_POS_NAME";"
-    "float sce_deferred_getdepth (void)"
+static const char *shadowcube_main_ps =
+    "void main (void)"
     "{"
-    "  return length ("SCE_DEFERRED_CAMERA_SPACE_POS_NAME") *"
-    "                "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
-    "}",
-    /* spot */
-    "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
-    "in vec4 "SCE_DEFERRED_CAMERA_SPACE_POS_NAME";"
-    "float sce_deferred_getdepth (void)"
-    "{"
-    "  return length ("SCE_DEFERRED_CAMERA_SPACE_POS_NAME") *"
-    "                "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
-    "}",
-    /* sun */
-    "in float "SCE_DEFERRED_PROJECTION_SPACE_Z_NAME";"
-    "float sce_deferred_getdepth (void)"
-    "{"
-    "  return "SCE_DEFERRED_PROJECTION_SPACE_Z_NAME";"
-    "}"
+    "  gl_FragDepth = sce_deferred_getdepth ();"
+    "}";
 
-};
-static const char *sce_shadow_main_ps[SCE_NUM_LIGHT_TYPES] = {
-    /* point */
-    "void main (void)"
-    "{"
-    "  gl_FragDepth = sce_deferred_getdepth ();"
-    "}",
-    /* spot */
-    "void main (void)"
-    "{"
-    "  gl_FragDepth = sce_deferred_getdepth ();"
-    "}",
-    /* sun */
-    "void main (void)"
-    "{"
-    "  gl_FragDepth = sce_deferred_getdepth ();"
-    "}"
-};
 
 
 static const char *sce_final_vs =
@@ -440,31 +390,19 @@ int SCE_Deferred_Build (SCE_SDeferred *def,
     SCE_Shader_SetupMatricesMapping (def->skybox_shader);
     SCE_Shader_ActivateMatricesMapping (def->skybox_shader, SCE_TRUE);
 
-    /* setup shadows shaders */
-    for (i = 0; i < SCE_NUM_LIGHT_TYPES; i++) {
-        if (!(def->shadow_shaders[i] = SCE_Shader_Create ()))
-            goto fail;
-        if (SCE_Shader_AddSource (def->shadow_shaders[i], SCE_VERTEX_SHADER,
-                                  sce_shadow_main_vs[i], SCE_FALSE) < 0)
-            goto fail;
-        if (SCE_Shader_AddSource (def->shadow_shaders[i], SCE_PIXEL_SHADER,
-                                  sce_shadow_main_ps[i], SCE_FALSE) < 0)
-            goto fail;
-        /* TODO: do this. */
-#if 0
-        if (SCE_Shader_Global (def->shadow_shaders[i], "lighttype", "1") < 0)
-            goto fail;
-#endif
-        if (SCE_Deferred_BuildShadowShader (def, def->shadow_shaders[i], i) < 0)
-            goto fail;
-        if (SCE_Shader_Build (def->shadow_shaders[i]) < 0)
-            goto fail;
-        def->factor_loc[i] =
-            SCE_Shader_GetIndex (def->shadow_shaders[i],
-                                 SCE_DEFERRED_DEPTH_FACTOR_NAME);
-        SCE_Shader_SetupMatricesMapping (def->shadow_shaders[i]);
-        SCE_Shader_ActivateMatricesMapping (def->shadow_shaders[i], SCE_TRUE);
-    }
+    /* setup default point light shadow map rendering shader */
+    if (!(def->shadowcube_shader = SCE_Shader_Create ())) goto fail;
+    if (SCE_Deferred_BuildPointShadowShader (def, def->shadowcube_shader) < 0)
+        goto fail;
+    if (SCE_Shader_AddSource (def->shadowcube_shader, SCE_VERTEX_SHADER,
+                              shadowcube_main_vs, SCE_FALSE) < 0)
+        goto fail;
+    if (SCE_Shader_AddSource (def->shadowcube_shader, SCE_PIXEL_SHADER,
+                              shadowcube_main_ps, SCE_FALSE) < 0)
+        goto fail;
+    if (SCE_Shader_Build (def->shadowcube_shader) < 0) goto fail;
+    SCE_Shader_SetupMatricesMapping (def->shadowcube_shader);
+    SCE_Shader_ActivateMatricesMapping (def->shadowcube_shader, SCE_TRUE);
 
     return SCE_OK;
 fail:
@@ -580,7 +518,7 @@ fail:
 }
 
 /**
- * \brief Shaders factory
+ * \brief Shaders factory for point light shadow map rendering
  * \param def a deferred renderer
  * \param shader the shader to build
  *
@@ -588,15 +526,15 @@ fail:
  *
  * \returns SCE_ERROR on error, SCE_OK otherwise
  */
-int SCE_Deferred_BuildShadowShader (SCE_SDeferred *def, SCE_SShader *shader,
-                                    SCE_ELightType type)
+int SCE_Deferred_BuildPointShadowShader (SCE_SDeferred *def,
+                                         SCE_SShader *shader)
 {
     (void)def;
     if (SCE_Shader_AddSource (shader, SCE_VERTEX_SHADER,
-                              sce_shadow_add_vs[type], SCE_TRUE) < 0)
+                              shadowcube_vs_fun, SCE_TRUE) < 0)
         goto fail;
     if (SCE_Shader_AddSource (shader, SCE_PIXEL_SHADER,
-                              sce_shadow_add_ps[type], SCE_TRUE) < 0)
+                              shadowcube_ps_fun, SCE_TRUE) < 0)
         goto fail;
     return SCE_OK;
 fail:
@@ -614,7 +552,6 @@ static const char *sce_final_uniforms_code[SCE_NUM_LIGHT_TYPES] = {
     "uniform sampler2D "SCE_DEFERRED_NORMAL_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_SHADOW_MAP_NAME";"
     "uniform samplerCube "SCE_DEFERRED_SHADOW_CUBE_MAP_NAME";"
-    "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
     "uniform mat4 "SCE_DEFERRED_INVPROJ_NAME";"
     "uniform mat4 "SCE_DEFERRED_LIGHT_VIEWPROJ_NAME";"
     "uniform vec3 "SCE_DEFERRED_LIGHT_POSITION_NAME";"
@@ -629,7 +566,6 @@ static const char *sce_final_uniforms_code[SCE_NUM_LIGHT_TYPES] = {
     "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_NORMAL_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_SHADOW_MAP_NAME";"
-    "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME";"
     "uniform mat4 "SCE_DEFERRED_INVPROJ_NAME";"
     "uniform mat4 "SCE_DEFERRED_LIGHT_VIEWPROJ_NAME";"
     "uniform vec3 "SCE_DEFERRED_LIGHT_POSITION_NAME";"
@@ -644,7 +580,6 @@ static const char *sce_final_uniforms_code[SCE_NUM_LIGHT_TYPES] = {
     "uniform sampler2D "SCE_DEFERRED_COLOR_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_NORMAL_TARGET_NAME";"
     "uniform sampler2D "SCE_DEFERRED_SHADOW_MAP_NAME";"
-    "uniform float "SCE_DEFERRED_DEPTH_FACTOR_NAME"[8];"
     "uniform mat4 "SCE_DEFERRED_INVPROJ_NAME";"
     /* TODO: we should use SCE_MAX_DEFERRED_CASCADED_SPLITS */
     "uniform mat4 "SCE_DEFERRED_LIGHT_VIEWPROJ_NAME"[8];"
@@ -715,7 +650,6 @@ int SCE_Deferred_BuildLightShader (SCE_SDeferred *def,
     } while (0)
 
         SCE_DEF_UNI (invproj, SCE_DEFERRED_INVPROJ_NAME);
-        SCE_DEF_UNI (depthfactor, SCE_DEFERRED_DEPTH_FACTOR_NAME);
         SCE_DEF_UNI (lightviewproj, SCE_DEFERRED_LIGHT_VIEWPROJ_NAME);
         SCE_DEF_UNI (lightpos, SCE_DEFERRED_LIGHT_POSITION_NAME);
         SCE_DEF_UNI (lightdir, SCE_DEFERRED_LIGHT_DIRECTION_NAME);

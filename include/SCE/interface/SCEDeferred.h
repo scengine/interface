@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 04/08/2011
-   updated: 10/04/2012 */
+   updated: 11/04/2012 */
 
 #ifndef SCEDEFERRED_H
 #define SCEDEFERRED_H
@@ -37,8 +37,6 @@ extern "C" {
 #define SCE_DEFERRED_SKYBOX_MAP_NAME "sce_skybox_map"
 #define SCE_DEFERRED_SHADOW_MAP_NAME "sce_shadow_map"
 #define SCE_DEFERRED_SHADOW_CUBE_MAP_NAME "sce_shadow_cube_map"
-
-#define SCE_DEFERRED_DEPTH_FACTOR_NAME "sce_depth_factor"
 
 #define SCE_DEFERRED_INVPROJ_NAME "sce_deferred_invproj_matrix"
 
@@ -98,9 +96,12 @@ struct sce_sdeferredlightingshader {
     int lightangle_loc;   /**< Location of the light angle uniform */
     int lightattenuation_loc; /**< Location of the light attenuation uniform */
     int csmnumsplits_loc;     /**< Used for CSM */
-    int depthfactor_loc;  /**< Location of the depth factor for shadows */
     int camviewproj_loc;  /**< Light's camera viewproj matrix location */
 };
+
+#define SCE_MAX_DEFERRED_POINT_LIGHT_RADIUS (1000.0)
+#define SCE_DEFERRED_POINT_LIGHT_DEPTH_FACTOR   \
+    (1.0/SCE_MAX_DEFERRED_POINT_LIGHT_RADIUS)
 
 typedef struct sce_sdeferred SCE_SDeferred;
 struct sce_sdeferred {
@@ -114,7 +115,9 @@ struct sce_sdeferred {
     SCE_SShader *skybox_shader;
     SCE_SShader *final_shader;
 
-    SCE_SShader *shadow_shaders[SCE_NUM_LIGHT_TYPES];
+    /** Shader for rendering point light shadow maps */
+    SCE_SShader *shadowcube_shader;
+    int shadowcube_factor_loc;  /* TODO: unused.. yet. */
 
     int lightflags_mask;
     SCE_SDeferredLightingShader
@@ -123,8 +126,6 @@ struct sce_sdeferred {
     SCEuint sm_w, sm_h;
     SCEuint cascaded_splits;
     float csm_far;              /* customized far plane for CSM */
-    /** Location of the factor uniform of shadow shaders */
-    int factor_loc[SCE_NUM_LIGHT_TYPES];
 
     SCE_SCamera *cam;
 };
@@ -161,8 +162,7 @@ int SCE_Deferred_GetLightFlagsMask (SCE_SDeferred*);
 
 int SCE_Deferred_Build (SCE_SDeferred*, const char*[SCE_NUM_LIGHT_TYPES]);
 int SCE_Deferred_BuildShader (SCE_SDeferred*, SCE_SShader*);
-int SCE_Deferred_BuildShadowShader (SCE_SDeferred*, SCE_SShader*,
-                                    SCE_ELightType);
+int SCE_Deferred_BuildPointShadowShader (SCE_SDeferred*, SCE_SShader*);
 int SCE_Deferred_BuildLightShader (SCE_SDeferred*, SCE_ELightType,
                                    SCE_SDeferredLightingShader*, const char*);
 
