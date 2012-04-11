@@ -44,14 +44,14 @@ static const char *sce_deferred_target_names[SCE_NUM_DEFERRED_TARGETS] = {
 void SCE_Deferred_InitLightingShader (SCE_SDeferredLightingShader *shader)
 {
     shader->shader = NULL;
-    shader->invproj_loc = -1;
-    shader->lightviewproj_loc = -1;
-    shader->lightpos_loc = -1;
-    shader->lightdir_loc = -1;
-    shader->lightcolor_loc = -1;
-    shader->lightradius_loc = -1;
-    shader->lightangle_loc = -1;
-    shader->lightattenuation_loc = -1;
+    shader->invproj_loc = SCE_SHADER_BAD_INDEX;
+    shader->lightviewproj_loc = SCE_SHADER_BAD_INDEX;
+    shader->lightpos_loc = SCE_SHADER_BAD_INDEX;
+    shader->lightdir_loc = SCE_SHADER_BAD_INDEX;
+    shader->lightcolor_loc = SCE_SHADER_BAD_INDEX;
+    shader->lightradius_loc = SCE_SHADER_BAD_INDEX;
+    shader->lightangle_loc = SCE_SHADER_BAD_INDEX;
+    shader->lightattenuation_loc = SCE_SHADER_BAD_INDEX;
 }
 void SCE_Deferred_ClearLightingShader (SCE_SDeferredLightingShader *shader)
 {
