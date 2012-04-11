@@ -1633,6 +1633,10 @@ SCE_Deferred_RenderSpot (SCE_SDeferred *def, SCE_SScene *scene,
             SCE_Shader_SetMatrix4 (shader->lightviewproj_loc, mat);
         }
         SCE_Shader_SetParamf (shader->depthfactor_loc, coeff);
+
+        /* reset camera */
+        SCE_Node_Detach (SCE_Camera_GetNode (def->cam));
+        SCE_Scene_AddNode (scene, SCE_Camera_GetNode (def->cam));
     }
 
     /* get light's position in view space */
