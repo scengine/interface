@@ -141,6 +141,7 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
 
     vt->trans_enabled = SCE_TRUE;
     vt->shadow_mode = SCE_FALSE;
+    vt->point_shadow = SCE_FALSE;
 
     vt->pipeline = NULL;
     for (i = 0; i < SCE_NUM_VTERRAIN_SHADERS; i++)
@@ -610,6 +611,7 @@ fail:
 int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
 {
     size_t i;
+    SCEuint state;
 
     if (vt->built)
         return SCE_OK;
@@ -638,19 +640,25 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
     }
 
     {
-        const char *states[2] = {
+        const char *states[3] = {
             /* order matters */
             SCE_VTERRAIN_USE_LOD_NAME,
-            SCE_VTERRAIN_USE_SHADOWS_NAME
+            SCE_VTERRAIN_USE_SHADOWS_NAME,
+            SCE_VTERRAIN_USE_POINT_SHADOWS_NAME
         };
         SCE_SRenderState rs;
 
         SCE_RenderState_Init (&rs);
-        if (SCE_RenderState_SetStates (&rs, states, 2) < 0)
+        if (SCE_RenderState_SetStates (&rs, states, 3) < 0)
             goto fail;
         if (SCE_Shader_SetupPipeline (vt->pipeline, &rs) < 0) goto fail;
         SCE_RenderState_Clear (&rs);
     }
+
+    state = SCE_VTERRAIN_USE_SHADOWS;
+    SCE_Shader_DisablePipelineShader (vt->pipeline, state, SCE_PIXEL_SHADER);
+    state |= SCE_VTERRAIN_USE_LOD;
+    SCE_Shader_DisablePipelineShader (vt->pipeline, state, SCE_PIXEL_SHADER);
 
     /* build shaders */
     if (SCE_Shader_Build (vt->pipeline) < 0) goto fail;
@@ -1009,6 +1017,11 @@ void SCE_VTerrain_ActivateShadowMode (SCE_SVoxelTerrain *vt, int shadow)
     vt->shadow_mode = shadow;
 }
 
+void SCE_VTerrain_ActivatePointShadowMode (SCE_SVoxelTerrain *vt, int point)
+{
+    vt->point_shadow = point;
+}
+
 static void
 SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt, SCEuint level,
                           SCE_SVoxelTerrainShader *lod_shd,
@@ -1162,13 +1175,15 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 {
     int i;
     SCE_SVoxelTerrainShader *lodshd = NULL, *defshd = NULL;
-    unsigned int state = 0;
 
     vt->scale = vt->width * vt->unit;
 
     if (vt->shadow_mode) {
+        unsigned int state = 0;
         SCE_Shader_Unlock ();       /* haxxx */
-        state = SCE_VTERRAIN_USE_SHADOWS;
+        state |= SCE_VTERRAIN_USE_SHADOWS;
+        if (vt->point_shadow)
+            state |= SCE_VTERRAIN_USE_POINT_SHADOWS;
         lodshd = &vt->shaders[state | SCE_VTERRAIN_USE_LOD];
         defshd = &vt->shaders[state];
         for (i = 0; i < vt->n_levels; i++) {

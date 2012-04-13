@@ -101,11 +101,13 @@ struct sce_svoxelterrainshader {
 /* shader flags */
 #define SCE_VTERRAIN_USE_LOD (0x00000001)
 #define SCE_VTERRAIN_USE_SHADOWS (0x00000002)
-/* number of flags combinations (2^2 = 4) */
-#define SCE_NUM_VTERRAIN_SHADERS (SCE_VTERRAIN_USE_SHADOWS << 1)
+#define SCE_VTERRAIN_USE_POINT_SHADOWS (0x00000004)
+/* number of flags combinations (2^3 = 8) */
+#define SCE_NUM_VTERRAIN_SHADERS (SCE_VTERRAIN_USE_POINT_SHADOWS << 1)
 
 #define SCE_VTERRAIN_USE_LOD_NAME "SCE_VTERRAIN_USE_LOD"
 #define SCE_VTERRAIN_USE_SHADOWS_NAME "SCE_VTERRAIN_USE_SHADOWS"
+#define SCE_VTERRAIN_USE_POINT_SHADOWS_NAME "SCE_VTERRAIN_USE_POINT_SHADOWS"
 
 /* maximum number of terrain levels */
 #define SCE_MAX_VTERRAIN_LEVELS 16
@@ -142,6 +144,7 @@ struct sce_svoxelterrain {
 
     int trans_enabled;
     int shadow_mode;                 /**< Whether we are filling shadow maps */
+    int point_shadow;                /**< If the shadow is a point light */
 
     SCE_SShader *pipeline;           /**< Pipeline of all shaders below */
     SCE_SVoxelTerrainShader shaders[SCE_NUM_VTERRAIN_SHADERS];
@@ -205,6 +208,7 @@ int SCE_VTerrain_GetOffset (const SCE_SVoxelTerrain*, SCEuint,
                             int*, int*, int*);
 
 void SCE_VTerrain_ActivateShadowMode (SCE_SVoxelTerrain*, int);
+void SCE_VTerrain_ActivatePointShadowMode (SCE_SVoxelTerrain*, int);
 void SCE_VTerrain_Render (SCE_SVoxelTerrain*);
 
 #ifdef __cplusplus

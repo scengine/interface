@@ -1288,6 +1288,8 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
         scene->state->clearcolor = SCE_TRUE;
         scene->state->cleardepth = SCE_TRUE;
         scene->state->rendertarget = NULL;
+        if (scene->vterrain)
+            SCE_VTerrain_ActivatePointShadowMode (scene->vterrain, SCE_TRUE);
 
         /* rendering each face of the cubemap */
 #define SCE_RDR(f) do {                                                 \
@@ -1307,6 +1309,9 @@ SCE_Deferred_RenderPoint (SCE_SDeferred *def, SCE_SScene *scene,
         SCE_RDR (SCE_RENDER_NEGZ);
 #undef SCE_RDR
         /* shadow cube map is now filled!1 */
+
+        if (scene->vterrain)
+            SCE_VTerrain_ActivatePointShadowMode (scene->vterrain, SCE_FALSE);
 
         /* reset camera */
         SCE_Node_Detach (SCE_Camera_GetNode (def->cam));
