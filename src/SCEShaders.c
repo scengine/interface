@@ -97,6 +97,7 @@ void SCE_Shader_Init (SCE_SShader *shader)
     SCE_RShaderType i;
 
     for (i = 0; i < SCE_NUM_SHADER_TYPES; i++) {
+        shader->activated[i] = SCE_TRUE;
         shader->shaders[i] = NULL;
         shader->sources[i] = NULL;
         shader->addsrc[i] = NULL;
@@ -463,23 +464,47 @@ fail:
     return SCE_ERROR;
 }
 
-static int SCE_Shader_BuildShader (SCE_RShaderType type, char *source,
-                                   SCE_RShaderGLSL **shader)
+/**
+ * \brief Enables a shader type for the specified state
+ * \param shader a shader pipeline (see SCE_Shader_SetupPipeline())
+ * \param state a state
+ * \param type the shader to enable
+ * \sa SCE_Shader_SetupPipeline(), SCE_Shader_SetPipelineShader()
+ */
+void SCE_Shader_EnablePipelineShader (SCE_SShader *shader, SCEuint state,
+                                      SCE_RShaderType type)
 {
-    if (source) {
-        *shader = SCE_RCreateShaderGLSL (type);
-        if (!*shader) {
-            SCEE_LogSrc ();
-            return SCE_ERROR;
-        }
-        SCE_RSetShaderGLSLSource (*shader, source);
-        if (SCE_RBuildShaderGLSL (*shader) < 0) {
-            SCE_RDeleteShaderGLSL (*shader);
-            SCEE_LogSrc ();
-            return SCE_ERROR;
-        }
+    shader->pipeline.shaders[state]->activated[type] = SCE_TRUE;
+}
+/**
+ * \brief Disables a shader type for the specified state
+ * \param shader a shader pipeline (see SCE_Shader_SetupPipeline())
+ * \param state a state
+ * \param type the shader to disable
+ * \sa SCE_Shader_SetupPipeline(), SCE_Shader_SetPipelineShader()
+ */
+void SCE_Shader_DisablePipelineShader (SCE_SShader *shader, SCEuint state,
+                                       SCE_RShaderType type)
+{
+    shader->pipeline.shaders[state]->activated[type] = SCE_FALSE;
+}
+
+
+static SCE_RShaderGLSL*
+SCE_Shader_BuildShader (SCE_RShaderType type, char *source)
+{
+    SCE_RShaderGLSL *shader = NULL;
+    if (!(shader = SCE_RCreateShaderGLSL (type))) {
+        SCEE_LogSrc ();
+        return NULL;
     }
-    return SCE_OK;
+    SCE_RSetShaderGLSLSource (shader, source);
+    if (SCE_RBuildShaderGLSL (shader) < 0) {
+        SCE_RDeleteShaderGLSL (shader);
+        SCEE_LogSrc ();
+        return NULL;
+    }
+    return shader;
 }
 
 static int SCE_Shader_BuildGLSL (SCE_SShader *shader)
@@ -487,8 +512,11 @@ static int SCE_Shader_BuildGLSL (SCE_SShader *shader)
     SCE_RShaderType i;
 
     for (i = 0; i < SCE_NUM_SHADER_TYPES; i++) {
-        if (SCE_Shader_BuildShader (i, shader->sources[i],
-                                    &shader->shaders[i]) < 0) return SCE_ERROR;
+        if (shader->activated[i] && shader->sources[i]) {
+            shader->shaders[i] = SCE_Shader_BuildShader (i, shader->sources[i]);
+            if (!shader->shaders[i])
+                return SCE_ERROR;
+        }
     }
     for (i = 0; i < SCE_NUM_SHADER_TYPES; i++) {
         if (shader->shaders[i])

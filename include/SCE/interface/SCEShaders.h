@@ -33,7 +33,7 @@
 extern "C" {
 #endif
 
-#define SCE_UNKNOWN_SHADER 0
+#define SCE_UNKNOWN_SHADER 0    /* TODO: I must've been kidding. */
 #define SCE_SHADER_BAD_INDEX -1
 
 #define SCE_SHADER_UNIFORM_SAMPLER_0 "sce_tex0"
@@ -44,7 +44,6 @@ extern "C" {
 #define SCE_SHADER_UNIFORM_SAMPLER_5 "sce_tex5"
 #define SCE_SHADER_UNIFORM_SAMPLER_6 "sce_tex6"
 #define SCE_SHADER_UNIFORM_SAMPLER_7 "sce_tex7"
-
 
 /* :-' */
 typedef void (*SCE_FShaderSetParamfv)(int, size_t, float*);
@@ -76,6 +75,7 @@ struct sce_sshader {
 
     char **res;
 
+    int activated[SCE_NUM_SHADER_TYPES]; /**< Activated shaders */
     char *sources[SCE_NUM_SHADER_TYPES];
     char *addsrc[SCE_NUM_SHADER_TYPES];
     int ready;
@@ -112,6 +112,9 @@ void SCE_Shader_SetupFeedbackVaryings (SCE_SShader*, SCEuint, const char**,
 void SCE_Shader_SetOutputTarget (SCE_SShader*, const char*, SCE_RBufferType);
 void SCE_Shader_SetVersion (SCE_SShader*, int);
 int SCE_Shader_SetupPipeline (SCE_SShader*, const SCE_SRenderState*);
+
+void SCE_Shader_EnablePipelineShader (SCE_SShader*, SCEuint, SCE_RShaderType);
+void SCE_Shader_DisablePipelineShader (SCE_SShader*, SCEuint, SCE_RShaderType);
 
 int SCE_Shader_Build (SCE_SShader*);
 int SCE_Shader_Validate (SCE_SShader*);
