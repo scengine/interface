@@ -1119,9 +1119,9 @@ void SCE_Scene_ClearBuffers (SCE_SScene *scene)
     SCEbitfield depthbuffer = 0;
 
     if (scene->state->cleardepth)
-        depthbuffer = GL_DEPTH_BUFFER_BIT;
+        depthbuffer = SCE_DEPTH_BUFFER_BIT;
     if (scene->state->clearcolor)
-        depthbuffer |= GL_COLOR_BUFFER_BIT;
+        depthbuffer |= SCE_COLOR_BUFFER_BIT;
 
     SCE_RClearColor (scene->rclear, scene->gclear, scene->bclear,scene->aclear);
     SCE_RClearDepth (scene->dclear);
@@ -1721,9 +1721,9 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
     /* setup states */
     SCE_Deferred_PushStates (def);
 
-    glClearColor (def->amb_color[0], def->amb_color[1],
-                  def->amb_color[2], 0.0);
-    glClear (GL_COLOR_BUFFER_BIT);
+    SCE_RClearColor (def->amb_color[0], def->amb_color[1],
+                     def->amb_color[2], 0.0);
+    SCE_RClear (SCE_COLOR_BUFFER_BIT);
 
     if (scene->state->lighting) {
 
@@ -1799,8 +1799,10 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
     SCE_RLoadMatrix (SCE_MAT_TEXTURE, sce_matrix4_id);
 
     SCE_RSetState (GL_CULL_FACE, SCE_FALSE);
+    /* TODO: warning, previous call to ClearBuffers() whether shadows are
+       enabled or not may have modified SCE_RClearDepth() too */
     SCE_RClearColor (scene->rclear, scene->gclear, scene->bclear,scene->aclear);
-    glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    SCE_RClear (SCE_COLOR_BUFFER_BIT | SCE_DEPTH_BUFFER_BIT);
     SCE_Texture_BeginLot ();
     SCE_Texture_Use (def->targets[SCE_DEFERRED_DEPTH_TARGET]);
     SCE_Texture_Use (def->targets[SCE_DEFERRED_LIGHT_TARGET]);
