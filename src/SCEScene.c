@@ -1799,6 +1799,7 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
     SCE_RLoadMatrix (SCE_MAT_TEXTURE, sce_matrix4_id);
 
     SCE_RSetState (GL_CULL_FACE, SCE_FALSE);
+    SCE_RClearColor (scene->rclear, scene->gclear, scene->bclear,scene->aclear);
     glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     SCE_Texture_BeginLot ();
     SCE_Texture_Use (def->targets[SCE_DEFERRED_DEPTH_TARGET]);
