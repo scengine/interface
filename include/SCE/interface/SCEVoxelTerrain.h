@@ -17,13 +17,13 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 10/04/2012 */
+   updated: 14/04/2012 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
 
 #include <SCE/utils/SCEUtils.h>
-#include <SCE/core/SCECore.h>   /* SCE_SGrid */
+#include <SCE/core/SCECore.h>   /* SCE_SGrid, SCE_SCamera */
 #include "SCE/interface/SCEShaders.h"
 #include "SCE/interface/SCEVoxelRenderer.h"
 
@@ -40,10 +40,13 @@ typedef struct sce_svoxelterrainregion SCE_SVoxelTerrainRegion;
  * \brief A single sub-region of a terrain level
  */
 struct sce_svoxelterrainregion {
-    int x, y, z;                /**< Coordinates of this region */
+    int x, y, z;                /**< Coordinates of this region (constant) */
+    int wx, wy, wz;             /**< Wrapped coordinates (dynamic) */
     SCE_SVoxelMesh vm;          /**< Abstract voxel mesh */
+    SCE_SMesh *mesh;            /**< Pointer to the mesh */
+    SCE_TMatrix4 matrix;        /**< World transform matrix */
     int draw;                   /**< Whether this region should be rendered */
-    SCE_SListIterator it;
+    SCE_SListIterator it, it2;
     SCE_SVoxelTerrainLevel *level; /**< Owner of this region */
 };
 
@@ -81,6 +84,8 @@ struct sce_svoxelterrainlevel {
 
     int need_update;         /**< Does the texture need to be updated? */
     SCE_SIntRect3 update_zone;
+
+    SCE_SList to_render;     /**< Regions to render */
 };
 
 
@@ -198,6 +203,8 @@ void SCE_VTerrain_ActivateLevel (SCE_SVoxelTerrain*, SCEuint, int);
 
 void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain*, SCEuint,
                                SCE_EBoxFace, const unsigned char*);
+
+void SCE_VTerrain_CullRegions (SCE_SVoxelTerrain*, const SCE_SFrustum*);
 
 void SCE_VTerrain_Update (SCE_SVoxelTerrain*);
 void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain*, SCEuint, int);

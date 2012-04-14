@@ -29,16 +29,22 @@
 static void SCE_VTerrain_InitRegion (SCE_SVoxelTerrainRegion *tr)
 {
     tr->x = tr->y = tr->z = 0;
+    tr->wx = tr->wy = tr->wz = 0;
     SCE_VRender_InitMesh (&tr->vm);
+    tr->mesh = NULL;
+    SCE_Matrix4_Identity (tr->matrix);
     tr->draw = SCE_FALSE;
     SCE_List_InitIt (&tr->it);
     SCE_List_SetData (&tr->it, tr);
+    SCE_List_InitIt (&tr->it2);
+    SCE_List_SetData (&tr->it2, tr);
     tr->level = NULL;
 }
 static void SCE_VTerrain_ClearRegion (SCE_SVoxelTerrainRegion *tr)
 {
     SCE_VRender_ClearMesh (&tr->vm);
     SCE_List_Remove (&tr->it);
+    SCE_List_Remove (&tr->it2);
 }
 
 static void SCE_VTerrain_InitTransition (SCE_SVoxelTerrainTransition *trans)
@@ -76,6 +82,8 @@ static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
 
     tl->need_update = SCE_FALSE;
     SCE_Rectangle3_Init (&tl->update_zone);
+
+    SCE_List_Init (&tl->to_render);
 }
 static void SCE_VTerrain_ClearLevel (SCE_SVoxelTerrainLevel *tl)
 {
@@ -214,10 +222,12 @@ SCE_VTerrain_GetRegion (const SCE_SVoxelTerrainLevel *tl, int x, int y, int z)
 void SCE_VTerrain_SetDimensions (SCE_SVoxelTerrain *vt, int w, int h, int d)
 {
     vt->width = w; vt->height = h; vt->depth = d;
+    vt->scale = vt->width * vt->unit;
 }
 void SCE_VTerrain_SetWidth (SCE_SVoxelTerrain *vt, int w)
 {
     vt->width = w;
+    vt->scale = vt->width * vt->unit;
 }
 void SCE_VTerrain_SetHeight (SCE_SVoxelTerrain *vt, int h)
 {
@@ -244,6 +254,7 @@ int SCE_VTerrain_GetDepth (const SCE_SVoxelTerrain *vt)
 void SCE_VTerrain_SetUnit (SCE_SVoxelTerrain *vt, float unit)
 {
     vt->unit = unit;
+    vt->scale = vt->width * vt->unit;
 }
 
 
@@ -882,6 +893,200 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
 }
 
 
+static void
+SCE_VTerrain_CullLevelRegions1 (SCE_SVoxelTerrain *vt, SCEuint level,
+                                SCE_SVoxelTerrainLevel *tl,
+                                const SCE_SFrustum *frustum)
+{
+    SCE_TVector3 pos, origin;
+    float invw, invh, invd;
+    float scale;
+    int x, y, z;
+    SCE_SBoundingBox box;
+    SCE_SBox b;
+
+    SCE_List_Flush (&tl->to_render);
+
+    scale = 1 << level;
+    scale *= vt->scale;
+
+    invw = 1.0 / vt->width;
+    invh = 1.0 / vt->height;
+    invd = 1.0 / vt->depth;
+
+    /* wtf? why -0.5 ? */
+    SCE_Vector3_Set (origin,
+                     (tl->map_x + tl->x - 0.5) * invw,
+                     (tl->map_y + tl->y - 0.5) * invh,
+                     (tl->map_z + tl->z - 0.5) * invd);
+
+    /* construct bounding box */
+    SCE_Box_Init (&b);
+    SCE_Vector3_Set (pos, 0.0, 0.0, 0.0);
+    SCE_Box_Set (&b, pos, vt->subregion_dim * invw,
+                 vt->subregion_dim * invh,
+                 vt->subregion_dim * invd);
+    SCE_BoundingBox_Init (&box);
+    SCE_BoundingBox_SetFrom (&box, &b);
+
+    for (z = 0; z < tl->subregions; z++) {
+        for (y = 0; y < tl->subregions; y++) {
+            for (x = 0; x < tl->subregions; x++) {
+                unsigned int offset = SCE_VTerrain_Get (tl, x, y, z);
+                SCE_SVoxelTerrainRegion *region = &tl->regions[offset];
+
+                region->mesh = &tl->mesh[offset];
+                region->wx = x;
+                region->wy = y;
+                region->wz = z;
+
+                if (region->draw) {
+                    int draw;
+#define DERP 1
+                    SCE_Vector3_Set
+                        (pos,
+                         (float)x * (vt->subregion_dim - DERP) * invw,
+                         (float)y * (vt->subregion_dim - DERP) * invh,
+                         (float)z * (vt->subregion_dim - DERP) * invd);
+
+                    SCE_Vector3_Operator1v (pos, +=, origin);
+                    SCE_Matrix4_Identity (region->matrix);
+                    SCE_Matrix4_SetScale (region->matrix, scale, scale, scale);
+                    SCE_Matrix4_MulTranslatev (region->matrix, pos);
+
+                    if (!frustum) {
+                        SCE_List_Appendl (&tl->to_render, &region->it2);
+                    } else {
+                        /* frustum culling */
+                        SCE_BoundingBox_Push (&box, region->matrix, &b);
+                        SCE_BoundingBox_MakePlanes (&box);
+                        /* cull test */
+                        draw = SCE_Frustum_BoundingBoxInBool (frustum, &box);
+                        SCE_BoundingBox_Pop (&box, &b);
+
+                        if (draw)
+                            SCE_List_Appendl (&tl->to_render, &region->it2);
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+static void
+SCE_VTerrain_CullLevelRegions2 (SCE_SVoxelTerrain *vt, SCEuint level,
+                                SCE_SVoxelTerrainLevel *tl,
+                                SCE_SVoxelTerrainLevel *tl2,
+                                const SCE_SFrustum *frustum)
+{
+    int draw = SCE_TRUE, p1[3], p2[3];
+    SCE_SIntRect3 inner_lod, zone;
+    SCE_TVector3 pos, origin;
+    float invw, invh, invd;
+    float scale;
+    int x, y, z;
+    SCE_SBoundingBox box;
+    SCE_SBox b;
+
+    SCE_List_Flush (&tl->to_render);
+
+    scale = 1 << level;
+    scale *= vt->scale;
+
+    invw = 1.0 / vt->width;
+    invh = 1.0 / vt->height;
+    invd = 1.0 / vt->depth;
+
+    /* wtf? why -0.5 ? */
+    SCE_Vector3_Set (origin,
+                     (tl->map_x + tl->x - 0.5) * invw,
+                     (tl->map_y + tl->y - 0.5) * invh,
+                     (tl->map_z + tl->z - 0.5) * invd);
+
+    /* construct bounding box */
+    SCE_Box_Init (&b);
+    SCE_Vector3_Set (pos, 0.0, 0.0, 0.0);
+    SCE_Box_Set (&b, pos, vt->subregion_dim * invw,
+                 vt->subregion_dim * invh,
+                 vt->subregion_dim * invd);
+    SCE_BoundingBox_Init (&box);
+    SCE_BoundingBox_SetFrom (&box, &b);
+
+    for (z = 0; z < tl->subregions; z++) {
+        for (y = 0; y < tl->subregions; y++) {
+            for (x = 0; x < tl->subregions; x++) {
+                unsigned int offset = SCE_VTerrain_Get (tl, x, y, z);
+                SCE_SVoxelTerrainRegion *region = &tl->regions[offset];
+
+                region->mesh = &tl->mesh[offset];
+                region->wx = x;
+                region->wy = y;
+                region->wz = z;
+
+                /* compute current region area */
+                p1[0] = 2 * (tl->map_x + tl->x + x * (vt->subregion_dim-1));
+                p1[1] = 2 * (tl->map_y + tl->y + y * (vt->subregion_dim-1));
+                p1[2] = 2 * (tl->map_z + tl->z + z * (vt->subregion_dim-1));
+                p2[0] = p1[0] + 2 * vt->subregion_dim;
+                p2[1] = p1[1] + 2 * vt->subregion_dim;
+                p2[2] = p1[2] + 2 * vt->subregion_dim;
+                SCE_Rectangle3_Setv (&zone, p1, p2);
+
+                /* compute inner LOD grid area */
+                p1[0] = tl2->map_x + tl2->x + 1;
+                p1[1] = tl2->map_y + tl2->y + 1;
+                p1[2] = tl2->map_z + tl2->z + 1;
+                p2[0] = p1[0] + vt->n_subregions * (vt->subregion_dim-1);
+                p2[1] = p1[1] + vt->n_subregions * (vt->subregion_dim-1);
+                p2[2] = p1[2] + vt->n_subregions * (vt->subregion_dim-1);
+                SCE_Rectangle3_Setv (&inner_lod, p1, p2);
+
+                draw = !SCE_Rectangle3_IsInside (&inner_lod, &zone);
+
+                if (draw && region->draw) {
+                    SCE_Vector3_Set
+                        (pos,
+                         (float)x * (vt->subregion_dim - DERP) * invw,
+                         (float)y * (vt->subregion_dim - DERP) * invh,
+                         (float)z * (vt->subregion_dim - DERP) * invd);
+
+                    SCE_Vector3_Operator1v (pos, +=, origin);
+                    SCE_Matrix4_Identity (region->matrix);
+                    SCE_Matrix4_SetScale (region->matrix, scale, scale, scale);
+                    SCE_Matrix4_MulTranslatev (region->matrix, pos);
+
+                    if (!frustum) {
+                        SCE_List_Appendl (&tl->to_render, &region->it2);
+                    } else {
+                        /* frustum culling */
+                        SCE_BoundingBox_Push (&box, region->matrix, &b);
+                        SCE_BoundingBox_MakePlanes (&box);
+                        /* cull test */
+                        draw = SCE_Frustum_BoundingBoxInBool (frustum, &box);
+                        SCE_BoundingBox_Pop (&box, &b);
+
+                        if (draw)
+                            SCE_List_Appendl (&tl->to_render, &region->it2);
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+void SCE_VTerrain_CullRegions (SCE_SVoxelTerrain *vt,
+                               const SCE_SFrustum *frustum)
+{
+    size_t i;
+
+    SCE_VTerrain_CullLevelRegions1 (vt, 0, &vt->levels[0], frustum);
+    for (i = 1; i < vt->n_levels; i++)
+        SCE_VTerrain_CullLevelRegions2 (vt, i, &vt->levels[i],
+                                        &vt->levels[i - 1], frustum);
+}
+
 void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
 {
     size_t i;
@@ -1030,14 +1235,10 @@ SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt, SCEuint level,
 {
     SCE_TMatrix4 m;
     SCE_TVector3 pos, origin;
-    SCEuint x, y, z;
+    SCE_SListIterator *it = NULL;
     float invw, invh, invd;
     float scale;
-    const SCE_SVoxelTerrainLevel *tl2 = NULL;
     SCE_TVector3 v, invv;
-
-    if (level > 0)
-        tl2 = &vt->levels[level - 1];
 
     scale = 1 << level;
     scale *= vt->scale;
@@ -1046,12 +1247,6 @@ SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt, SCEuint level,
     invh = 1.0 / vt->height;
     invd = 1.0 / vt->depth;
     SCE_Vector3_Set (invv, invw, invh, invd);
-
-    /* wtf? why -0.5 ? */
-    SCE_Vector3_Set (origin,
-                     (tl->map_x + tl->x - 0.5) * invw,
-                     (tl->map_y + tl->y - 0.5) * invh,
-                     (tl->map_z + tl->z - 0.5) * invd);
 
     if (tl3) {
         SCE_Vector3_Set (v, tl->x + tl->map_x - tl3->map_x * 2.0,
@@ -1071,64 +1266,25 @@ SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt, SCEuint level,
         /*SCE_Shader_SetParam (def_shd->hightex_loc, 0);*/
     }
 
-    for (z = 0; z < tl->subregions; z++) {
-        for (y = 0; y < tl->subregions; y++) {
-            for (x = 0; x < tl->subregions; x++) {
-                unsigned int offset = SCE_VTerrain_Get (tl, x, y, z);
-                int draw = SCE_TRUE, p1[3], p2[3];
-                SCE_SIntRect3 inner_lod, region;
+    SCE_Vector3_Set (v, tl->x * invw, tl->y * invh, tl->z * invd);
+    SCE_Shader_SetParam3fv (shd->tcorigin_loc, 1, v);
 
-                if (tl2) {
-                    /* compute current region area */
-                    p1[0] = 2 * (tl->map_x + tl->x + x * (vt->subregion_dim-1));
-                    p1[1] = 2 * (tl->map_y + tl->y + y * (vt->subregion_dim-1));
-                    p1[2] = 2 * (tl->map_z + tl->z + z * (vt->subregion_dim-1));
-                    p2[0] = p1[0] + 2 * vt->subregion_dim;
-                    p2[1] = p1[1] + 2 * vt->subregion_dim;
-                    p2[2] = p1[2] + 2 * vt->subregion_dim;
-                    SCE_Rectangle3_Setv (&region, p1, p2);
+    SCE_List_ForEach (it, &tl->to_render) {
+        SCE_SVoxelTerrainRegion *region = SCE_List_GetData (it);
 
-                    /* compute inner LOD grid area */
-                    p1[0] = tl2->map_x + tl2->x + 1;
-                    p1[1] = tl2->map_y + tl2->y + 1;
-                    p1[2] = tl2->map_z + tl2->z + 1;
-                    p2[0] = p1[0] + vt->n_subregions * (vt->subregion_dim-1);
-                    p2[1] = p1[1] + vt->n_subregions * (vt->subregion_dim-1);
-                    p2[2] = p1[2] + vt->n_subregions * (vt->subregion_dim-1);
-                    SCE_Rectangle3_Setv (&inner_lod, p1, p2);
+        SCE_Vector3_Set
+            (pos,
+             (float)region->wx * (vt->subregion_dim - DERP) * invw,
+             (float)region->wy * (vt->subregion_dim - DERP) * invh,
+             (float)region->wz * (vt->subregion_dim - DERP) * invd);
 
-                    draw = !SCE_Rectangle3_IsInside (&inner_lod, &region);
-                }
+        SCE_Shader_SetParam3fv (shd->current_loc, 1, pos);
 
-                draw = draw && tl->regions[offset].draw;
-
-                if (draw) {
-#define DERP 1
-                    SCE_Vector3_Set
-                        (pos,
-                         (float)x * (vt->subregion_dim - DERP) * invw,
-                         (float)y * (vt->subregion_dim - DERP) * invh,
-                         (float)z * (vt->subregion_dim - DERP) * invd);
-
-
-                    SCE_Vector3_Set (v, tl->x * invw, tl->y * invh, tl->z * invd);
-
-                    SCE_Shader_SetParam3fv (shd->tcorigin_loc, 1, v);
-                    SCE_Shader_SetParam3fv (shd->current_loc, 1, pos);
-
-                    SCE_Vector3_Operator1v (pos, +=, origin);
-                    SCE_Matrix4_Identity (m);
-                    SCE_Matrix4_SetScale (m, scale, scale, scale);
-                    SCE_Matrix4_MulTranslatev (m, pos);
-                    SCE_RLoadMatrix (SCE_MAT_OBJECT, m);
-                    SCE_Mesh_Use (&tl->mesh[offset]);
-                    SCE_Mesh_Render ();
-                    SCE_Mesh_Unuse ();
-                }
-            }
-        }
+        SCE_RLoadMatrix (SCE_MAT_OBJECT, region->matrix);
+        SCE_Mesh_Use (region->mesh);
+        SCE_Mesh_Render ();
+        SCE_Mesh_Unuse ();
     }
-
 }
 
 void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
@@ -1136,8 +1292,6 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
     int i;
     SCE_SVoxelTerrainShader *lodshd = NULL, *defshd = NULL;
     SCE_SVoxelTerrainLevel *tl = NULL, *tl3 = NULL;
-
-    vt->scale = vt->width * vt->unit;
 
     if (vt->shadow_mode) {
         unsigned int state = 0;

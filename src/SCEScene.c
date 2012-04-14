@@ -1070,6 +1070,7 @@ static void SCE_Scene_FlushEntities (SCE_SList *entities)
 void SCE_Scene_Update (SCE_SScene *scene, SCE_SCamera *camera,
                        SCE_STexture *target, SCE_EBoxFace cubeface)
 {
+    SCE_SFrustum *frustum = NULL;
     int fc;
 
     scene->state->rendertarget = target;
@@ -1077,6 +1078,7 @@ void SCE_Scene_Update (SCE_SScene *scene, SCE_SCamera *camera,
     scene->state->camera = camera;
 
     fc = scene->state->frustum_culling;
+    frustum = SCE_Camera_GetFrustum (scene->state->camera);
 
     if (scene->state->lod || fc)
         SCE_Scene_FlushEntities (&scene->entities);
@@ -1098,8 +1100,7 @@ void SCE_Scene_Update (SCE_SScene *scene, SCE_SCamera *camera,
     SCE_Camera_Update (scene->state->camera);
 
     if (fc) {
-        SCE_Octree_MarkVisibles (scene->octree,
-                                 SCE_Camera_GetFrustum (scene->state->camera));
+        SCE_Octree_MarkVisibles (scene->octree, frustum);
         SCE_Scene_SelectVisibles (scene);
     }
 
@@ -1107,6 +1108,9 @@ void SCE_Scene_Update (SCE_SScene *scene, SCE_SCamera *camera,
         SCE_Scene_DetermineEntitiesUsingLOD (scene);
     else if (fc)
         SCE_Scene_DetermineEntities (scene);
+
+    if (scene->vterrain)
+        SCE_VTerrain_CullRegions (scene->vterrain, fc ? frustum : NULL);
 }
 
 
@@ -2051,7 +2055,7 @@ void SCE_Scene_Pick (SCE_SScene *scene, SCE_SCamera *cam, SCE_TVector2 point,
 }
 
 
-static void SCE_Scene_DrawBB (SCE_SBoundingBox *box, SCE_TMatrix4 m)
+static void SCE_Scene_DrawBB (SCE_SBoundingBox *box, const SCE_TMatrix4 m)
 {
     SCE_TVector3 center, dim;
     SCE_TMatrix4 mat;
