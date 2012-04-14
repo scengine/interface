@@ -959,7 +959,6 @@ SCE_VTerrain_CullLevelRegions1 (SCE_SVoxelTerrain *vt, SCEuint level,
                     } else {
                         /* frustum culling */
                         SCE_BoundingBox_Push (&box, region->matrix, &b);
-                        SCE_BoundingBox_MakePlanes (&box);
                         /* cull test */
                         draw = SCE_Frustum_BoundingBoxInBool (frustum, &box);
                         SCE_BoundingBox_Pop (&box, &b);
@@ -1061,7 +1060,6 @@ SCE_VTerrain_CullLevelRegions2 (SCE_SVoxelTerrain *vt, SCEuint level,
                     } else {
                         /* frustum culling */
                         SCE_BoundingBox_Push (&box, region->matrix, &b);
-                        SCE_BoundingBox_MakePlanes (&box);
                         /* cull test */
                         draw = SCE_Frustum_BoundingBoxInBool (frustum, &box);
                         SCE_BoundingBox_Pop (&box, &b);

@@ -730,6 +730,7 @@ static int SCE_SceneEntity_IsBBInFrustum (SCE_SSceneEntityInstance *einst,
 
     /* NOTE: conversion from Matrix4 to Matrix4x3 */
     SCE_BoundingBox_Push (box, SCE_Node_GetFinalMatrix (einst->node), &saved);
+    /* TODO: not that important imho. (planes are not used) */
     SCE_BoundingBox_MakePlanes (box); /* very important. */
     result = SCE_Frustum_BoundingBoxInBool (SCE_Camera_GetFrustum (cam), box);
     SCE_BoundingBox_Pop (box, &saved);
