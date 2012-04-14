@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 10/04/2012 */
+   updated: 14/04/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -1024,16 +1024,16 @@ void SCE_VTerrain_ActivatePointShadowMode (SCE_SVoxelTerrain *vt, int point)
 
 static void
 SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt, SCEuint level,
-                          SCE_SVoxelTerrainShader *lod_shd,
-                          SCE_SVoxelTerrainShader *def_shd)
+                          const SCE_SVoxelTerrainLevel *tl,
+                          const SCE_SVoxelTerrainLevel *tl3,
+                          SCE_SVoxelTerrainShader *shd)
 {
     SCE_TMatrix4 m;
     SCE_TVector3 pos, origin;
     SCEuint x, y, z;
     float invw, invh, invd;
     float scale;
-    const SCE_SVoxelTerrainLevel *tl = &vt->levels[level], *tl2 = NULL;
-    const SCE_SVoxelTerrainLevel *tl3 = NULL;
+    const SCE_SVoxelTerrainLevel *tl2 = NULL;
     SCE_TVector3 v, invv;
 
     if (level > 0)
@@ -1053,54 +1053,22 @@ SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt, SCEuint level,
                      (tl->map_y + tl->y - 0.5) * invh,
                      (tl->map_z + tl->z - 0.5) * invd);
 
-    if (level < vt->n_levels - 1) {
-        tl3 = &vt->levels[level + 1];
-
-        SCE_Texture_BeginLot ();
-        SCE_Texture_Use (tl->tex);
-        SCE_Texture_SetUnit (tl3->tex, 1);
-        SCE_Texture_Use (tl3->tex);
-        SCE_Texture_SetUnit (vt->top_diffuse, 2);
-        SCE_Texture_Use (vt->top_diffuse);
-        SCE_Texture_SetUnit (vt->side_diffuse, 3);
-        SCE_Texture_Use (vt->side_diffuse);
-        SCE_Texture_EndLot ();
-
-        SCE_Shader_Use (lod_shd->shd);
-
+    if (tl3) {
         SCE_Vector3_Set (v, tl->x + tl->map_x - tl3->map_x * 2.0,
                          tl->y + tl->map_y - tl3->map_y * 2.0,
                          tl->z + tl->map_z - tl3->map_z * 2.0);
-        SCE_Shader_SetParam3fv (lod_shd->regions_loc, 1, v);
+        SCE_Shader_SetParam3fv (shd->regions_loc, 1, v);
         SCE_Vector3_Operator2v (v, =, tl->wrap, *, invv);
-        SCE_Shader_SetParam3fv (lod_shd->wrapping0_loc, 1, v);
+        SCE_Shader_SetParam3fv (shd->wrapping0_loc, 1, v);
         SCE_Vector3_Operator2v (v, =, tl3->wrap, *, invv);
-        SCE_Shader_SetParam3fv (lod_shd->wrapping1_loc, 1, v);
-        SCE_Shader_SetParam (lod_shd->enabled_loc, vt->trans_enabled);
-        SCE_Shader_SetParam (lod_shd->hightex_loc, 0);
-        SCE_Shader_SetParam (lod_shd->lowtex_loc, 1);
-        SCE_Shader_SetParam (lod_shd->topdiffuse_loc, 2);
-        SCE_Shader_SetParam (lod_shd->sidediffuse_loc, 3);
+        SCE_Shader_SetParam3fv (shd->wrapping1_loc, 1, v);
     } else {
-
-        SCE_Texture_BeginLot ();
-        if (0/*generate_normals*/)
-            SCE_Texture_Use (tl->tex);
-        SCE_Texture_SetUnit (vt->top_diffuse, 1);
-        SCE_Texture_Use (vt->top_diffuse);
-        SCE_Texture_SetUnit (vt->side_diffuse, 2);
-        SCE_Texture_Use (vt->side_diffuse);
-        SCE_Texture_EndLot ();
-
-        SCE_Shader_Use (def_shd->shd);
 
         if (0/*generate_normals*/) {
             SCE_Vector3_Operator2v (v, =, tl->wrap, *, invv);
-            SCE_Shader_SetParam3fv (def_shd->wrapping0_loc, 1, v);
+            SCE_Shader_SetParam3fv (shd->wrapping0_loc, 1, v);
         }
         /*SCE_Shader_SetParam (def_shd->hightex_loc, 0);*/
-        SCE_Shader_SetParam (def_shd->topdiffuse_loc, 1);
-        SCE_Shader_SetParam (def_shd->sidediffuse_loc, 2);
     }
 
     for (z = 0; z < tl->subregions; z++) {
@@ -1142,15 +1110,11 @@ SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt, SCEuint level,
                          (float)y * (vt->subregion_dim - DERP) * invh,
                          (float)z * (vt->subregion_dim - DERP) * invd);
 
-                    if (level < vt->n_levels - 1)
-                        SCE_Shader_SetParam3fv (lod_shd->current_loc, 1, pos);
 
                     SCE_Vector3_Set (v, tl->x * invw, tl->y * invh, tl->z * invd);
 
-                    if (level < vt->n_levels - 1)
-                        SCE_Shader_SetParam3fv (lod_shd->tcorigin_loc, 1, v);
-                    else
-                        SCE_Shader_SetParam3fv (def_shd->tcorigin_loc, 1, v);
+                    SCE_Shader_SetParam3fv (shd->tcorigin_loc, 1, v);
+                    SCE_Shader_SetParam3fv (shd->current_loc, 1, pos);
 
                     SCE_Vector3_Operator1v (pos, +=, origin);
                     SCE_Matrix4_Identity (m);
@@ -1165,43 +1129,161 @@ SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt, SCEuint level,
         }
     }
 
-    SCE_Shader_Use (NULL);
-    SCE_Texture_Flush ();
-    if (level < vt->n_levels - 1)
-        SCE_Texture_SetUnit (tl3->tex, 0);
 }
 
 void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 {
     int i;
     SCE_SVoxelTerrainShader *lodshd = NULL, *defshd = NULL;
+    SCE_SVoxelTerrainLevel *tl = NULL, *tl3 = NULL;
 
     vt->scale = vt->width * vt->unit;
 
     if (vt->shadow_mode) {
         unsigned int state = 0;
+
         SCE_Shader_Unlock ();       /* haxxx */
+
         state |= SCE_VTERRAIN_USE_SHADOWS;
         if (vt->point_shadow)
             state |= SCE_VTERRAIN_USE_POINT_SHADOWS;
+
         lodshd = &vt->shaders[state | SCE_VTERRAIN_USE_LOD];
         defshd = &vt->shaders[state];
-        for (i = 0; i < vt->n_levels; i++) {
-            SCE_VTerrain_RenderLevel (vt, i, lodshd, defshd);
+
+        SCE_Shader_Use (lodshd->shd);
+
+        SCE_Texture_SetUnit (vt->top_diffuse, 2);
+        SCE_Texture_SetUnit (vt->side_diffuse, 3);
+
+        SCE_Shader_SetParam (lodshd->enabled_loc, vt->trans_enabled);
+
+        SCE_Texture_BeginLot ();
+
+        for (i = 0; i < vt->n_levels - 1; i++) {
+
+            tl = &vt->levels[i];
+            tl3 = &vt->levels[i + 1];
+
+            /* just switch textures unit */
+            SCE_Texture_SetUnit (tl3->tex, (i % 2 ? 0 : 1));
+            SCE_Texture_Use (tl3->tex);
+            SCE_Texture_Use (tl->tex);
+            SCE_Texture_Use (vt->top_diffuse);
+            SCE_Texture_Use (vt->side_diffuse);
+            SCE_Texture_EndLot ();
+
+            if (i % 2) {
+                SCE_Shader_SetParam (lodshd->hightex_loc, 1);
+                SCE_Shader_SetParam (lodshd->lowtex_loc, 0);
+            } else {
+                SCE_Shader_SetParam (lodshd->hightex_loc, 0);
+                SCE_Shader_SetParam (lodshd->lowtex_loc, 1);
+            }
+
+            SCE_VTerrain_RenderLevel (vt, i, &vt->levels[i], tl3, lodshd);
+
+            SCE_Texture_BeginLot ();
         }
+        SCE_Texture_EndLot ();
+
+        for (i = 0; i < vt->n_levels; i++)
+            SCE_Texture_SetUnit (vt->levels[i].tex, 0);
+
+        tl = &vt->levels[vt->n_levels - 1];
+
+        /* non lod */
+        SCE_Texture_BeginLot ();
+        if (0/*generate_normals*/)
+            SCE_Texture_Use (tl->tex);
+        SCE_Texture_Use (vt->top_diffuse);
+        SCE_Texture_Use (vt->side_diffuse);
+        SCE_Texture_EndLot ();
+
+        SCE_Shader_Use (defshd->shd);
+
+        SCE_Shader_SetParam (defshd->topdiffuse_loc, 2);
+        SCE_Shader_SetParam (defshd->sidediffuse_loc, 3);
+
+        SCE_VTerrain_RenderLevel (vt, vt->n_levels - 1,
+                                  &vt->levels[vt->n_levels - 1], NULL, defshd);
+
+        SCE_Shader_Use (NULL);
+        SCE_Texture_Flush ();
         SCE_Shader_Lock ();
     } else {
+        SCE_SVoxelTerrainLevel *tl3 = NULL;
+
         lodshd = &vt->shaders[SCE_VTERRAIN_USE_LOD];
         defshd = &vt->shaders[0];
+
         SCE_RSetStencilOp (SCE_KEEP, SCE_KEEP, SCE_REPLACE);
         SCE_RClearStencil (255);
         SCE_RClear (SCE_STENCIL_BUFFER_BIT);
         SCE_REnableStencilTest ();
 
-        for (i = 0; i < vt->n_levels; i++) {
+        SCE_Shader_Use (lodshd->shd);
+
+        SCE_Texture_SetUnit (vt->top_diffuse, 2);
+        SCE_Texture_SetUnit (vt->side_diffuse, 3);
+
+        SCE_Shader_SetParam (lodshd->enabled_loc, vt->trans_enabled);
+        SCE_Shader_SetParam (lodshd->topdiffuse_loc, 2);
+        SCE_Shader_SetParam (lodshd->sidediffuse_loc, 3);
+
+        SCE_Texture_BeginLot ();
+
+        for (i = 0; i < vt->n_levels - 1; i++) {
             SCE_RSetStencilFunc (SCE_LEQUAL, i + 1, ~0U);
-            SCE_VTerrain_RenderLevel (vt, i, lodshd, defshd);
+
+            tl = &vt->levels[i];
+            tl3 = &vt->levels[i + 1];
+
+            SCE_Texture_SetUnit (tl3->tex, (i % 2 ? 0 : 1));
+            SCE_Texture_Use (tl3->tex);
+            SCE_Texture_Use (tl->tex);
+            SCE_Texture_Use (vt->top_diffuse);
+            SCE_Texture_Use (vt->side_diffuse);
+            SCE_Texture_EndLot ();
+
+            if (i % 2) {
+                SCE_Shader_SetParam (lodshd->hightex_loc, 1);
+                SCE_Shader_SetParam (lodshd->lowtex_loc, 0);
+            } else {
+                SCE_Shader_SetParam (lodshd->hightex_loc, 0);
+                SCE_Shader_SetParam (lodshd->lowtex_loc, 1);
+            }
+
+            SCE_VTerrain_RenderLevel (vt, i, &vt->levels[i], tl3, lodshd);
+
+            SCE_Texture_BeginLot ();
         }
+        SCE_Texture_EndLot ();
+
+        for (i = 0; i < vt->n_levels; i++)
+            SCE_Texture_SetUnit (vt->levels[i].tex, 0);
+
+        tl = &vt->levels[vt->n_levels - 1];
+
+        /* non lod */
+        SCE_Texture_BeginLot ();
+        if (0/*generate_normals*/)
+            SCE_Texture_Use (tl->tex);
+        SCE_Texture_Use (vt->top_diffuse);
+        SCE_Texture_Use (vt->side_diffuse);
+        SCE_Texture_EndLot ();
+
+        SCE_Shader_Use (defshd->shd);
+
+        SCE_Shader_SetParam (defshd->topdiffuse_loc, 2);
+        SCE_Shader_SetParam (defshd->sidediffuse_loc, 3);
+
+        SCE_RSetStencilFunc (SCE_LEQUAL, vt->n_levels, ~0U);
+        SCE_VTerrain_RenderLevel (vt, vt->n_levels - 1,
+                                  &vt->levels[vt->n_levels - 1], NULL, defshd);
+
+        SCE_Shader_Use (NULL);
+        SCE_Texture_Flush ();
         SCE_RDisableStencilTest ();
     }
 }
