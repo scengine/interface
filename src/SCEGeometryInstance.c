@@ -275,10 +275,10 @@ static void SCE_Instance_RenderPseudo (SCE_SGeometryInstanceGroup *group)
         inst = SCE_List_GetData (it);
         /* combine camera and object matrices */
         SCE_Matrix4_Mul (camera, SCE_Node_GetFinalMatrix (inst->node), final);
-        /* set persistent vertex attributes */ /* TODO: pouha */
-        glVertexAttrib4fv (group->attrib1, &final[0]);
-        glVertexAttrib4fv (group->attrib2, &final[4]);
-        glVertexAttrib4fv (group->attrib3, &final[8]);
+        /* set persistent vertex attributes */
+        SCE_RVertexAttrib4fv (group->attrib1, &final[0]);
+        SCE_RVertexAttrib4fv (group->attrib2, &final[4]);
+        SCE_RVertexAttrib4fv (group->attrib3, &final[8]);
         SCE_Mesh_Render ();
     }
     SCE_Mesh_Unuse ();
