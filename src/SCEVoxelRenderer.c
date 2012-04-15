@@ -676,11 +676,11 @@ static const char *indices_gs =
     "#define OD (1.0/D)\n"
 
     "layout (points, max_vertices = 1) in;"
-    "layout (triangle_strip, max_vertices = 36) out;"
+    "layout (points, max_vertices = 12) out;"
 
     "in vec3 pos[1];"
     "in uint case8[1];"
-    "out uint index;"
+    "out uvec3 index;"
 
     "uniform usampler3D sce_tex0;"
 
@@ -803,20 +803,16 @@ static const char *indices_gs =
     "void output_tetrahedron (uint c, in uint edges[6])"
     "{"
     "  if (c > 0 && c < 15) {"
-    "    index = edges[lt_triangles[c * 4 + 0]];"
-    "    EmitVertex ();"
-    "    index = edges[lt_triangles[c * 4 + 1]];"
-    "    EmitVertex ();"
-    "    index = edges[lt_triangles[c * 4 + 2]];"
+    "    index.x = edges[lt_triangles[c * 4 + 0]];"
+    "    index.y = edges[lt_triangles[c * 4 + 1]];"
+    "    index.z = edges[lt_triangles[c * 4 + 2]];"
     "    EmitVertex ();"
     "    EndPrimitive ();"
 
     "    if (lt_triangles_count[c]) {"
-    "      index = edges[lt_triangles[c * 4 + 2]];"
-    "      EmitVertex ();"
-    "      index = edges[lt_triangles[c * 4 + 3]];"
-    "      EmitVertex ();"
-    "      index = edges[lt_triangles[c * 4 + 0]];"
+    "      index.x = edges[lt_triangles[c * 4 + 2]];"
+    "      index.y = edges[lt_triangles[c * 4 + 3]];"
+    "      index.z = edges[lt_triangles[c * 4 + 0]];"
     "      EmitVertex ();"
     "      EndPrimitive ();"
     "    }"
@@ -1155,7 +1151,7 @@ void SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_SVoxelMesh *vm,
     SCE_Texture_RenderTo (NULL, 0);
 
     /* 5th pass: generate the index buffer */
-    SCE_Mesh_SetPrimitiveType (vm->mesh, SCE_TRIANGLES);
+    SCE_Mesh_SetPrimitiveType (vm->mesh, SCE_POINTS);
     SCE_Texture_Use (vt->splat);
     SCE_Shader_Use (vt->indices_shader);
     SCE_Mesh_BeginRenderToIndices (vm->mesh);
@@ -1163,6 +1159,9 @@ void SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_SVoxelMesh *vm,
     SCE_Mesh_Render ();
     SCE_Mesh_Unuse ();
     SCE_Mesh_EndRenderToIndices (vm->mesh);
+    SCE_Mesh_SetPrimitiveType (vm->mesh, SCE_TRIANGLES);
+    i = SCE_Mesh_GetNumIndices (vm->mesh);
+    SCE_Mesh_SetNumIndices (vm->mesh, i * 3);
 
     SCE_Shader_Use (NULL);
     SCE_Texture_Use (NULL);
