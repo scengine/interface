@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 14/04/2012 */
+   updated: 15/04/2012 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
@@ -179,6 +179,9 @@ SCEuint SCE_VTerrain_GetNumLevels (const SCE_SVoxelTerrain*);
 
 void SCE_VTerrain_SetSubRegionDimension (SCE_SVoxelTerrain*, SCEuint);
 void SCE_VTerrain_SetNumSubRegions (SCE_SVoxelTerrain*, SCEuint);
+
+void SCE_VTerrain_CompressPosition (SCE_SVoxelTerrain*, int);
+void SCE_VTerrain_CompressNormal (SCE_SVoxelTerrain*, int);
 
 void SCE_VTerrain_SetShader (SCE_SVoxelTerrain*, SCE_SShader*);
 

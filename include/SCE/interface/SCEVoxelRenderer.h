@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 14/02/2012
-   updated: 14/02/2012 */
+   updated: 15/04/2012 */
 
 #ifndef SCEVOXELRENDERER_H
 #define SCEVOXELRENDERER_H
@@ -40,11 +40,17 @@ struct sce_svoxeltemplate {
     SCE_SMesh non_empty;     /**< Generated list of non-empty cells */
     SCE_SMesh list_verts;    /**< Generated list of vertices to generate */
 
+    int compressed_pos;
+    int compressed_nor;
+    float comp_scale;           /**< Scaling for compressed positions */
+    SCE_SGeometry *final_geom;
+
     SCE_SShader *non_empty_shader;
     int non_empty_offset_loc;
     SCE_SShader *list_verts_shader;
     SCE_SShader *final_shader;
     int final_offset_loc;
+    int comp_scale_loc;
 
     SCE_SShader *splat_shader;
     SCE_SShader *indices_shader;
@@ -90,9 +96,13 @@ void SCE_VRender_SetVolumeWidth (SCE_SVoxelTemplate*, int);
 void SCE_VRender_SetVolumeHeight (SCE_SVoxelTemplate*, int);
 void SCE_VRender_SetVolumeDepth (SCE_SVoxelTemplate*, int);
 
+void SCE_VRender_CompressPosition (SCE_SVoxelTemplate*, int);
+void SCE_VRender_CompressNormal (SCE_SVoxelTemplate*, int);
+void SCE_VRender_SetCompressedScale (SCE_SVoxelTemplate*, float);
+
 int SCE_VRender_Build (SCE_SVoxelTemplate*);
 
-SCE_SGeometry* SCE_VRender_GetFinalGeometry (void);
+SCE_SGeometry* SCE_VRender_GetFinalGeometry (SCE_SVoxelTemplate*);
 
 void SCE_VRender_SetVolume (SCE_SVoxelMesh*, SCE_STexture*);
 void SCE_VRender_SetWrap (SCE_SVoxelMesh*, SCE_TVector3);

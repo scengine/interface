@@ -278,6 +278,15 @@ void SCE_VTerrain_SetNumSubRegions (SCE_SVoxelTerrain *vt, SCEuint n)
 }
 
 
+void SCE_VTerrain_CompressPosition (SCE_SVoxelTerrain *vt, int comp)
+{
+    SCE_VRender_CompressPosition (&vt->template, comp);
+}
+void SCE_VTerrain_CompressNormal (SCE_SVoxelTerrain *vt, int comp)
+{
+    SCE_VRender_CompressNormal (&vt->template, comp);
+}
+
 /**
  * \brief Set the shader that will be used for rendering
  * \param vt a voxel terrain
@@ -350,7 +359,8 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
         SCE_Mesh_Init (&tl->mesh[i]);
 
         /* NOTE: this makes this function non-reentrant */
-        if (SCE_Mesh_SetGeometry (&tl->mesh[i], SCE_VRender_GetFinalGeometry (),
+        if (SCE_Mesh_SetGeometry (&tl->mesh[i],
+                                  SCE_VRender_GetFinalGeometry (&vt->template),
                                   SCE_FALSE) < 0)
             goto fail;
         SCE_Mesh_AutoBuild (&tl->mesh[i]);
@@ -631,6 +641,7 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
                                vt->subregion_dim, vt->subregion_dim);
     SCE_VRender_SetVolumeDimensions (&vt->template, vt->width,
                                      vt->height, vt->depth);
+    SCE_VRender_SetCompressedScale (&vt->template, vt->n_subregions);
     if (SCE_VRender_Build (&vt->template) < 0)
         goto fail;
 
