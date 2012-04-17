@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 14/02/2012
-   updated: 15/04/2012 */
+   updated: 17/04/2012 */
 
 #ifndef SCEVOXELRENDERER_H
 #define SCEVOXELRENDERER_H
@@ -32,8 +32,15 @@
 extern "C" {
 #endif
 
+typedef enum {
+    SCE_VRENDER_MARCHING_TETRAHEDRA,
+    SCE_VRENDER_MARCHING_CUBES
+} SCE_EVoxelRenderAlgorithm;
+
 typedef struct sce_svoxeltemplate SCE_SVoxelTemplate;
 struct sce_svoxeltemplate {
+    SCE_EVoxelRenderAlgorithm algo;
+
     SCE_SGeometry grid_geom; /**< Grid of points */
     SCE_SMesh grid_mesh; /**< Mesh of the grid of points for the first stage
                           * of the generation process */
@@ -99,6 +106,7 @@ void SCE_VRender_SetVolumeDepth (SCE_SVoxelTemplate*, int);
 void SCE_VRender_CompressPosition (SCE_SVoxelTemplate*, int);
 void SCE_VRender_CompressNormal (SCE_SVoxelTemplate*, int);
 void SCE_VRender_SetCompressedScale (SCE_SVoxelTemplate*, float);
+void SCE_VRender_SetAlgorithm (SCE_SVoxelTemplate*, SCE_EVoxelRenderAlgorithm);
 
 int SCE_VRender_Build (SCE_SVoxelTemplate*);
 
