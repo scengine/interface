@@ -182,6 +182,7 @@ void SCE_VTerrain_SetNumSubRegions (SCE_SVoxelTerrain*, SCEuint);
 
 void SCE_VTerrain_CompressPosition (SCE_SVoxelTerrain*, int);
 void SCE_VTerrain_CompressNormal (SCE_SVoxelTerrain*, int);
+void SCE_VTerrain_SetAlgorithm (SCE_SVoxelTerrain*, SCE_EVoxelRenderAlgorithm);
 
 void SCE_VTerrain_SetShader (SCE_SVoxelTerrain*, SCE_SShader*);
 

@@ -286,6 +286,11 @@ void SCE_VTerrain_CompressNormal (SCE_SVoxelTerrain *vt, int comp)
 {
     SCE_VRender_CompressNormal (&vt->template, comp);
 }
+void SCE_VTerrain_SetAlgorithm (SCE_SVoxelTerrain *vt,
+                                SCE_EVoxelRenderAlgorithm algo)
+{
+    SCE_VRender_SetAlgorithm (&vt->template, algo);
+}
 
 /**
  * \brief Set the shader that will be used for rendering
