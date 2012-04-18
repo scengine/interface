@@ -62,6 +62,7 @@ struct sce_svoxeltemplate {
     SCE_SShader *splat_shader;
     SCE_SShader *indices_shader;
     SCE_STexture *splat;     /**< 3D map of indices */
+    SCE_STexture *mc_table;
 
     int vwidth, vheight, vdepth; /**< Dimensions of the volume texture */
     int width, height, depth; /**< Dimensions of the grid to render */
