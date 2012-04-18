@@ -1490,6 +1490,8 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
     SCE_STexData tc;
     int width, height, depth;
     float maxw, maxh, maxd;
+    unsigned int n_vertices = 0;
+    unsigned int n_indices = 0;
 
     /* sources */
     const char *non_empty_gs = NULL;
@@ -1527,11 +1529,8 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
         final_vs = mt_final_vs;
         splat_vs = mt_splat_vs;
         indices_gs = mt_indices_gs;
-        /* setup sizes */
-        SCE_Geometry_SetNumVertices (&non_empty_geom, n_points);
-        SCE_Geometry_SetNumVertices (&list_verts_geom, 7 * n_points);
-        SCE_Geometry_SetNumVertices (vt->final_geom, 6 * n_points);
-        SCE_Geometry_SetNumIndices (vt->final_geom, 36 * n_points);
+        n_vertices = 7 * n_points;
+        n_indices = 36 * n_points;
         break;
     case SCE_VRENDER_MARCHING_CUBES:
         non_empty_gs = mc_non_empty_gs;
@@ -1539,13 +1538,16 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
         final_vs = mc_final_vs;
         splat_vs = mc_splat_vs;
         indices_gs = mc_indices_gs;
-        /* setup sizes */
-        SCE_Geometry_SetNumVertices (&non_empty_geom, n_points);
-        SCE_Geometry_SetNumVertices (&list_verts_geom, 3 * n_points);
-        SCE_Geometry_SetNumVertices (vt->final_geom, 3 * n_points);
-        SCE_Geometry_SetNumIndices (vt->final_geom, 15 * n_points);
+        n_vertices = 3 * n_points;
+        n_indices = 15 * n_points;
         break;
     }
+
+    /* setup sizes */
+    SCE_Geometry_SetNumVertices (&non_empty_geom, n_points);
+    SCE_Geometry_SetNumVertices (&list_verts_geom, n_vertices);
+    SCE_Geometry_SetNumVertices (vt->final_geom, n_vertices);
+    SCE_Geometry_SetNumIndices (vt->final_geom, n_indices);
 
     /* create meshes */
     /* TODO: use Mesh_Build() and setup buffers storage mode manually */
@@ -1666,11 +1668,15 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
         SCE_TexData_SetDimensions (&tc, width * 8, height, depth);
     else
         SCE_TexData_SetDimensions (&tc, width * 4, height, depth);
-    SCE_TexData_SetDataType (&tc, SCE_UNSIGNED_INT);
+    if (n_vertices < 256 * 256) {
+        SCE_TexData_SetDataType (&tc, SCE_UNSIGNED_SHORT);
+        SCE_TexData_SetPixelFormat (&tc, SCE_PXF_R16UI);
+    } else {
+        SCE_TexData_SetDataType (&tc, SCE_UNSIGNED_INT);
+        SCE_TexData_SetPixelFormat (&tc, SCE_PXF_R32UI);
+    }
     SCE_TexData_SetType (&tc, SCE_IMAGE_3D);
     SCE_TexData_SetDataFormat (&tc, SCE_IMAGE_RED);
-    /* TODO: choose pixel format carefully, could be ushort */
-    SCE_TexData_SetPixelFormat (&tc, SCE_PXF_R32UI);
     SCE_Texture_AddTexDataDup (vt->splat, 0, &tc);
     /* index values must not be modified by magnification filter */
     SCE_Texture_Pixelize (vt->splat, SCE_TRUE);
