@@ -122,6 +122,11 @@ void SCE_VRender_SetIBRange (SCE_SVoxelMesh*, const int*);
 
 void SCE_VRender_Hardware (SCE_SVoxelTemplate*, SCE_SVoxelMesh*, int, int, int);
 
+unsigned int SCE_VRender_GetMaxV (void);
+unsigned int SCE_VRender_GetMaxI (void);
+unsigned int SCE_VRender_GetLimitV (void);
+unsigned int SCE_VRender_GetLimitI (void);
+
 int SCE_VRender_IsVoid (const SCE_SVoxelMesh*);
 
 #ifdef __cplusplus

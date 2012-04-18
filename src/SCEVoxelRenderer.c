@@ -32,6 +32,11 @@ static SCE_SGeometry final_geom_pos_cnor; /* c stands for "compressed" */
 static SCE_SGeometry final_geom_cpos_nor;
 static SCE_SGeometry final_geom_cpos_cnor;
 
+static unsigned int sce_max_vertices = 0;
+static unsigned int sce_max_indices = 0;
+static unsigned int sce_vertices_limit = 0;
+static unsigned int sce_indices_limit = 0;
+
 static const unsigned char mc_lt_edges_pbourke[254 * 15] = {
     0, 8, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 1, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1811,6 +1816,9 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
     SCE_Geometry_SetNumVertices (vt->final_geom, n_vertices);
     SCE_Geometry_SetNumIndices (vt->final_geom, n_indices);
 
+    sce_vertices_limit = n_vertices;
+    sce_indices_limit = n_indices;
+
     /* create meshes */
     /* TODO: use Mesh_Build() and setup buffers storage mode manually */
     if (SCE_Mesh_SetGeometry (&vt->non_empty, &non_empty_geom, SCE_FALSE) < 0)
@@ -2104,10 +2112,29 @@ void SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_SVoxelMesh *vm,
     i = SCE_Mesh_GetNumIndices (vm->mesh);
     SCE_Mesh_SetNumIndices (vm->mesh, i * 3);
 
+    sce_max_vertices = MAX (sce_max_vertices, SCE_Mesh_GetNumVertices (vm->mesh));
+    sce_max_indices = MAX (sce_max_indices, SCE_Mesh_GetNumIndices (vm->mesh));
+
     SCE_Shader_Use (NULL);
     SCE_Texture_Flush ();
 }
 
+unsigned int SCE_VRender_GetMaxV (void)
+{
+    return sce_max_vertices;
+}
+unsigned int SCE_VRender_GetMaxI (void)
+{
+    return sce_max_indices;
+}
+unsigned int SCE_VRender_GetLimitV (void)
+{
+    return sce_vertices_limit;
+}
+unsigned int SCE_VRender_GetLimitI (void)
+{
+    return sce_indices_limit;
+}
 
 int SCE_VRender_IsVoid (const SCE_SVoxelMesh *vm)
 {
