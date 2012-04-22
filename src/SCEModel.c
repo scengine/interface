@@ -412,7 +412,8 @@ fail:
  */
 void SCE_Model_SetRootNode (SCE_SModel *mdl, SCE_SNode *root)
 {
-    SCE_Node_Delete (mdl->root_node);
+    if (!mdl->root_node_instance)
+        SCE_Node_Delete (mdl->root_node);
     mdl->root_node = root;
     if (root) {
         SCE_SListIterator *it = NULL;
