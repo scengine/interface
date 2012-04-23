@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 15/04/2012 */
+   updated: 23/04/2012 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
@@ -47,6 +47,8 @@ struct sce_svoxelterrainregion {
     SCE_TMatrix4 matrix;        /**< World transform matrix */
     int draw;                   /**< Whether this region should be rendered */
     SCE_SListIterator it, it2;
+    int need_update;               /**< Hehe. */
+    SCE_SList *level_list;         /**< Update list the region is in */
     SCE_SVoxelTerrainLevel *level; /**< Owner of this region */
 };
 
@@ -82,10 +84,13 @@ struct sce_svoxelterrainlevel {
 
     long map_x, map_y, map_z;/**< Origin of the grid in the map */
 
-    int need_update;         /**< Does the texture need to be updated? */
     SCE_SIntRect3 update_zone;
+    SCE_SList list1, list2;
+    SCE_SList *updating, *queue;
 
     SCE_SList to_render;     /**< Regions to render */
+
+    SCE_SListIterator it;
 };
 
 
@@ -142,8 +147,8 @@ struct sce_svoxelterrain {
     float scale;                /**< Scale to apply to the terrain */
     int built;                  /**< Is the terrain built? */
 
-    SCE_SList to_update;        /**< List of regions to update */
-    SCEuint n_update;           /**< Size of \c to_update */
+    SCE_SList to_update;        /**< List of levels to update */
+    SCE_SVoxelTerrainLevel *update_level; /**< Level being updated */
     SCEuint max_updates;        /**< Maximum number of updated regions
                                      per frame */
 

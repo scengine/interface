@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 14/04/2012 */
+   updated: 23/04/2012 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -38,6 +38,8 @@ static void SCE_VTerrain_InitRegion (SCE_SVoxelTerrainRegion *tr)
     SCE_List_SetData (&tr->it, tr);
     SCE_List_InitIt (&tr->it2);
     SCE_List_SetData (&tr->it2, tr);
+    tr->need_update = SCE_FALSE;
+    tr->level_list = NULL;
     tr->level = NULL;
 }
 static void SCE_VTerrain_ClearRegion (SCE_SVoxelTerrainRegion *tr)
@@ -80,10 +82,16 @@ static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
     tl->x = tl->y = tl->z = 0;
     tl->map_x = tl->map_y = tl->map_z = 0;
 
-    tl->need_update = SCE_FALSE;
     SCE_Rectangle3_Init (&tl->update_zone);
+    SCE_List_Init (&tl->list1);
+    SCE_List_Init (&tl->list2);
+    tl->updating = &tl->list1;
+    tl->queue = &tl->list2;
 
     SCE_List_Init (&tl->to_render);
+
+    SCE_List_InitIt (&tl->it);
+    SCE_List_SetData (&tl->it, tl);
 }
 static void SCE_VTerrain_ClearLevel (SCE_SVoxelTerrainLevel *tl)
 {
@@ -111,6 +119,8 @@ static void SCE_VTerrain_ClearLevel (SCE_SVoxelTerrainLevel *tl)
             SCE_Mesh_Clear (&tl->mesh[i]);
         SCE_free (tl->mesh);
     }
+
+    SCE_List_Remove (&tl->it);
 }
 
 static void SCE_VTerrain_InitShader (SCE_SVoxelTerrainShader *shader)
@@ -144,7 +154,7 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
     vt->built = SCE_FALSE;
 
     SCE_List_Init (&vt->to_update);
-    vt->n_update = 0;
+    vt->update_level = NULL;
     vt->max_updates = 8;
 
     vt->trans_enabled = SCE_TRUE;
@@ -189,17 +199,31 @@ static void SCE_VTerrain_AddRegion (SCE_SVoxelTerrain *vt,
 {
     SCE_SListIterator *it = &tr->it;
     if (!SCE_List_IsAttached (it)) {
-        SCE_List_Appendl (&vt->to_update, it);
-        vt->n_update++;
+        SCE_List_Appendl (tr->level->queue, it);
+        tr->need_update = SCE_FALSE;
+        tr->level_list = tr->level->queue;
+    } else {
+        /* double update query: if it is in the list being updated "updating",
+           it will need to be inserted back into the "queue" list */
+        if (tr->level_list == tr->level->updating)
+            tr->need_update = SCE_TRUE;
     }
+    it = &tr->level->it;
+    if (!SCE_List_IsAttached (it))
+        SCE_List_Appendl (&vt->to_update, it);
 }
 static void SCE_VTerrain_RemoveRegion (SCE_SVoxelTerrain *vt,
                                        SCE_SVoxelTerrainRegion *tr)
 {
     SCE_SListIterator *it = &tr->it;
+    (void)vt;
     if (SCE_List_IsAttached (it)) {
         SCE_List_Removel (it);
-        vt->n_update--;
+        /* insert it back */
+        if (tr->need_update)
+            SCE_VTerrain_AddRegion (vt, tr);
+        else
+            tr->level_list = NULL;
     }
 }
 
@@ -780,7 +804,7 @@ void SCE_VTerrain_SetLevel (SCE_SVoxelTerrain *vt, SCEuint level,
     }
 
     SCE_Grid_CopyData (&vt->levels[level].grid, grid);
-    vt->levels[level].need_update = SCE_TRUE;
+    /* TODO: UpdateGrid() */
 }
 
 SCE_SGrid* SCE_VTerrain_GetLevelGrid (SCE_SVoxelTerrain *vt, SCEuint level)
@@ -1106,20 +1130,34 @@ void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
     size_t i;
     SCE_SListIterator *it = NULL, *pro = NULL;
     unsigned int x, y, z;
+    SCE_SVoxelTerrainLevel *fresh = NULL;
+    SCE_SList *list = NULL;
 
-    for (i = 0; i < vt->n_levels; i++) {
-        if (vt->levels[i].need_update) {
-            /* TODO: use update_zone of the level */
-            SCE_Texture_Update (vt->levels[i].tex);
-            vt->levels[i].need_update = SCE_FALSE;
+    fresh = vt->update_level;
+    /* whether there is no level being updated or if the level being updated
+       will be completed at the end of this function */
+    if (!vt->update_level ||
+        SCE_List_GetLength (vt->update_level->updating) <= vt->max_updates) {
+        if (SCE_List_HasElements (&vt->to_update)) {
+            SCE_SList *derp = NULL;
+            it = SCE_List_GetFirst (&vt->to_update);
+            fresh = SCE_List_GetData (it);
+            SCE_List_Removel (it);
+            SCE_Texture_Update (fresh->tex);
+            derp = fresh->updating;
+            fresh->updating = fresh->queue;
+            fresh->queue = derp;
+            fresh->need_update = SCE_FALSE;
         }
     }
 
     /* dequeue some regions for update */
     i = 0;
-    SCE_List_ForEachProtected (pro, it, &vt->to_update) {
+    if (vt->update_level)
+        list = vt->update_level->updating;
+    if (list) SCE_List_ForEachProtected (pro, it, list) {
         SCE_SVoxelTerrainRegion *tr = SCE_List_GetData (it);
-        SCE_SVoxelTerrainLevel *l = tr->level;
+        SCE_SVoxelTerrainLevel *l = vt->update_level;
 
         x = SCE_Math_Ring (tr->x - l->wrap_x, l->subregions);
         y = SCE_Math_Ring (tr->y - l->wrap_y, l->subregions);
@@ -1135,7 +1173,15 @@ void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
         i++;
         if (i >= vt->max_updates)
             break;
+
     }
+
+    if (vt->update_level && !SCE_List_HasElements (list)) {
+        SCE_List_Remove (&vt->update_level->it);
+        if (SCE_List_HasElements (vt->update_level->queue))
+            SCE_List_Appendl (&vt->to_update, &vt->update_level->it);
+    }
+    vt->update_level = fresh;
 }
 
 void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level, int draw)
