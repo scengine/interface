@@ -1770,7 +1770,7 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
     /* create grid geometry and grid mesh */
     SCE_Grid_Init (&grid);
     SCE_Grid_SetDimensions (&grid, vt->width, vt->height, vt->depth);
-    SCE_Grid_SetType (&grid, SCE_UNSIGNED_BYTE);
+    SCE_Grid_SetPointSize (&grid, 1);
     /* fortunately, grids do not need to be built to generate geometry */
     if (SCE_Grid_ToGeometryDiv (&grid, &vt->grid_geom,
                                 vt->vwidth, vt->vheight, vt->vdepth) < 0)

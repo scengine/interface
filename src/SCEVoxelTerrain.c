@@ -359,7 +359,7 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
 
 
     /* setup volume */
-    SCE_Grid_SetType (&tl->grid, SCE_UNSIGNED_BYTE);
+    SCE_Grid_SetPointSize (&tl->grid, 1);
     SCE_Grid_SetDimensions (&tl->grid, vt->width, vt->height, vt->depth);
     if (SCE_Grid_Build (&tl->grid) < 0)
         goto fail;
@@ -368,7 +368,7 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
         goto fail;
     /* SCE_PXF_LUMINANCE: 8 bits density precision */
     /* TODO: luminance format is deprecated */
-    SCE_Grid_ToTexture (&tl->grid, tc, SCE_PXF_LUMINANCE);
+    SCE_Grid_ToTexture (&tl->grid, tc, SCE_PXF_LUMINANCE, SCE_UNSIGNED_BYTE);
 
     if (!(tl->tex = SCE_Texture_Create (SCE_TEX_3D, 0, 0, 0)))
         goto fail;
