@@ -84,6 +84,7 @@ struct sce_svoxelterrainlevel {
 
     long map_x, map_y, map_z;/**< Origin of the grid in the map */
 
+    int need_update;         /**< Does the texture need to be updated? */
     SCE_SIntRect3 update_zone;
     SCE_SList list1, list2;
     SCE_SList *updating, *queue;

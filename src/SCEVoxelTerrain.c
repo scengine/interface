@@ -82,6 +82,7 @@ static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
     tl->x = tl->y = tl->z = 0;
     tl->map_x = tl->map_y = tl->map_z = 0;
 
+    tl->need_update = SCE_FALSE;
     SCE_Rectangle3_Init (&tl->update_zone);
     SCE_List_Init (&tl->list1);
     SCE_List_Init (&tl->list2);
