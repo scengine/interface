@@ -10,11 +10,11 @@ AC_CONFIG_SRCDIR([src/SCEInterface.c])
 AC_CONFIG_AUX_DIR([build/aux])
 AC_CONFIG_MACRO_DIR([build/m4])
 AM_INIT_AUTOMAKE([1.10 -Wall -Werror foreign])
-AM_PROG_AR
 
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 dnl check for programs
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR]) dnl I hate you Automake 1.12
 LT_PREREQ([2.2.0])
 LT_INIT
 AC_PROG_CC
