@@ -221,6 +221,14 @@ void SCE_Mesh_SetNumIndices (SCE_SMesh *mesh, SCEuint n)
 {
     mesh->n_indices = n;
 }
+void SCE_Mesh_UpdateNumVertices (SCE_SMesh *mesh)
+{
+    mesh->n_vertices = SCE_Geometry_GetNumVertices (mesh->geom);
+}
+void SCE_Mesh_UpdateNumIndices (SCE_SMesh *mesh)
+{
+    mesh->n_indices = SCE_Geometry_GetNumIndices (mesh->geom);
+}
 
 
 /**
