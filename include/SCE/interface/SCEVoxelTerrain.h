@@ -203,6 +203,8 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain*);
 void SCE_VTerrain_SetPosition (SCE_SVoxelTerrain*, long, long, long);
 void SCE_VTerrain_GetMissingSlices (const SCE_SVoxelTerrain*, SCEuint, long*,
                                     long*, long*);
+void SCE_VTerrain_GetRectangle (const SCE_SVoxelTerrain*, SCEuint,
+                                SCE_SLongRect3*);
 void SCE_VTerrain_SetOrigin (SCE_SVoxelTerrain*, SCEuint, long, long, long);
 void SCE_VTerrain_GetOrigin (const SCE_SVoxelTerrain*, SCEuint,
                              long*, long*, long*);

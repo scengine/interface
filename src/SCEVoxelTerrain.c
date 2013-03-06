@@ -775,6 +775,24 @@ void SCE_VTerrain_GetMissingSlices (const SCE_SVoxelTerrain *vt, SCEuint level,
     *z = (vt->z - center[2]) / herp;
 }
 
+/**
+ * \brief Gets the rectangle around the theoretical position of the viewer
+ * \param vt voxel terrain
+ * \param level level of detail
+ * \param r resulting rectangle
+ *
+ * ... that is, not based on map_xyz.
+ */
+void SCE_VTerrain_GetRectangle (const SCE_SVoxelTerrain *vt, SCEuint level,
+                                SCE_SLongRect3 *r)
+{
+    long x, y, z;
+    x = vt->x << level;
+    y = vt->y << level;
+    z = vt->z << level;
+    SCE_Rectangle3_SetFromCenterl (r, x,y,z, vt->width, vt->height, vt->depth);
+}
+
 void SCE_VTerrain_SetOrigin (SCE_SVoxelTerrain *vt, SCEuint level,
                              long x, long y, long z)
 {
