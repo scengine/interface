@@ -836,15 +836,25 @@ void SCE_Shader_SetMatrix4v (int index, const float *m, size_t num)
 int SCE_Shader_AddParamv (SCE_SShader *shader, const char *name, void *p)
 {
     SCE_SShaderParam *param = NULL;
-    if (!(param = SCE_malloc (sizeof *param))) {
-        SCEE_LogSrc ();
-        return SCE_ERROR;
-    }
+    size_t i;
+
+    if (!(param = SCE_malloc (sizeof *param)))
+        goto fail;
     SCE_Shader_InitParam (param);
     SCE_List_Appendl (&shader->params_i, &param->it);
     param->param = p;
+    /* TODO: if index is -1 or the shader isn't built... do something. */
     param->index = SCE_Shader_GetIndex (shader, name);
+
+    for (i = 1; i < shader->pipeline.n_shaders; i++) {
+        if (SCE_Shader_AddParamv (shader->pipeline.shaders[i], name, p) < 0)
+            goto fail;
+   }
+
     return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
 }
 /**
  * \brief Adds a constant floating parameter
