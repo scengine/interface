@@ -105,6 +105,8 @@ SCEuint SCE_Mesh_GetNumVertices (const SCE_SMesh*);
 SCEuint SCE_Mesh_GetNumIndices (const SCE_SMesh*);
 void SCE_Mesh_SetNumVertices (SCE_SMesh*, SCEuint);
 void SCE_Mesh_SetNumIndices (SCE_SMesh*, SCEuint);
+void SCE_Mesh_UpdateNumVertices (SCE_SMesh*);
+void SCE_Mesh_UpdateNumIndices (SCE_SMesh*);
 
 SCE_SGeometry* SCE_Mesh_GetGeometry (SCE_SMesh*);
 int SCE_Mesh_SetGeometry (SCE_SMesh*, SCE_SGeometry*, int);

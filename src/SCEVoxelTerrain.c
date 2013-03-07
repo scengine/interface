@@ -132,6 +132,7 @@ static void SCE_VTerrain_InitShader (SCE_SVoxelTerrainShader *shader)
     shader->enabled_loc = shader->tcorigin_loc = SCE_SHADER_BAD_INDEX;
     shader->hightex_loc = shader->lowtex_loc = SCE_SHADER_BAD_INDEX;
     shader->topdiffuse_loc = shader->sidediffuse_loc = SCE_SHADER_BAD_INDEX;
+    shader->noise_loc = SCE_SHADER_BAD_INDEX;
 }
 static void SCE_VTerrain_ClearShader (SCE_SVoxelTerrainShader *shader)
 {
@@ -166,7 +167,7 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
     for (i = 0; i < SCE_NUM_VTERRAIN_SHADERS; i++)
         SCE_VTerrain_InitShader (&vt->shaders[i]);
 
-    vt->top_diffuse = vt->side_diffuse = NULL;
+    vt->top_diffuse = vt->side_diffuse = vt->noise = NULL;
 }
 void SCE_VTerrain_Clear (SCE_SVoxelTerrain *vt)
 {
@@ -348,6 +349,15 @@ void SCE_VTerrain_SetSideDiffuseTexture (SCE_SVoxelTerrain *vt, SCE_STexture *te
 SCE_STexture* SCE_VTerrain_GetSideDiffuseTexture (SCE_SVoxelTerrain *vt)
 {
     return vt->side_diffuse;
+}
+
+void SCE_VTerrain_SetNoiseTexture (SCE_SVoxelTerrain *vt, SCE_STexture *tex)
+{
+    vt->noise = tex;
+}
+SCE_STexture* SCE_VTerrain_GetNoiseTexture (SCE_SVoxelTerrain *vt)
+{
+    return vt->noise;
 }
 
 
@@ -615,6 +625,7 @@ static const char *ps_main =
 
     "uniform sampler2D sce_side_diffuse;"
     "uniform sampler2D sce_top_diffuse;"
+    "uniform sampler2D sce_noise_tex;"
 
     "void main (void)"
     "{"
@@ -737,6 +748,7 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
         SCE_LOC (enabled_loc, "enabled");
         SCE_LOC (topdiffuse_loc, "sce_top_diffuse");
         SCE_LOC (sidediffuse_loc, "sce_side_diffuse");
+        SCE_LOC (noise_loc, "sce_noise_tex");
 #undef SCE_LOC
 
     }
@@ -1374,6 +1386,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 
     SCE_Texture_SetUnit (vt->top_diffuse, 2);
     SCE_Texture_SetUnit (vt->side_diffuse, 3);
+    SCE_Texture_SetUnit (vt->noise, 4);
 
     if (vt->shadow_mode) {
         unsigned int state = 0;
@@ -1406,6 +1419,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 #if 0
             SCE_Texture_Use (vt->top_diffuse);
             SCE_Texture_Use (vt->side_diffuse);
+            SCE_Texture_Use (vt->noise);
 #endif
             SCE_Texture_EndLot ();
 
@@ -1434,12 +1448,14 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
             SCE_Texture_Use (tl->tex);
         SCE_Texture_Use (vt->top_diffuse);
         SCE_Texture_Use (vt->side_diffuse);
+        SCE_Texture_Use (vt->noise);
         SCE_Texture_EndLot ();
 
         SCE_Shader_Use (defshd->shd);
 
         SCE_Shader_SetParam (defshd->topdiffuse_loc, 2);
         SCE_Shader_SetParam (defshd->sidediffuse_loc, 3);
+        SCE_Shader_SetParam (defshd->noise_loc, 4);
 
         SCE_VTerrain_RenderLevel (vt, vt->n_levels - 1,
                                   &vt->levels[vt->n_levels - 1], NULL, defshd);
@@ -1463,6 +1479,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
         SCE_Shader_SetParam (lodshd->enabled_loc, vt->trans_enabled);
         SCE_Shader_SetParam (lodshd->topdiffuse_loc, 2);
         SCE_Shader_SetParam (lodshd->sidediffuse_loc, 3);
+        SCE_Shader_SetParam (lodshd->noise_loc, 4);
 
         SCE_Texture_BeginLot ();
 
@@ -1477,6 +1494,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
             SCE_Texture_Use (tl->tex);
             SCE_Texture_Use (vt->top_diffuse);
             SCE_Texture_Use (vt->side_diffuse);
+            SCE_Texture_Use (vt->noise);
             SCE_Texture_EndLot ();
 
             if (i % 2) {
@@ -1504,12 +1522,14 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
             SCE_Texture_Use (tl->tex);
         SCE_Texture_Use (vt->top_diffuse);
         SCE_Texture_Use (vt->side_diffuse);
+        SCE_Texture_Use (vt->noise);
         SCE_Texture_EndLot ();
 
         SCE_Shader_Use (defshd->shd);
 
         SCE_Shader_SetParam (defshd->topdiffuse_loc, 2);
         SCE_Shader_SetParam (defshd->sidediffuse_loc, 3);
+        SCE_Shader_SetParam (defshd->noise_loc, 4);
 
         SCE_RSetStencilFunc (SCE_LEQUAL, vt->n_levels, ~0U);
         SCE_VTerrain_RenderLevel (vt, vt->n_levels - 1,

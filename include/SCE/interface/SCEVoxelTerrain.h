@@ -107,6 +107,7 @@ struct sce_svoxelterrainshader {
     int enabled_loc;
     int topdiffuse_loc;
     int sidediffuse_loc;
+    int noise_loc;
 };
 
 /* shader flags */
@@ -163,6 +164,7 @@ struct sce_svoxelterrain {
     /** \brief Diffuse textures of the terrain */
     SCE_STexture *top_diffuse;
     SCE_STexture *side_diffuse;
+    SCE_STexture *noise;
 };
 
 void SCE_VTerrain_Init (SCE_SVoxelTerrain*);
@@ -196,6 +198,8 @@ void SCE_VTerrain_SetTopDiffuseTexture (SCE_SVoxelTerrain*, SCE_STexture*);
 SCE_STexture* SCE_VTerrain_GetTopDiffuseTexture (SCE_SVoxelTerrain*);
 void SCE_VTerrain_SetSideDiffuseTexture (SCE_SVoxelTerrain*, SCE_STexture*);
 SCE_STexture* SCE_VTerrain_GetSideDiffuseTexture (SCE_SVoxelTerrain*);
+void SCE_VTerrain_SetNoiseTexture (SCE_SVoxelTerrain*, SCE_STexture*);
+SCE_STexture* SCE_VTerrain_GetNoiseTexture (SCE_SVoxelTerrain*);
 
 int SCE_VTerrain_BuildShader (SCE_SVoxelTerrain*, SCE_SShader*);
 int SCE_VTerrain_Build (SCE_SVoxelTerrain*);
