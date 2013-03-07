@@ -1372,6 +1372,9 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
     SCE_SVoxelTerrainShader *lodshd = NULL, *defshd = NULL;
     SCE_SVoxelTerrainLevel *tl = NULL, *tl3 = NULL;
 
+    SCE_Texture_SetUnit (vt->top_diffuse, 2);
+    SCE_Texture_SetUnit (vt->side_diffuse, 3);
+
     if (vt->shadow_mode) {
         unsigned int state = 0;
 
@@ -1386,9 +1389,6 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 
         SCE_Shader_Use (lodshd->shd);
 
-        SCE_Texture_SetUnit (vt->top_diffuse, 2);
-        SCE_Texture_SetUnit (vt->side_diffuse, 3);
-
         SCE_Shader_SetParam (lodshd->enabled_loc, vt->trans_enabled);
 
         SCE_Texture_BeginLot ();
@@ -1402,8 +1402,11 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
             SCE_Texture_SetUnit (tl3->tex, (i % 2 ? 0 : 1));
             SCE_Texture_Use (tl3->tex);
             SCE_Texture_Use (tl->tex);
+            /* depth-only rendering doesn't require textures */
+#if 0
             SCE_Texture_Use (vt->top_diffuse);
             SCE_Texture_Use (vt->side_diffuse);
+#endif
             SCE_Texture_EndLot ();
 
             if (i % 2) {
@@ -1456,9 +1459,6 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
         SCE_REnableStencilTest ();
 
         SCE_Shader_Use (lodshd->shd);
-
-        SCE_Texture_SetUnit (vt->top_diffuse, 2);
-        SCE_Texture_SetUnit (vt->side_diffuse, 3);
 
         SCE_Shader_SetParam (lodshd->enabled_loc, vt->trans_enabled);
         SCE_Shader_SetParam (lodshd->topdiffuse_loc, 2);
