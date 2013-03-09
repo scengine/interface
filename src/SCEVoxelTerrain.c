@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2013  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 23/04/2012 */
+   updated: 09/03/2013 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -144,6 +144,8 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
     size_t i;
 
     SCE_VRender_Init (&vt->template);
+    vt->rpipeline = SCE_VRENDER_SOFTWARE;
+    SCE_VRender_SetPipeline (&vt->template, vt->rpipeline);
     vt->subregion_dim = 0;
     vt->n_subregions = 1;
     for (i = 0; i < SCE_MAX_VTERRAIN_LEVELS; i++)
@@ -312,6 +314,12 @@ void SCE_VTerrain_CompressNormal (SCE_SVoxelTerrain *vt, int comp)
 {
     SCE_VRender_CompressNormal (&vt->template, comp);
 }
+void SCE_VTerrain_SetPipeline (SCE_SVoxelTerrain *vt,
+                                SCE_EVoxelRenderPipeline pipeline)
+{
+    vt->rpipeline = pipeline;
+    SCE_VRender_SetPipeline (&vt->template, pipeline);
+}
 void SCE_VTerrain_SetAlgorithm (SCE_SVoxelTerrain *vt,
                                 SCE_EVoxelRenderAlgorithm algo)
 {
@@ -405,7 +413,6 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
             goto fail;
         SCE_Mesh_AutoBuild (&tl->mesh[i]);
 
-        SCE_VRender_SetVolume (&tl->regions[i].vm, tl->tex);
         SCE_VRender_SetMesh (&tl->regions[i].vm, &tl->mesh[i]);
     }
 
@@ -548,7 +555,11 @@ static const char *vs_main =
 
     "in vec3 sce_position;"
     /* TODO: blblbl */
+#if 0
     "\n#define SCE_COMPUTE_NORMAL 0\n" /* xD */
+#else
+    "\n#define SCE_COMPUTE_NORMAL 1\n" /* xD */
+#endif
     "\n#if !SCE_COMPUTE_NORMAL\n"
     "in vec3 sce_normal;"
     "\n#endif\n"
@@ -1194,10 +1205,26 @@ void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
         y = SCE_Math_Ring (tr->y - l->wrap_y, l->subregions);
         z = SCE_Math_Ring (tr->z - l->wrap_z, l->subregions);
 
-        SCE_VRender_Hardware (&vt->template, &tr->vm,
-                              l->wrap[0] + l->x + x * (vt->subregion_dim - 1),
-                              l->wrap[1] + l->y + y * (vt->subregion_dim - 1),
-                              l->wrap[2] + l->z + z * (vt->subregion_dim - 1));
+        x = l->x + x * (vt->subregion_dim - 1);
+        y = l->y + y * (vt->subregion_dim - 1);
+        z = l->z + z * (vt->subregion_dim - 1);
+
+        switch (vt->rpipeline) {
+        case SCE_VRENDER_SOFTWARE:
+            SCE_VRender_Software (&vt->template, &tr->level->grid, &tr->vm,
+                                  x, y, z);
+            break;
+        case SCE_VRENDER_HARDWARE:
+            x += l->wrap[0];
+            y += l->wrap[1];
+            z += l->wrap[2];
+
+            SCE_VRender_Hardware (&vt->template, tr->level->tex, &tr->vm,
+                                  x, y, z);
+            break;
+        default:;
+        }
+
         tr->draw = SCE_VRender_IsVoid (&tr->vm);
         SCE_VTerrain_RemoveRegion (vt, tr);
 
@@ -1350,7 +1377,7 @@ SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt, SCEuint level,
         SCE_Shader_SetParam3fv (shd->wrapping1_loc, 1, v);
     } else {
 
-        if (0/*generate_normals*/) {
+        if (1/*generate_normals*/) {
             SCE_Vector3_Operator2v (v, =, tl->wrap, *, invv);
             SCE_Shader_SetParam3fv (shd->wrapping0_loc, 1, v);
         }
@@ -1431,7 +1458,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
                 SCE_Shader_SetParam (lodshd->lowtex_loc, 1);
             }
 
-            SCE_VTerrain_RenderLevel (vt, i, &vt->levels[i], tl3, lodshd);
+            SCE_VTerrain_RenderLevel (vt, i, tl, tl3, lodshd);
 
             SCE_Texture_BeginLot ();
         }
@@ -1444,7 +1471,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 
         /* non lod */
         SCE_Texture_BeginLot ();
-        if (0/*generate_normals*/)
+        if (1/*generate_normals*/)
             SCE_Texture_Use (tl->tex);
         SCE_Texture_Use (vt->top_diffuse);
         SCE_Texture_Use (vt->side_diffuse);
@@ -1457,8 +1484,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
         SCE_Shader_SetParam (defshd->sidediffuse_loc, 3);
         SCE_Shader_SetParam (defshd->noise_loc, 4);
 
-        SCE_VTerrain_RenderLevel (vt, vt->n_levels - 1,
-                                  &vt->levels[vt->n_levels - 1], NULL, defshd);
+        SCE_VTerrain_RenderLevel (vt, vt->n_levels - 1, tl, NULL, defshd);
 
         SCE_Shader_Use (NULL);
         SCE_Texture_Flush ();
@@ -1505,7 +1531,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
                 SCE_Shader_SetParam (lodshd->lowtex_loc, 1);
             }
 
-            SCE_VTerrain_RenderLevel (vt, i, &vt->levels[i], tl3, lodshd);
+            SCE_VTerrain_RenderLevel (vt, i, tl, tl3, lodshd);
 
             SCE_Texture_BeginLot ();
         }
@@ -1518,7 +1544,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 
         /* non lod */
         SCE_Texture_BeginLot ();
-        if (0/*generate_normals*/)
+        if (1/*generate_normals*/)
             SCE_Texture_Use (tl->tex);
         SCE_Texture_Use (vt->top_diffuse);
         SCE_Texture_Use (vt->side_diffuse);
@@ -1532,8 +1558,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
         SCE_Shader_SetParam (defshd->noise_loc, 4);
 
         SCE_RSetStencilFunc (SCE_LEQUAL, vt->n_levels, ~0U);
-        SCE_VTerrain_RenderLevel (vt, vt->n_levels - 1,
-                                  &vt->levels[vt->n_levels - 1], NULL, defshd);
+        SCE_VTerrain_RenderLevel (vt, vt->n_levels - 1, tl, NULL, defshd);
 
         SCE_Shader_Use (NULL);
         SCE_Texture_Flush ();

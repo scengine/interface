@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2013  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 23/04/2012 */
+   updated: 09/03/2013 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
@@ -138,6 +138,7 @@ typedef struct sce_svoxelterrain SCE_SVoxelTerrain;
  */
 struct sce_svoxelterrain {
     SCE_SVoxelTemplate template;
+    SCE_EVoxelRenderPipeline rpipeline;
 
     SCEuint subregion_dim;      /**< Dimensions of one subregion */
     SCEuint n_subregions;       /**< Number of subregions per side */
@@ -190,6 +191,7 @@ void SCE_VTerrain_SetNumSubRegions (SCE_SVoxelTerrain*, SCEuint);
 
 void SCE_VTerrain_CompressPosition (SCE_SVoxelTerrain*, int);
 void SCE_VTerrain_CompressNormal (SCE_SVoxelTerrain*, int);
+void SCE_VTerrain_SetPipeline (SCE_SVoxelTerrain*, SCE_EVoxelRenderPipeline);
 void SCE_VTerrain_SetAlgorithm (SCE_SVoxelTerrain*, SCE_EVoxelRenderAlgorithm);
 
 void SCE_VTerrain_SetShader (SCE_SVoxelTerrain*, SCE_SShader*);
