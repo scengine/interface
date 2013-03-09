@@ -2135,8 +2135,7 @@ void SCE_VRender_Software (SCE_SVoxelTemplate *vt, const SCE_SGrid *volume,
     }
     /*SCE_MC_GenerateNormals (&vt->mc_gen, &rect, volume, vt->v_pos, vt->v_nor);*/
     n_indices = SCE_MC_GenerateIndices (&vt->mc_gen, vt->indices);
-    SCE_Geometry_ComputeNormals (vt->vertices, vt->indices, n_vertices,
-                                 n_indices, vt->normals);
+    SCE_MC_GenerateNormals (&vt->mc_gen, volume, vt->normals);
 
     vertex_size = 3 * sizeof (SCEvertices);
     index_size = sizeof (SCEindices);
