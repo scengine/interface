@@ -630,6 +630,16 @@ SCE_RIndexBuffer* SCE_Mesh_GetIndexBuffer (SCE_SMesh *mesh)
     return &mesh->ib;
 }
 
+void SCE_Mesh_UploadVertices (SCE_SMesh *mesh, SCE_EMeshStream str,
+                              const SCEvertices *v, size_t first, size_t s)
+{
+    SCE_RInstantVertexBufferUpdate (&mesh->streams[str], v, first, s);
+}
+void SCE_Mesh_UploadIndices (SCE_SMesh *mesh, const SCEindices *i, size_t s)
+{
+    SCE_RInstantIndexBufferUpdate (&mesh->ib, i, 0, s);
+}
+
 
 /**
  * \brief Declares a mesh as activated for rendering

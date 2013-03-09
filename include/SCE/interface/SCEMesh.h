@@ -123,6 +123,10 @@ SCE_SMesh* SCE_Mesh_Load (const char*, int);
 SCE_RVertexBuffer* SCE_Mesh_GetStream (SCE_SMesh*, SCE_EMeshStream);
 SCE_RIndexBuffer* SCE_Mesh_GetIndexBuffer (SCE_SMesh*);
 
+void SCE_Mesh_UploadVertices (SCE_SMesh*, SCE_EMeshStream, const SCEvertices*,
+                              size_t, size_t);
+void SCE_Mesh_UploadIndices (SCE_SMesh*, const SCEindices*, size_t);
+
 void SCE_Mesh_Use (SCE_SMesh*);
 void SCE_Mesh_Render (void);
 void SCE_Mesh_RenderInstanced (SCEuint);
