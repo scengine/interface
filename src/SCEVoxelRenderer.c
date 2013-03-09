@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2013  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 14/02/2012
-   updated: 18/04/2012 */
+   updated: 09/03/2013 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -27,6 +27,7 @@
 
 static SCE_SGeometry non_empty_geom;
 static SCE_SGeometry list_verts_geom;
+static SCE_SGeometry final_geom_pos; /* just for shiets. */
 static SCE_SGeometry final_geom_pos_nor;
 static SCE_SGeometry final_geom_pos_cnor; /* c stands for "compressed" */
 static SCE_SGeometry final_geom_cpos_nor;
@@ -295,6 +296,7 @@ static const unsigned char mc_lt_edges_pbourke[254 * 15] = {
 };
 
 
+/* TODO: AddArrayDub() can fail dude */
 int SCE_Init_VRender (void)
 {
     SCE_SGeometryArray ar1, ar2;
@@ -331,6 +333,23 @@ int SCE_Init_VRender (void)
     SCE_Geometry_AddArrayRecDup (final_geom, &ar1, SCE_FALSE);
     SCE_Geometry_InitArray (&ar1);
     SCE_Geometry_SetArrayIndices (&ar1, SCE_UNSIGNED_INT, NULL, SCE_FALSE);
+    SCE_Geometry_SetIndexArrayDup (final_geom, &ar1, SCE_FALSE);
+    SCE_Geometry_SetPrimitiveType (final_geom, SCE_TRIANGLES);
+
+
+    /* not interleaved nor compressed */
+    final_geom = &final_geom_pos;
+    SCE_Geometry_Init (final_geom);
+    SCE_Geometry_InitArray (&ar1);
+    SCE_Geometry_SetArrayData (&ar1, SCE_POSITION, SCE_VERTICES_TYPE, 0, 3,
+                               NULL, SCE_FALSE);
+    SCE_Geometry_AddArrayDup (final_geom, &ar1, SCE_FALSE);
+    SCE_Geometry_InitArray (&ar1);
+    SCE_Geometry_SetArrayData (&ar1, SCE_NORMAL, SCE_VERTICES_TYPE, 0, 3,
+                               NULL, SCE_FALSE);
+    SCE_Geometry_AddArrayDup (final_geom, &ar1, SCE_FALSE);
+    SCE_Geometry_InitArray (&ar1);
+    SCE_Geometry_SetArrayIndices (&ar1, SCE_INDICES_TYPE, NULL, SCE_FALSE);
     SCE_Geometry_SetIndexArrayDup (final_geom, &ar1, SCE_FALSE);
     SCE_Geometry_SetPrimitiveType (final_geom, SCE_TRIANGLES);
 
@@ -400,17 +419,26 @@ void SCE_Quit_VRender (void)
 
 void SCE_VRender_Init (SCE_SVoxelTemplate *vt)
 {
-    vt->algo = SCE_VRENDER_MARCHING_TETRAHEDRA;
-
-    SCE_Geometry_Init (&vt->grid_geom);
-    SCE_Mesh_Init (&vt->grid_mesh);
-    SCE_Mesh_Init (&vt->non_empty);
-    SCE_Mesh_Init (&vt->list_verts);
+    vt->pipeline = SCE_VRENDER_SOFTWARE;
+    vt->algo = SCE_VRENDER_MARCHING_CUBES;
 
     vt->compressed_pos = SCE_FALSE;
     vt->compressed_nor = SCE_FALSE;
     vt->comp_scale = 1.0;
     vt->final_geom = NULL;
+
+    vt->vwidth = vt->vheight = vt->vdepth = 0;
+    vt->width = vt->height = vt->depth = 0;
+
+    SCE_MC_Init (&vt->mc_gen);
+    vt->vertices = NULL;
+    vt->normals = NULL;
+    vt->indices = NULL;
+
+    SCE_Geometry_Init (&vt->grid_geom);
+    SCE_Mesh_Init (&vt->grid_mesh);
+    SCE_Mesh_Init (&vt->non_empty);
+    SCE_Mesh_Init (&vt->list_verts);
 
     vt->non_empty_shader = NULL;
     vt->non_empty_offset_loc = 0;
@@ -423,9 +451,6 @@ void SCE_VRender_Init (SCE_SVoxelTemplate *vt)
     vt->indices_shader = NULL;
     vt->splat = NULL;
     vt->mc_table = NULL;
-
-    vt->vwidth = vt->vheight = vt->vdepth = 0;
-    vt->width = vt->height = vt->depth = 0;
 }
 void SCE_VRender_Clear (SCE_SVoxelTemplate *vt)
 {
@@ -433,6 +458,11 @@ void SCE_VRender_Clear (SCE_SVoxelTemplate *vt)
     SCE_Mesh_Clear (&vt->grid_mesh);
     SCE_Mesh_Clear (&vt->non_empty);
     SCE_Mesh_Clear (&vt->list_verts);
+
+    SCE_MC_Clear (&vt->mc_gen);
+    SCE_free (vt->vertices);
+    SCE_free (vt->normals);
+    SCE_free (vt->indices);
 
     SCE_Shader_Delete (vt->non_empty_shader);
     SCE_Shader_Delete (vt->list_verts_shader);
@@ -461,7 +491,6 @@ void SCE_VRender_Delete (SCE_SVoxelTemplate *vt)
 
 void SCE_VRender_InitMesh (SCE_SVoxelMesh *vm)
 {
-    vm->volume = NULL;
     SCE_Vector3_Set (vm->wrap, 0.0, 0.0, 0.0);
     vm->mesh = NULL;
     vm->render = SCE_FALSE;
@@ -488,6 +517,12 @@ void SCE_VRender_DeleteMesh (SCE_SVoxelMesh *vm)
         SCE_VRender_ClearMesh (vm);
         SCE_free (vm);
     }
+}
+
+void SCE_VRender_SetPipeline (SCE_SVoxelTemplate *vt,
+                              SCE_EVoxelRenderPipeline pipeline)
+{
+    vt->pipeline = pipeline;
 }
 
 void SCE_VRender_SetDimensions (SCE_SVoxelTemplate *vt, int w, int h, int d)
@@ -1749,7 +1784,7 @@ static const char *mc_indices_gs =
     "}";
 
 
-int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
+static int SCE_VRender_BuildHW (SCE_SVoxelTemplate *vt)
 {
     SCE_SGrid grid;
     size_t n_points;
@@ -1982,16 +2017,63 @@ fail:
     return SCE_ERROR;
 }
 
+static int SCE_VRender_BuildSoftware (SCE_SVoxelTemplate *vt)
+{
+    size_t n_vertices, n_indices, n_points;
+
+#if 1
+    vt->final_geom = &final_geom_pos;
+#else
+    if (vt->compressed_pos && vt->compressed_nor)
+        vt->final_geom = &final_geom_cpos_cnor;
+    else if (vt->compressed_nor)
+        vt->final_geom = &final_geom_pos_cnor;
+    else if (vt->compressed_pos)
+        vt->final_geom = &final_geom_cpos_nor;
+    else
+        vt->final_geom = &final_geom_pos_nor;
+#endif
+
+    n_points = vt->width * vt->height * vt->depth;
+    n_vertices = 3 * n_points;
+    n_indices = 15 * n_points;
+
+    SCE_Geometry_SetNumVertices (vt->final_geom, n_vertices);
+    SCE_Geometry_SetNumIndices (vt->final_geom, n_indices);
+
+    if (!(vt->vertices = SCE_malloc (n_vertices * 3 * sizeof *vt->vertices)))
+        goto fail;
+    if (!(vt->normals = SCE_malloc (n_vertices * 3 * sizeof *vt->normals)))
+        goto fail;
+    if (!(vt->indices = SCE_malloc (n_indices * sizeof *vt->indices)))
+        goto fail;
+
+    SCE_MC_SetNumCells (&vt->mc_gen, n_points);
+    if (SCE_MC_Build (&vt->mc_gen) < 0)
+        goto fail;
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
+}
+
+int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
+{
+    switch (vt->pipeline) {
+    case SCE_VRENDER_HARDWARE: return SCE_VRender_BuildHW (vt);
+    case SCE_VRENDER_SOFTWARE: return SCE_VRender_BuildSoftware (vt);
+    default:;
+    }
+    return SCE_OK;              /* duh */
+}
+
 SCE_SGeometry* SCE_VRender_GetFinalGeometry (SCE_SVoxelTemplate *vt)
 {
     return vt->final_geom;
 }
 
 
-void SCE_VRender_SetVolume (SCE_SVoxelMesh *vm, SCE_STexture *volume)
-{
-    vm->volume = volume;
-}
 void SCE_VRender_SetWrap (SCE_SVoxelMesh *vm, SCE_TVector3 wrap)
 {
     SCE_Vector3_Copy (vm->wrap, wrap);
@@ -2023,28 +2105,80 @@ void SCE_VRender_SetIBRange (SCE_SVoxelMesh *vm, const int *r)
 
 
 /**
+ * \brief Generates geometry from a density field using the CPU
+ * \param vt a voxel template
+ * \param vm abstract output mesh
+ * \param volume source voxels
+ * \param x,y,z coordinates of the origin for volume texture fetches
+ */
+void SCE_VRender_Software (SCE_SVoxelTemplate *vt, const SCE_SGrid *volume,
+                           SCE_SVoxelMesh *vm, int x, int y, int z)
+{
+    SCE_SIntRect3 rect;
+    size_t n_vertices, n_indices;
+    size_t vertex_size, index_size;
+    SCE_RVertexBuffer *vb;
+    SCE_RIndexBuffer *ib;
+
+    SCE_Rectangle3_SetFromOrigin (&rect, x, y, z, vt->width, vt->height,
+                                  vt->depth);
+    /* TODO: pos and nor shall be interleaved */
+    n_vertices = SCE_MC_GenerateVertices (&vt->mc_gen, &rect, volume,
+                                          vt->vertices);
+    if (n_vertices != 0) {
+        vm->render = SCE_TRUE;
+    } else {
+        vm->render = SCE_FALSE;
+        SCE_Mesh_SetNumVertices (vm->mesh, 0);
+        SCE_Mesh_SetNumIndices (vm->mesh, 0);
+        return;
+    }
+    /*SCE_MC_GenerateNormals (&vt->mc_gen, &rect, volume, vt->v_pos, vt->v_nor);*/
+    n_indices = SCE_MC_GenerateIndices (&vt->mc_gen, vt->indices);
+    SCE_Geometry_ComputeNormals (vt->vertices, vt->indices, n_vertices,
+                                 n_indices, vt->normals);
+
+    vertex_size = 3 * sizeof (SCEvertices);
+    index_size = sizeof (SCEindices);
+
+    /* we kinda wanna upload these data asap, because we dont really want
+       to keep a copy on CPU memory */
+    SCE_Mesh_UploadVertices (vm->mesh, SCE_MESH_STREAM_G, vt->vertices,
+                             0, n_vertices * vertex_size);
+    SCE_Mesh_UploadVertices (vm->mesh, SCE_MESH_STREAM_N, vt->normals,
+                             0, n_vertices * vertex_size);
+    SCE_Mesh_UploadIndices (vm->mesh, vt->indices, n_indices * index_size);
+    /* TODO: we want to use BindBufferRange() since only a small part of the
+       buffer will actually be needed. */
+
+    SCE_Mesh_SetNumVertices (vm->mesh, n_vertices);
+    SCE_Mesh_SetNumIndices (vm->mesh, n_indices);
+}
+
+/**
  * \brief Generates geometry from a density field using the GPU
  * \param vt a voxel template
  * \param vm abstract output mesh
+ * \param volume source voxels
  * \param x,y,z coordinates of the origin for volume texture fetches
  */
-void SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_SVoxelMesh *vm,
-                           int x, int y, int z)
+void SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_STexture *volume,
+                           SCE_SVoxelMesh *vm, int x, int y, int z)
 {
     SCE_TVector3 wrap;
     float w, h, d;
     int i;
 
-    w = SCE_Texture_GetWidth (vm->volume);
-    h = SCE_Texture_GetHeight (vm->volume);
-    d = SCE_Texture_GetDepth (vm->volume);
+    w = SCE_Texture_GetWidth (volume);
+    h = SCE_Texture_GetHeight (volume);
+    d = SCE_Texture_GetDepth (volume);
     SCE_Vector3_Copy (wrap, vm->wrap);
     wrap[0] += (float)x / w;
     wrap[1] += (float)y / h;
     wrap[2] += (float)z / d;
 
     /* 1st pass: render non empty cells */
-    SCE_Texture_Use (vm->volume);
+    SCE_Texture_Use (volume);
     SCE_Shader_Use (vt->non_empty_shader);
     SCE_Shader_SetParam3fv (vt->non_empty_offset_loc, 1, wrap);
     SCE_Mesh_BeginRenderTo (&vt->non_empty);
@@ -2118,6 +2252,7 @@ void SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_SVoxelMesh *vm,
     SCE_Shader_Use (NULL);
     SCE_Texture_Flush ();
 }
+
 
 unsigned int SCE_VRender_GetMaxV (void)
 {
