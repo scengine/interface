@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2013  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 31/07/2009
-   updated: 21/03/2012 */
+   updated: 09/03/2013 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -481,6 +481,7 @@ static void SCE_Mesh_BuildBuffers (SCE_SMesh *mesh, SCE_RBufferUsage
         SCE_RBuildIndexBuffer (&mesh->ib, usage[SCE_MESH_NUM_STREAMS]);
     for (i = 0; i < SCE_MESH_NUM_STREAMS; i++) {
         if (mesh->used_streams[i]) {
+            /* TODO: how can it work? why dont we use mesh->n_vertices? */
             SCE_RSetVertexBufferNumVertices (
                 &mesh->streams[i], SCE_Geometry_GetNumVertices (mesh->geom));
             SCE_RBuildVertexBuffer (&mesh->streams[i], usage[i], rmode);
@@ -617,6 +618,16 @@ fail:
 SCE_SMesh* SCE_Mesh_Load (const char *fname, int force)
 {
     return SCE_Resource_Load (resource_type, fname, force, NULL);
+}
+
+
+SCE_RVertexBuffer* SCE_Mesh_GetStream (SCE_SMesh *mesh, SCE_EMeshStream s)
+{
+    return &mesh->streams[s];
+}
+SCE_RIndexBuffer* SCE_Mesh_GetIndexBuffer (SCE_SMesh *mesh)
+{
+    return &mesh->ib;
 }
 
 
