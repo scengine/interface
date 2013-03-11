@@ -49,23 +49,6 @@ static void SCE_VTerrain_ClearRegion (SCE_SVoxelTerrainRegion *tr)
     SCE_List_Remove (&tr->it2);
 }
 
-static void SCE_VTerrain_InitTransition (SCE_SVoxelTerrainTransition *trans)
-{
-    SCE_Geometry_Init (&trans->geom);
-    SCE_Mesh_Init (&trans->mesh);
-    SCE_Rectangle3_Set (&trans->area, 0, 0, 0, 0, 0, 0);
-    trans->voxels = NULL;
-    trans->w = trans->h = trans->d = 0;
-    SCE_List_InitIt (&trans->it);
-    SCE_List_SetData (&trans->it, trans);
-}
-static void SCE_VTerrain_ClearTransition (SCE_SVoxelTerrainTransition *trans)
-{
-    SCE_Geometry_Clear (&trans->geom);
-    SCE_Mesh_Clear (&trans->mesh);
-    SCE_List_Remove (&trans->it);
-}
-
 static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
 {
     int i;
@@ -75,8 +58,6 @@ static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
     tl->subregions = 1;
     tl->regions = NULL;
     tl->mesh = NULL;
-    for (i = 0; i < 6; i++)
-        tl->trans[i] = NULL;
     tl->wrap_x = tl->wrap_y = tl->wrap_z = 0;
     tl->enabled = SCE_TRUE;
     tl->x = tl->y = tl->z = 0;
@@ -102,13 +83,6 @@ static void SCE_VTerrain_ClearLevel (SCE_SVoxelTerrainLevel *tl)
     SCE_Texture_Delete (tl->tex);
 
     n = tl->subregions * tl->subregions;
-    for (i = 0; i < 6; i++) {
-        if (tl->trans[i]) {
-            for (j = 0; j < n; j++)
-                SCE_VTerrain_ClearTransition (&tl->trans[i][j]);
-            SCE_free (tl->trans[i]);
-        }
-    }
     n *= tl->subregions;
     if (tl->regions) {
         for (i = 0; i < n; i++)
@@ -427,17 +401,6 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
             }
         }
     }
-
-
-    /* setup LOD transition structures */
-    num = tl->subregions * tl->subregions;
-    for (i = 0; i < 6; i++) {
-        if (!(tl->trans[i] = SCE_malloc (num * sizeof *tl->trans[i])))
-            goto fail;
-        for (j = 0; j < num; j++)
-            SCE_VTerrain_InitTransition (&tl->trans[i][j]);
-    }
-
 
     return SCE_OK;
 fail:
