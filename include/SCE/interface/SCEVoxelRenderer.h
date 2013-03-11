@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 14/02/2012
-   updated: 09/03/2013 */
+   updated: 11/03/2013 */
 
 #ifndef SCEVOXELRENDERER_H
 #define SCEVOXELRENDERER_H
@@ -50,7 +50,7 @@ struct sce_svoxeltemplate {
     int compressed_pos;
     int compressed_nor;
     float comp_scale;            /**< Scaling for compressed positions */
-    SCE_SGeometry *final_geom;
+    SCE_SGeometry final_geom;
 
     int vwidth, vheight, vdepth; /**< Dimensions of the voxel volume */
     int width, height, depth;    /**< Dimensions of the grid to render */

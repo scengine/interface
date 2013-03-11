@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 14/02/2012
-   updated: 09/03/2013 */
+   updated: 11/03/2013 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -27,11 +27,6 @@
 
 static SCE_SGeometry non_empty_geom;
 static SCE_SGeometry list_verts_geom;
-static SCE_SGeometry final_geom_pos; /* just for shiets. */
-static SCE_SGeometry final_geom_pos_nor;
-static SCE_SGeometry final_geom_pos_cnor; /* c stands for "compressed" */
-static SCE_SGeometry final_geom_cpos_nor;
-static SCE_SGeometry final_geom_cpos_cnor;
 
 static unsigned int sce_max_vertices = 0;
 static unsigned int sce_max_indices = 0;
@@ -299,8 +294,7 @@ static const unsigned char mc_lt_edges_pbourke[254 * 15] = {
 /* TODO: AddArrayDub() can fail dude */
 int SCE_Init_VRender (void)
 {
-    SCE_SGeometryArray ar1, ar2;
-    SCE_SGeometry *final_geom = NULL;
+    SCE_SGeometryArray ar1;
 
     SCE_Geometry_Init (&non_empty_geom);
     SCE_Geometry_Init (&list_verts_geom);
@@ -319,9 +313,16 @@ int SCE_Init_VRender (void)
     SCE_Geometry_AddArrayDup (&list_verts_geom, &ar1, SCE_FALSE);
     SCE_Geometry_SetPrimitiveType (&list_verts_geom, SCE_POINTS);
 
-    /* create final vertices geometry */
+    return SCE_OK;
+}
+
+
+/* TODO: AddArrayDub() can fail dude */
+static void final_geom_pos_nor (SCE_SGeometry *final_geom)
+{
+    SCE_SGeometryArray ar1, ar2;
+
     /* no compression */
-    final_geom = &final_geom_pos_nor;
     SCE_Geometry_Init (final_geom);
     SCE_Geometry_InitArray (&ar1);
     SCE_Geometry_InitArray (&ar2);
@@ -335,10 +336,13 @@ int SCE_Init_VRender (void)
     SCE_Geometry_SetArrayIndices (&ar1, SCE_UNSIGNED_INT, NULL, SCE_FALSE);
     SCE_Geometry_SetIndexArrayDup (final_geom, &ar1, SCE_FALSE);
     SCE_Geometry_SetPrimitiveType (final_geom, SCE_TRIANGLES);
+}
 
+static void final_geom_pos (SCE_SGeometry *final_geom)
+{
+    SCE_SGeometryArray ar1;
 
     /* not interleaved nor compressed */
-    final_geom = &final_geom_pos;
     SCE_Geometry_Init (final_geom);
     SCE_Geometry_InitArray (&ar1);
     SCE_Geometry_SetArrayData (&ar1, SCE_POSITION, SCE_VERTICES_TYPE, 0, 3,
@@ -352,10 +356,13 @@ int SCE_Init_VRender (void)
     SCE_Geometry_SetArrayIndices (&ar1, SCE_INDICES_TYPE, NULL, SCE_FALSE);
     SCE_Geometry_SetIndexArrayDup (final_geom, &ar1, SCE_FALSE);
     SCE_Geometry_SetPrimitiveType (final_geom, SCE_TRIANGLES);
+}
 
+static void final_geom_pos_cnor (SCE_SGeometry *final_geom)
+{
+    SCE_SGeometryArray ar1, ar2;
 
     /* compressed normal */
-    final_geom = &final_geom_pos_cnor;
     SCE_Geometry_Init (final_geom);
     SCE_Geometry_InitArray (&ar1);
     SCE_Geometry_InitArray (&ar2);
@@ -369,10 +376,13 @@ int SCE_Init_VRender (void)
     SCE_Geometry_SetArrayIndices (&ar1, SCE_UNSIGNED_INT, NULL, SCE_FALSE);
     SCE_Geometry_SetIndexArrayDup (final_geom, &ar1, SCE_FALSE);
     SCE_Geometry_SetPrimitiveType (final_geom, SCE_TRIANGLES);
+}
 
+static void final_geom_cpos_nor (SCE_SGeometry *final_geom)
+{
+    SCE_SGeometryArray ar1, ar2;
 
     /* compressed position */
-    final_geom = &final_geom_cpos_nor;
     SCE_Geometry_Init (final_geom);
     SCE_Geometry_InitArray (&ar1);
     SCE_Geometry_InitArray (&ar2);
@@ -386,10 +396,13 @@ int SCE_Init_VRender (void)
     SCE_Geometry_SetArrayIndices (&ar1, SCE_UNSIGNED_INT, NULL, SCE_FALSE);
     SCE_Geometry_SetIndexArrayDup (final_geom, &ar1, SCE_FALSE);
     SCE_Geometry_SetPrimitiveType (final_geom, SCE_TRIANGLES);
+}
 
+static void final_geom_cpos_cnor (SCE_SGeometry *final_geom)
+{
+    SCE_SGeometryArray ar1, ar2;
 
     /* both compressed */
-    final_geom = &final_geom_cpos_cnor;
     SCE_Geometry_Init (final_geom);
     SCE_Geometry_InitArray (&ar1);
     SCE_Geometry_InitArray (&ar2);
@@ -403,18 +416,12 @@ int SCE_Init_VRender (void)
     SCE_Geometry_SetArrayIndices (&ar1, SCE_UNSIGNED_INT, NULL, SCE_FALSE);
     SCE_Geometry_SetIndexArrayDup (final_geom, &ar1, SCE_FALSE);
     SCE_Geometry_SetPrimitiveType (final_geom, SCE_TRIANGLES);
-
-    return SCE_OK;
 }
 
 void SCE_Quit_VRender (void)
 {
     SCE_Geometry_Clear (&non_empty_geom);
     SCE_Geometry_Clear (&list_verts_geom);
-    SCE_Geometry_Clear (&final_geom_pos_nor);
-    SCE_Geometry_Clear (&final_geom_pos_cnor);
-    SCE_Geometry_Clear (&final_geom_cpos_nor);
-    SCE_Geometry_Clear (&final_geom_cpos_cnor);
 }
 
 void SCE_VRender_Init (SCE_SVoxelTemplate *vt)
@@ -425,7 +432,7 @@ void SCE_VRender_Init (SCE_SVoxelTemplate *vt)
     vt->compressed_pos = SCE_FALSE;
     vt->compressed_nor = SCE_FALSE;
     vt->comp_scale = 1.0;
-    vt->final_geom = NULL;
+    SCE_Geometry_Init (&vt->final_geom);
 
     vt->vwidth = vt->vheight = vt->vdepth = 0;
     vt->width = vt->height = vt->depth = 0;
@@ -1816,13 +1823,13 @@ static int SCE_VRender_BuildHW (SCE_SVoxelTemplate *vt)
     n_points = SCE_Grid_GetNumPoints (&grid);
 
     if (vt->compressed_pos && vt->compressed_nor)
-        vt->final_geom = &final_geom_cpos_cnor;
+        final_geom_cpos_cnor (&vt->final_geom);
     else if (vt->compressed_nor)
-        vt->final_geom = &final_geom_pos_cnor;
+        final_geom_pos_cnor(&vt->final_geom);
     else if (vt->compressed_pos)
-        vt->final_geom = &final_geom_cpos_nor;
+        final_geom_cpos_nor (&vt->final_geom);
     else
-        vt->final_geom = &final_geom_pos_nor;
+        final_geom_pos_nor (&vt->final_geom);
 
     switch (vt->algo) {
     case SCE_VRENDER_MARCHING_TETRAHEDRA:
@@ -1848,8 +1855,8 @@ static int SCE_VRender_BuildHW (SCE_SVoxelTemplate *vt)
     /* setup sizes */
     SCE_Geometry_SetNumVertices (&non_empty_geom, n_points);
     SCE_Geometry_SetNumVertices (&list_verts_geom, n_vertices);
-    SCE_Geometry_SetNumVertices (vt->final_geom, n_vertices);
-    SCE_Geometry_SetNumIndices (vt->final_geom, n_indices);
+    SCE_Geometry_SetNumVertices (&vt->final_geom, n_vertices);
+    SCE_Geometry_SetNumIndices (&vt->final_geom, n_indices);
 
     sce_vertices_limit = n_vertices;
     sce_indices_limit = n_indices;
@@ -2022,24 +2029,24 @@ static int SCE_VRender_BuildSoftware (SCE_SVoxelTemplate *vt)
     size_t n_vertices, n_indices, n_points;
 
 #if 1
-    vt->final_geom = &final_geom_pos;
+    final_geom_pos (&vt->final_geom);
 #else
     if (vt->compressed_pos && vt->compressed_nor)
-        vt->final_geom = &final_geom_cpos_cnor;
+        final_geom_cpos_cnor (&vt->final_geom);
     else if (vt->compressed_nor)
-        vt->final_geom = &final_geom_pos_cnor;
+        final_geom_pos_cnor(&vt->final_geom);
     else if (vt->compressed_pos)
-        vt->final_geom = &final_geom_cpos_nor;
+        final_geom_cpos_nor (&vt->final_geom);
     else
-        vt->final_geom = &final_geom_pos_nor;
+        final_geom_pos_nor (&vt->final_geom);
 #endif
 
     n_points = vt->width * vt->height * vt->depth;
     n_vertices = 3 * n_points;
     n_indices = 15 * n_points;
 
-    SCE_Geometry_SetNumVertices (vt->final_geom, n_vertices);
-    SCE_Geometry_SetNumIndices (vt->final_geom, n_indices);
+    SCE_Geometry_SetNumVertices (&vt->final_geom, n_vertices);
+    SCE_Geometry_SetNumIndices (&vt->final_geom, n_indices);
 
     if (!(vt->vertices = SCE_malloc (n_vertices * 3 * sizeof *vt->vertices)))
         goto fail;
@@ -2070,7 +2077,7 @@ int SCE_VRender_Build (SCE_SVoxelTemplate *vt)
 
 SCE_SGeometry* SCE_VRender_GetFinalGeometry (SCE_SVoxelTemplate *vt)
 {
-    return vt->final_geom;
+    return &vt->final_geom;
 }
 
 
