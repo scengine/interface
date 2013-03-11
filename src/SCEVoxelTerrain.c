@@ -555,7 +555,7 @@ static const char *vs_main =
 
     "in vec3 sce_position;"
     /* TODO: blblbl */
-#if 0
+#if 1
     "\n#define SCE_COMPUTE_NORMAL 0\n" /* xD */
 #else
     "\n#define SCE_COMPUTE_NORMAL 1\n" /* xD */
@@ -1377,7 +1377,7 @@ SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt, SCEuint level,
         SCE_Shader_SetParam3fv (shd->wrapping1_loc, 1, v);
     } else {
 
-        if (1/*generate_normals*/) {
+        if (0/*generate_normals*/) {
             SCE_Vector3_Operator2v (v, =, tl->wrap, *, invv);
             SCE_Shader_SetParam3fv (shd->wrapping0_loc, 1, v);
         }
@@ -1442,12 +1442,6 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
             SCE_Texture_SetUnit (tl3->tex, (i % 2 ? 0 : 1));
             SCE_Texture_Use (tl3->tex);
             SCE_Texture_Use (tl->tex);
-            /* depth-only rendering doesn't require textures */
-#if 0
-            SCE_Texture_Use (vt->top_diffuse);
-            SCE_Texture_Use (vt->side_diffuse);
-            SCE_Texture_Use (vt->noise);
-#endif
             SCE_Texture_EndLot ();
 
             if (i % 2) {
@@ -1471,7 +1465,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 
         /* non lod */
         SCE_Texture_BeginLot ();
-        if (1/*generate_normals*/)
+        if (0/*generate_normals*/)
             SCE_Texture_Use (tl->tex);
         SCE_Texture_Use (vt->top_diffuse);
         SCE_Texture_Use (vt->side_diffuse);
@@ -1544,7 +1538,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 
         /* non lod */
         SCE_Texture_BeginLot ();
-        if (1/*generate_normals*/)
+        if (0/*generate_normals*/)
             SCE_Texture_Use (tl->tex);
         SCE_Texture_Use (vt->top_diffuse);
         SCE_Texture_Use (vt->side_diffuse);
