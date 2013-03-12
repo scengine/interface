@@ -1033,8 +1033,9 @@ static const char *mc_final_vs =
     "  utc = uvec3 ((xyz8 >> 24) & 0xFF,"
     "               (xyz8 >> 16) & 0xFF,"
     "               (xyz8 >> 8)  & 0xFF);"
-    "  vec3 p = (vec3 (utc) + vec3 (0.5)) * vec3 (OW, OH, OD);"
-    "  vec3 tc = p + offset;"
+    "  vec3 p = vec3 (utc) * vec3 (OW, OH, OD);"
+       /* +0.5 to position at texel's center */
+    "  vec3 tc = p + offset + 0.5 * vec3 (OW, OH, OD);"
        /* texture fetch */
     "  float p0, p2, p3, p7;" /* corners */
     "  p3 = texture3D (sce_tex0, tc).x;"
@@ -1069,7 +1070,7 @@ static const char *mc_final_vs =
     "  pos = encode_pos (position);"
     "\n#endif\n"
 
-    "  tc = position + offset;"
+    "  tc = position + offset + 0.5 * vec3 (OW, OH, OD);"
 
        /* normal generation */
     "  vec3 grad = vec3 (0.0);"
@@ -2140,7 +2141,6 @@ void SCE_VRender_Software (SCE_SVoxelTemplate *vt, const SCE_SGrid *volume,
         SCE_Mesh_SetNumIndices (vm->mesh, 0);
         return;
     }
-    /*SCE_MC_GenerateNormals (&vt->mc_gen, &rect, volume, vt->v_pos, vt->v_nor);*/
     n_indices = SCE_MC_GenerateIndices (&vt->mc_gen, vt->indices);
     SCE_MC_GenerateNormals (&vt->mc_gen, volume, vt->normals);
 

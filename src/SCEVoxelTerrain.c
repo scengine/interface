@@ -458,11 +458,10 @@ static const char *vs_fun =
     "    int i;"
     "    float diff = 0.0;"
 
-    "    vec3 tc0 = offset + sce_tc_origin + sce_wrapping0;"
-    "    vec3 texcoord = sce_regions_origin / vec3 (SCE_W, SCE_H, SCE_D);"
+    "    vec3 tc0 = offset + sce_tc_origin + sce_wrapping0 + 0.5 * vec3 (ow, oh, od);"
+    "    vec3 texcoord = (sce_regions_origin + vec3 (1.0)) * vec3 (ow, oh, od);"
     "    texcoord = 0.5 * (texcoord + offset);"
-         /* + 0.2 ? wtf??? */
-    "    vec3 tc1 = texcoord + 0.2 * vec3 (ow, oh, od) + sce_wrapping1;"
+    "    vec3 tc1 = texcoord + sce_wrapping1;"
     "    diff = texture3D (sce_lowtex, tc1).x - texture3D (sce_hightex, tc0).x;"
 
          /* move the vertex along normal vector */
@@ -959,11 +958,10 @@ SCE_VTerrain_CullLevelRegions1 (SCE_SVoxelTerrain *vt, SCEuint level,
     invh = 1.0 / vt->height;
     invd = 1.0 / vt->depth;
 
-    /* wtf? why -0.5 ? */
     SCE_Vector3_Set (origin,
-                     (tl->map_x + tl->x - 0.5) * invw,
-                     (tl->map_y + tl->y - 0.5) * invh,
-                     (tl->map_z + tl->z - 0.5) * invd);
+                     (tl->map_x + tl->x) * invw,
+                     (tl->map_y + tl->y) * invh,
+                     (tl->map_z + tl->z) * invd);
 
     /* construct bounding box */
     SCE_Box_Init (&b);
@@ -1042,11 +1040,10 @@ SCE_VTerrain_CullLevelRegions2 (SCE_SVoxelTerrain *vt, SCEuint level,
     invh = 1.0 / vt->height;
     invd = 1.0 / vt->depth;
 
-    /* wtf? why -0.5 ? */
     SCE_Vector3_Set (origin,
-                     (tl->map_x + tl->x - 0.5) * invw,
-                     (tl->map_y + tl->y - 0.5) * invh,
-                     (tl->map_z + tl->z - 0.5) * invd);
+                     (tl->map_x + tl->x) * invw,
+                     (tl->map_y + tl->y) * invh,
+                     (tl->map_z + tl->z) * invd);
 
     /* construct bounding box */
     SCE_Box_Init (&b);
