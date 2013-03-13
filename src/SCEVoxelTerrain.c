@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 09/03/2013 */
+   updated: 13/03/2013 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -38,6 +38,9 @@ static void SCE_VTerrain_InitRegion (SCE_SVoxelTerrainRegion *tr)
     SCE_List_SetData (&tr->it, tr);
     SCE_List_InitIt (&tr->it2);
     SCE_List_SetData (&tr->it2, tr);
+    SCE_List_InitIt (&tr->it3);
+    SCE_List_SetData (&tr->it3, tr);
+    tr->hybrid = SCE_FALSE;
     tr->need_update = SCE_FALSE;
     tr->level_list = NULL;
     tr->level = NULL;
@@ -47,17 +50,19 @@ static void SCE_VTerrain_ClearRegion (SCE_SVoxelTerrainRegion *tr)
     SCE_VRender_ClearMesh (&tr->vm);
     SCE_List_Remove (&tr->it);
     SCE_List_Remove (&tr->it2);
+    SCE_List_Remove (&tr->it3);
 }
 
 static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
 {
-    int i;
+    tl->level = 0;
     SCE_Grid_Init (&tl->grid);
     tl->wrap[0] = tl->wrap[1] = tl->wrap[2] = 0;
     tl->tex = NULL;
     tl->subregions = 1;
     tl->regions = NULL;
     tl->mesh = NULL;
+    tl->mesh2 = NULL;
     tl->wrap_x = tl->wrap_y = tl->wrap_z = 0;
     tl->enabled = SCE_TRUE;
     tl->x = tl->y = tl->z = 0;
@@ -77,7 +82,7 @@ static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
 }
 static void SCE_VTerrain_ClearLevel (SCE_SVoxelTerrainLevel *tl)
 {
-    SCEuint i, j, n;
+    SCEuint i, n;
 
     SCE_Grid_Clear (&tl->grid);
     SCE_Texture_Delete (tl->tex);
@@ -113,6 +118,39 @@ static void SCE_VTerrain_ClearShader (SCE_SVoxelTerrainShader *shader)
     SCE_Shader_Delete (shader->shd);
 }
 
+static void
+SCE_VTerrain_InitHybridGenerator (SCE_SVoxelTerrainHybridGenerator *hybrid)
+{
+    SCE_List_Init (&hybrid->queue);
+    hybrid->dim = 0;
+    SCE_Grid_Init (&hybrid->grid);
+    SCE_MC_Init (&hybrid->mc_gen);
+    hybrid->query = SCE_FALSE;
+    hybrid->grid_ready = SCE_FALSE;
+    SCE_Geometry_Init (&hybrid->geom);
+    hybrid->vertices = NULL;
+    hybrid->normals = NULL;
+    hybrid->indices = NULL;
+    hybrid->anchors = NULL;
+    hybrid->n_vertices = 0;
+    hybrid->n_indices = 0;
+    hybrid->x = hybrid->y = hybrid->z = 0;
+    hybrid->level = 0;
+    SCE_QEMD_Init (&hybrid->qmesh);
+}
+static void
+SCE_VTerrain_ClearHybridGenerator (SCE_SVoxelTerrainHybridGenerator *hybrid)
+{
+    SCE_List_Clear (&hybrid->queue);
+    SCE_Grid_Clear (&hybrid->grid);
+    SCE_Geometry_Clear (&hybrid->geom);
+    SCE_free (hybrid->vertices);
+    SCE_free (hybrid->normals);
+    SCE_free (hybrid->indices);
+    SCE_free (hybrid->anchors);
+    SCE_QEMD_Clear (&hybrid->qmesh);
+}
+
 void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
 {
     size_t i;
@@ -120,10 +158,15 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
     SCE_VRender_Init (&vt->template);
     vt->rpipeline = SCE_VRENDER_SOFTWARE;
     SCE_VRender_SetPipeline (&vt->template, vt->rpipeline);
+    vt->cut = 0;
+    SCE_VTerrain_InitHybridGenerator (&vt->hybrid);
+
     vt->subregion_dim = 0;
     vt->n_subregions = 1;
-    for (i = 0; i < SCE_MAX_VTERRAIN_LEVELS; i++)
+    for (i = 0; i < SCE_MAX_VTERRAIN_LEVELS; i++) {
         SCE_VTerrain_InitLevel (&vt->levels[i]);
+        vt->levels[i].level = i;
+    }
 
     vt->x = vt->y = vt->z = 0;
     vt->width = vt->height = vt->depth = 0;
@@ -150,6 +193,7 @@ void SCE_VTerrain_Clear (SCE_SVoxelTerrain *vt)
     size_t i;
 
     SCE_VRender_Clear (&vt->template);
+    SCE_VTerrain_ClearHybridGenerator (&vt->hybrid);
     for (i = 0; i < SCE_NUM_VTERRAIN_SHADERS; i++)
         SCE_VTerrain_ClearShader (&vt->shaders[i]);
     for (i = 0; i < SCE_MAX_VTERRAIN_LEVELS; i++)
@@ -186,6 +230,14 @@ static void SCE_VTerrain_AddRegion (SCE_SVoxelTerrain *vt,
         if (tr->level_list == tr->level->updating)
             tr->need_update = SCE_TRUE;
     }
+    /* reset mesh state */
+    tr->hybrid = SCE_FALSE;
+
+    /* TODO: double insertions might not be handled perhaps maybe.. ?
+       dont really know. */
+    if (!SCE_List_IsAttached (&tr->it3) && tr->level->level >= vt->cut && vt->cut)
+        SCE_List_Appendl (&vt->hybrid.queue, &tr->it3);
+
     it = &tr->level->it;
     if (!SCE_List_IsAttached (it))
         SCE_List_Appendl (&vt->to_update, it);
@@ -299,6 +351,10 @@ void SCE_VTerrain_SetAlgorithm (SCE_SVoxelTerrain *vt,
 {
     SCE_VRender_SetAlgorithm (&vt->template, algo);
 }
+void SCE_VTerrain_SetHybrid (SCE_SVoxelTerrain *vt, SCEuint cut)
+{
+    vt->cut = cut;
+}
 
 /**
  * \brief Set the shader that will be used for rendering
@@ -380,7 +436,6 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
         tl->regions[i].level = tl;
         SCE_Mesh_Init (&tl->mesh[i]);
 
-        /* NOTE: this makes this function non-reentrant */
         if (SCE_Mesh_SetGeometry (&tl->mesh[i],
                                   SCE_VRender_GetFinalGeometry (&vt->template),
                                   SCE_FALSE) < 0)
@@ -388,7 +443,25 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
         SCE_Mesh_AutoBuild (&tl->mesh[i]);
 
         SCE_VRender_SetMesh (&tl->regions[i].vm, &tl->mesh[i]);
+        tl->regions[i].mesh = &tl->mesh[i];
     }
+
+    if (vt->cut && tl->level >= vt->cut) {
+        if (!(tl->mesh2 = SCE_malloc (num * sizeof *tl->mesh2)))
+            goto fail;
+    } else
+        num = 0;
+
+    for (i = 0; i < num; i++) {
+        SCE_Mesh_Init (&tl->mesh2[i]);
+
+        if (SCE_Mesh_SetGeometry (&tl->mesh2[i],&vt->hybrid.geom,SCE_FALSE) < 0)
+            goto fail;
+
+        SCE_Mesh_AutoBuild (&tl->mesh2[i]);
+        tl->regions[i].mesh2 = &tl->mesh2[i];
+    }
+
 
     /* NOTE: must be done only once; any subsequent call to BuildLevel()
              on the same level would screw everything up.
@@ -642,6 +715,65 @@ fail:
     return SCE_ERROR;
 }
 
+static int SCE_VTerrain_BuildHybrid (SCE_SVoxelTerrain *vt)
+{
+    size_t n, dim;
+    SCE_SVoxelTerrainHybridGenerator *h = &vt->hybrid;
+
+    h->dim = vt->subregion_dim;
+    dim = n = 2 * h->dim;
+    SCE_Grid_SetDimensions (&h->grid, n, n, n);
+    SCE_Grid_SetPointSize (&h->grid, 1);
+    if (SCE_Grid_Build (&h->grid) < 0)
+        goto fail;
+
+    n = SCE_Grid_GetNumPoints (&h->grid);
+    SCE_MC_SetNumCells (&h->mc_gen, n);
+    if (SCE_MC_Build (&h->mc_gen) < 0)
+        goto fail;
+
+    if (!(h->vertices = SCE_malloc (n * 9 * sizeof *h->vertices)))
+        goto fail;
+    if (!(h->normals = SCE_malloc (n * 9 * sizeof *h->normals)))
+        goto fail;
+    if (!(h->indices = SCE_malloc (n * 15 * sizeof *h->indices)))
+        goto fail;
+    if (!(h->anchors = SCE_malloc (dim * dim * 6 * sizeof *h->anchors)))
+        goto fail;
+    {
+        SCE_SGeometryArray ar1;
+        SCE_Geometry_InitArray (&ar1);
+        SCE_Geometry_SetArrayData (&ar1, SCE_POSITION, SCE_VERTICES_TYPE, 0, 3,
+                                   NULL, SCE_FALSE);
+        if (SCE_Geometry_AddArrayDup (&h->geom, &ar1, SCE_FALSE) < 0)
+            goto fail;
+        SCE_Geometry_InitArray (&ar1);
+        SCE_Geometry_SetArrayData (&ar1, SCE_NORMAL, SCE_VERTICES_TYPE, 0, 3,
+                                   NULL, SCE_FALSE);
+        if (SCE_Geometry_AddArrayDup (&h->geom, &ar1, SCE_FALSE) < 0)
+            goto fail;
+        SCE_Geometry_InitArray (&ar1);
+        SCE_Geometry_SetArrayIndices (&ar1, SCE_INDICES_TYPE, NULL, SCE_FALSE);
+        if (SCE_Geometry_SetIndexArrayDup (&h->geom, &ar1, SCE_FALSE) < 0)
+            goto fail;
+    }
+
+    SCE_QEMD_SetMaxVertices (&h->qmesh, n * 3);
+    SCE_QEMD_SetMaxIndices (&h->qmesh, n * 15);
+    if (SCE_QEMD_Build (&h->qmesh) < 0)
+        goto fail;
+
+    n /= 8;                     /* TODO: lol */
+    SCE_Geometry_SetNumVertices (&h->geom, n * 3);
+    SCE_Geometry_SetNumIndices (&h->geom, n * 15);
+    SCEE_SendMsg ("num v and i: %ld %ld\n", n * 3, n * 15);
+    SCE_Geometry_SetPrimitiveType (&h->geom, SCE_TRIANGLES);
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
+}
 
 int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
 {
@@ -656,8 +788,14 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
     SCE_VRender_SetVolumeDimensions (&vt->template, vt->width,
                                      vt->height, vt->depth);
     SCE_VRender_SetCompressedScale (&vt->template, vt->n_subregions);
+
     if (SCE_VRender_Build (&vt->template) < 0)
         goto fail;
+
+    if (vt->cut) {
+        if (SCE_VTerrain_BuildHybrid (vt) < 0)
+            goto fail;
+    }
 
     for (i = 0; i < vt->n_levels; i++) {
         if (SCE_VTerrain_BuildLevel (vt, &vt->levels[i]) < 0)
@@ -758,6 +896,20 @@ void SCE_VTerrain_GetMissingSlices (const SCE_SVoxelTerrain *vt, SCEuint level,
     *x = (vt->x - center[0]) / herp;
     *y = (vt->y - center[1]) / herp;
     *z = (vt->z - center[2]) / herp;
+}
+int SCE_VTerrain_GetMissingRegion (SCE_SVoxelTerrain *vt, SCE_SLongRect3 *r)
+{
+    /* dont ask for another region if there's already data waiting to
+       be processed */
+    if (vt->hybrid.query) {
+        long dim;
+        dim = 2 * vt->hybrid.dim;
+        SCE_Rectangle3_SetFromOriginl (r, vt->hybrid.x, vt->hybrid.y,
+                                       vt->hybrid.z, dim, dim, dim);
+        vt->hybrid.query = SCE_FALSE;
+        return vt->hybrid.level;
+    }
+    return -1;
 }
 
 /**
@@ -936,6 +1088,13 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
     tl->need_update = SCE_TRUE;
 }
 
+void SCE_VTerrain_SetRegion (SCE_SVoxelTerrain *vt, const unsigned char *data)
+{
+    memcpy (SCE_Grid_GetRaw (&vt->hybrid.grid), data,
+            SCE_Grid_GetSize (&vt->hybrid.grid));
+    vt->hybrid.grid_ready = SCE_TRUE;
+}
+
 
 static void
 SCE_VTerrain_CullLevelRegions1 (SCE_SVoxelTerrain *vt, SCEuint level,
@@ -978,7 +1137,6 @@ SCE_VTerrain_CullLevelRegions1 (SCE_SVoxelTerrain *vt, SCEuint level,
                 unsigned int offset = SCE_VTerrain_Get (tl, x, y, z);
                 SCE_SVoxelTerrainRegion *region = &tl->regions[offset];
 
-                region->mesh = &tl->mesh[offset];
                 region->wx = x;
                 region->wy = y;
                 region->wz = z;
@@ -1060,7 +1218,6 @@ SCE_VTerrain_CullLevelRegions2 (SCE_SVoxelTerrain *vt, SCEuint level,
                 unsigned int offset = SCE_VTerrain_Get (tl, x, y, z);
                 SCE_SVoxelTerrainRegion *region = &tl->regions[offset];
 
-                region->mesh = &tl->mesh[offset];
                 region->wx = x;
                 region->wy = y;
                 region->wz = z;
@@ -1127,6 +1284,120 @@ void SCE_VTerrain_CullRegions (SCE_SVoxelTerrain *vt,
                                         &vt->levels[i - 1], frustum);
 }
 
+/* get borders and multiplies every vertex */
+static SCEuint SCE_VTerrain_Derp (float coef, SCEvertices *vertices,
+                                  SCEuint n_vertices, float inf, float sup,
+                                  SCEindices *out)
+{
+    SCEuint i, j;
+    SCEvertices *v;
+
+    j = 0;
+    for (i = 0; i < n_vertices; i++) {
+        v = &vertices[i * 3];
+        if (v[0] < inf || v[0] > sup ||
+            v[1] < inf || v[1] > sup ||
+            v[2] < inf || v[2] > sup) {
+            out[j++] = i;
+        }
+        SCE_Vector3_Operator1 (v, *=, coef);
+    }
+
+    return j;
+}
+
+static void SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
+{
+    SCE_SVoxelTerrainHybridGenerator *h = &vt->hybrid;
+    SCE_SVoxelTerrainLevel *l = NULL;
+    SCE_SVoxelTerrainRegion *tr = NULL;
+    long x, y, z;
+
+    if (!SCE_List_HasElements (&h->queue) || h->query)
+        return;
+
+    tr = SCE_List_GetData (SCE_List_GetFirst (&h->queue));
+    l = tr->level;
+
+    x = SCE_Math_Ring (tr->x - l->wrap_x, l->subregions);
+    y = SCE_Math_Ring (tr->y - l->wrap_y, l->subregions);
+    z = SCE_Math_Ring (tr->z - l->wrap_z, l->subregions);
+
+    x = l->x + x * (vt->subregion_dim - 1);
+    y = l->y + y * (vt->subregion_dim - 1);
+    z = l->z + z * (vt->subregion_dim - 1);
+
+    if (!h->grid_ready) {
+        /* query the corresponding region */
+        /* *2 because we want the coordinates in l->level - 1 */
+        h->x = 2 * (x + l->map_x);
+        h->y = 2 * (y + l->map_y);
+        h->z = 2 * (z + l->map_z);
+        h->level = l->level - 1;
+        h->query = SCE_TRUE;
+
+    } else {
+        /* generate the geometry */
+        SCE_SIntRect3 r;
+        int dim;
+        size_t size;
+        float factor, sup;
+        SCEuint n_collapses;
+
+        factor = ((float)vt->subregion_dim) / (float)vt->width;
+
+        /* TODO: we can wrap around grid with those coordinates and generate
+                 never-to-be-used vertices */
+        dim = 2 * h->dim;
+        SCE_Rectangle3_Set (&r, 0, 0, 0, dim, dim, dim);
+        h->n_vertices = SCE_MC_GenerateVertices (&h->mc_gen, &r, &h->grid,
+                                                 h->vertices);
+        if (!h->n_vertices) {
+            SCE_List_RemoveFirst (&h->queue);
+            tr->draw = SCE_FALSE;
+            h->grid_ready = SCE_FALSE;
+            h->query = SCE_FALSE;
+            return;
+        }
+        h->n_indices = SCE_MC_GenerateIndices (&h->mc_gen, h->indices);
+
+        /* simplification */
+        sup = (1.0 - 1.0 / (dim - 1.0));
+        h->n_anchors = SCE_VTerrain_Derp (factor, h->vertices, h->n_vertices,
+                                          0.0000001, sup, h->anchors);
+        SCE_QEMD_Set (&h->qmesh, h->vertices, h->indices, h->n_vertices,
+                      h->n_indices);
+        SCE_QEMD_AnchorVertices (&h->qmesh, h->anchors, h->n_anchors);
+        /* aiming at 80% vertex reduction */
+        n_collapses = (h->n_vertices - h->n_anchors) * 0.8;
+        SCE_QEMD_Process (&h->qmesh, n_collapses);
+        SCE_QEMD_Get (&h->qmesh, h->vertices, h->indices, &h->n_vertices,
+                      &h->n_indices);
+
+        /* generate normals */
+        SCE_Geometry_ComputeNormals (h->vertices, h->indices, h->n_vertices,
+                                     h->n_indices, h->normals);
+
+        /* upload geometry */
+        size = h->n_vertices * 3 * sizeof *h->vertices;
+        SCE_Mesh_UploadVertices (tr->mesh2, SCE_MESH_STREAM_G, h->vertices,
+                                 0, size);
+        SCE_Mesh_UploadVertices (tr->mesh2, SCE_MESH_STREAM_N, h->normals,
+                                 0, size);
+        size = h->n_indices * sizeof h->indices;
+        SCE_Mesh_UploadIndices (tr->mesh2, h->indices, size);
+        SCE_Mesh_SetNumVertices (tr->mesh2, h->n_vertices);
+        SCE_Mesh_SetNumIndices (tr->mesh2, h->n_indices);
+
+        /* done */
+        tr->draw = (h->n_vertices > 0 && h->n_indices > 0) ? SCE_TRUE : SCE_FALSE;
+        tr->hybrid = SCE_TRUE;
+        SCE_List_RemoveFirst (&h->queue);
+        h->grid_ready = SCE_FALSE;
+        h->query = SCE_FALSE;
+    }
+}
+
 void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
 {
     size_t i;
@@ -1191,7 +1462,6 @@ void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
         i++;
         if (i >= vt->max_updates)
             break;
-
     }
 
     if (vt->update_level && !SCE_List_HasElements (list)) {
@@ -1200,6 +1470,9 @@ void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
             SCE_List_Appendl (&vt->to_update, &vt->update_level->it);
     }
     vt->update_level = fresh;
+
+    if (vt->cut)
+        SCE_VTerrain_UpdateHybrid (vt);
 }
 
 void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level, int draw)
@@ -1359,7 +1632,10 @@ SCE_VTerrain_RenderLevel (const SCE_SVoxelTerrain *vt, SCEuint level,
         SCE_Shader_SetParam3fv (shd->current_loc, 1, pos);
 
         SCE_RLoadMatrix (SCE_MAT_OBJECT, region->matrix);
-        SCE_Mesh_Use (region->mesh);
+        if (region->hybrid)
+            SCE_Mesh_Use (region->mesh2);
+        else
+            SCE_Mesh_Use (region->mesh);
         SCE_Mesh_Render ();
         SCE_Mesh_Unuse ();
     }
@@ -1389,6 +1665,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 
         SCE_Shader_Use (lodshd->shd);
 
+        /* TODO: disable trans for hybrid */
         SCE_Shader_SetParam (lodshd->enabled_loc, vt->trans_enabled);
 
         SCE_Texture_BeginLot ();
@@ -1456,6 +1733,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 
         SCE_Shader_Use (lodshd->shd);
 
+        /* TODO: disable trans for hybrid */
         SCE_Shader_SetParam (lodshd->enabled_loc, vt->trans_enabled);
         SCE_Shader_SetParam (lodshd->topdiffuse_loc, 2);
         SCE_Shader_SetParam (lodshd->sidediffuse_loc, 3);

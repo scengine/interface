@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 09/03/2013 */
+   updated: 12/03/2013 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
@@ -44,9 +44,12 @@ struct sce_svoxelterrainregion {
     int wx, wy, wz;             /**< Wrapped coordinates (dynamic) */
     SCE_SVoxelMesh vm;          /**< Abstract voxel mesh */
     SCE_SMesh *mesh;            /**< Pointer to the mesh */
+    SCE_SMesh *mesh2;           /**< Pointer to the mesh (hybrid) */
     SCE_TMatrix4 matrix;        /**< World transform matrix */
     int draw;                   /**< Whether this region should be rendered */
-    SCE_SListIterator it, it2;
+    SCE_SListIterator it, it2, it3;
+    int hybrid;                 /**< Whether it contains geometry generated
+                                     with the hybrid method */
     int need_update;               /**< Hehe. */
     SCE_SList *level_list;         /**< Update list the region is in */
     SCE_SVoxelTerrainLevel *level; /**< Owner of this region */
@@ -56,12 +59,14 @@ struct sce_svoxelterrainregion {
  * \brief Single level (in terms of LOD) of a voxel terrain
  */
 struct sce_svoxelterrainlevel {
+    int level;               /**< Level. */
     SCE_SGrid grid;          /**< Uniform grid of this level */
     int wrap[3];             /**< Texture wrapping */
     SCE_STexture *tex;       /**< GPU-side grid */
     SCEuint subregions;      /**< Number of sub-regions per side */
     SCE_SVoxelTerrainRegion *regions;  /**< Level sub-regions */
     SCE_SMesh *mesh;         /**< Final meshes */
+    SCE_SMesh *mesh2;        /**< Final meshes for hybrid version */
     int wrap_x, wrap_y, wrap_z; /**< Sub-regions wrapping */
     int enabled;             /**< Is this level enabled? */
     int x, y, z;             /**< Position of the origin of the regions */
@@ -105,6 +110,28 @@ struct sce_svoxelterrainshader {
 #define SCE_VTERRAIN_USE_SHADOWS_NAME "SCE_VTERRAIN_USE_SHADOWS"
 #define SCE_VTERRAIN_USE_POINT_SHADOWS_NAME "SCE_VTERRAIN_USE_POINT_SHADOWS"
 
+typedef struct sce_svoxelterrainhybridgenerator
+SCE_SVoxelTerrainHybridGenerator;
+struct sce_svoxelterrainhybridgenerator {
+    SCE_SList queue;
+    int dim;
+    SCE_SGrid grid;
+    SCE_SMCGenerator mc_gen;
+    int query;                /* whether we are waiting for data */
+    int grid_ready;           /* whether we have the data we wanted */
+    SCE_SGeometry geom;
+    SCEvertices *vertices;
+    SCEvertices *normals;
+    SCEindices *indices;
+    SCEindices *anchors;
+    SCEuint n_vertices;
+    SCEuint n_indices;
+    SCEuint n_anchors;
+    int x, y, z;
+    SCEuint level;
+    SCE_SQEMMesh qmesh;
+};
+
 /* maximum number of terrain levels */
 #define SCE_MAX_VTERRAIN_LEVELS 16
 
@@ -122,7 +149,10 @@ typedef struct sce_svoxelterrain SCE_SVoxelTerrain;
  */
 struct sce_svoxelterrain {
     SCE_SVoxelTemplate template;
+    SCE_SVoxelTemplate software;
     SCE_EVoxelRenderPipeline rpipeline;
+    SCEuint cut;                /**< cut for the hybrid generation method */
+    SCE_SVoxelTerrainHybridGenerator hybrid;
 
     SCEuint subregion_dim;      /**< Dimensions of one subregion */
     SCEuint n_subregions;       /**< Number of subregions per side */
@@ -177,6 +207,7 @@ void SCE_VTerrain_CompressPosition (SCE_SVoxelTerrain*, int);
 void SCE_VTerrain_CompressNormal (SCE_SVoxelTerrain*, int);
 void SCE_VTerrain_SetPipeline (SCE_SVoxelTerrain*, SCE_EVoxelRenderPipeline);
 void SCE_VTerrain_SetAlgorithm (SCE_SVoxelTerrain*, SCE_EVoxelRenderAlgorithm);
+void SCE_VTerrain_SetHybrid (SCE_SVoxelTerrain*, SCEuint);
 
 void SCE_VTerrain_SetShader (SCE_SVoxelTerrain*, SCE_SShader*);
 
@@ -193,6 +224,7 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain*);
 void SCE_VTerrain_SetPosition (SCE_SVoxelTerrain*, long, long, long);
 void SCE_VTerrain_GetMissingSlices (const SCE_SVoxelTerrain*, SCEuint, long*,
                                     long*, long*);
+int SCE_VTerrain_GetMissingRegion (SCE_SVoxelTerrain*, SCE_SLongRect3*);
 void SCE_VTerrain_GetRectangle (const SCE_SVoxelTerrain*, SCEuint,
                                 SCE_SLongRect3*);
 void SCE_VTerrain_SetOrigin (SCE_SVoxelTerrain*, SCEuint, long, long, long);
@@ -205,6 +237,7 @@ void SCE_VTerrain_ActivateLevel (SCE_SVoxelTerrain*, SCEuint, int);
 
 void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain*, SCEuint,
                                SCE_EBoxFace, const unsigned char*);
+void SCE_VTerrain_SetRegion (SCE_SVoxelTerrain*, const unsigned char*);
 
 void SCE_VTerrain_CullRegions (SCE_SVoxelTerrain*, const SCE_SFrustum*);
 
