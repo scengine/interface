@@ -766,7 +766,6 @@ static int SCE_VTerrain_BuildHybrid (SCE_SVoxelTerrain *vt)
     n /= 8;                     /* TODO: lol */
     SCE_Geometry_SetNumVertices (&h->geom, n * 3);
     SCE_Geometry_SetNumIndices (&h->geom, n * 15);
-    SCEE_SendMsg ("num v and i: %ld %ld\n", n * 3, n * 15);
     SCE_Geometry_SetPrimitiveType (&h->geom, SCE_TRIANGLES);
 
     return SCE_OK;
@@ -1665,12 +1664,14 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 
         SCE_Shader_Use (lodshd->shd);
 
-        /* TODO: disable trans for hybrid */
         SCE_Shader_SetParam (lodshd->enabled_loc, vt->trans_enabled);
 
         SCE_Texture_BeginLot ();
 
         for (i = 0; i < vt->n_levels - 1; i++) {
+
+            if (vt->cut && i >= vt->cut - 1)
+                SCE_Shader_SetParam (lodshd->enabled_loc, SCE_FALSE);
 
             tl = &vt->levels[i];
             tl3 = &vt->levels[i + 1];
@@ -1733,7 +1734,6 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 
         SCE_Shader_Use (lodshd->shd);
 
-        /* TODO: disable trans for hybrid */
         SCE_Shader_SetParam (lodshd->enabled_loc, vt->trans_enabled);
         SCE_Shader_SetParam (lodshd->topdiffuse_loc, 2);
         SCE_Shader_SetParam (lodshd->sidediffuse_loc, 3);
@@ -1743,6 +1743,9 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 
         for (i = 0; i < vt->n_levels - 1; i++) {
             SCE_RSetStencilFunc (SCE_LEQUAL, i + 1, ~0U);
+
+            if (vt->cut && i >= vt->cut - 1)
+                SCE_Shader_SetParam (lodshd->enabled_loc, SCE_FALSE);
 
             tl = &vt->levels[i];
             tl3 = &vt->levels[i + 1];
