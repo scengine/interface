@@ -125,6 +125,7 @@ SCE_VTerrain_InitHybridGenerator (SCE_SVoxelTerrainHybridGenerator *hybrid)
     hybrid->dim = 0;
     SCE_Grid_Init (&hybrid->grid);
     SCE_MC_Init (&hybrid->mc_gen);
+    hybrid->mc_step = 10000;    /* seems legit. */
     hybrid->query = SCE_FALSE;
     hybrid->grid_ready = SCE_FALSE;
     SCE_Geometry_Init (&hybrid->geom);
@@ -354,6 +355,10 @@ void SCE_VTerrain_SetAlgorithm (SCE_SVoxelTerrain *vt,
 void SCE_VTerrain_SetHybrid (SCE_SVoxelTerrain *vt, SCEuint cut)
 {
     vt->cut = cut;
+}
+void SCE_VTerrain_SetHybridMCStep (SCE_SVoxelTerrain *vt, SCEuint step)
+{
+    vt->hybrid.mc_step = step;
 }
 
 /**
@@ -1092,6 +1097,7 @@ void SCE_VTerrain_SetRegion (SCE_SVoxelTerrain *vt, const unsigned char *data)
     memcpy (SCE_Grid_GetRaw (&vt->hybrid.grid), data,
             SCE_Grid_GetSize (&vt->hybrid.grid));
     vt->hybrid.grid_ready = SCE_TRUE;
+    vt->hybrid.query = SCE_FALSE;
 }
 
 
@@ -1349,13 +1355,14 @@ static void SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
                  never-to-be-used vertices */
         dim = 2 * h->dim;
         SCE_Rectangle3_Set (&r, 0, 0, 0, dim, dim, dim);
-        h->n_vertices = SCE_MC_GenerateVertices (&h->mc_gen, &r, &h->grid,
-                                                 h->vertices);
+        h->n_vertices = SCE_MC_GenerateVerticesRange (&h->mc_gen, &r, &h->grid,
+                                                      h->vertices, h->mc_step);
+        if (!SCE_MC_IsGenerationFinished (&h->mc_gen))
+            return;
         if (!h->n_vertices) {
             SCE_List_RemoveFirst (&h->queue);
             tr->draw = SCE_FALSE;
             h->grid_ready = SCE_FALSE;
-            h->query = SCE_FALSE;
             return;
         }
         h->n_indices = SCE_MC_GenerateIndices (&h->mc_gen, h->indices);
@@ -1393,7 +1400,6 @@ static void SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
         tr->hybrid = SCE_TRUE;
         SCE_List_RemoveFirst (&h->queue);
         h->grid_ready = SCE_FALSE;
-        h->query = SCE_FALSE;
     }
 }
 

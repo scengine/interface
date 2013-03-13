@@ -117,6 +117,7 @@ struct sce_svoxelterrainhybridgenerator {
     int dim;
     SCE_SGrid grid;
     SCE_SMCGenerator mc_gen;
+    SCEuint mc_step;
     int query;                /* whether we are waiting for data */
     int grid_ready;           /* whether we have the data we wanted */
     SCE_SGeometry geom;
@@ -208,6 +209,7 @@ void SCE_VTerrain_CompressNormal (SCE_SVoxelTerrain*, int);
 void SCE_VTerrain_SetPipeline (SCE_SVoxelTerrain*, SCE_EVoxelRenderPipeline);
 void SCE_VTerrain_SetAlgorithm (SCE_SVoxelTerrain*, SCE_EVoxelRenderAlgorithm);
 void SCE_VTerrain_SetHybrid (SCE_SVoxelTerrain*, SCEuint);
+void SCE_VTerrain_SetHybridMCStep (SCE_SVoxelTerrain*, SCEuint);
 
 void SCE_VTerrain_SetShader (SCE_SVoxelTerrain*, SCE_SShader*);
 
