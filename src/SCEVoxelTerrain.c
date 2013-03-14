@@ -1390,7 +1390,7 @@ static void SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
                                  0, size);
         SCE_Mesh_UploadVertices (tr->mesh2, SCE_MESH_STREAM_N, h->normals,
                                  0, size);
-        size = h->n_indices * sizeof h->indices;
+        size = h->n_indices * sizeof *h->indices;
         SCE_Mesh_UploadIndices (tr->mesh2, h->indices, size);
         SCE_Mesh_SetNumVertices (tr->mesh2, h->n_vertices);
         SCE_Mesh_SetNumIndices (tr->mesh2, h->n_indices);
