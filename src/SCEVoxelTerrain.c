@@ -1369,7 +1369,7 @@ static void SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
         SCE_SIntRect3 r;
         int dim;
         size_t size, stride;
-        float factor, sup;
+        float factor, sup, inf;
         SCEuint n_collapses;
         SCEubyte *ptr = NULL;
 
@@ -1395,9 +1395,10 @@ static void SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
         h->n_indices = SCE_MC_GenerateIndices (&h->mc_gen, h->indices);
 
         /* simplification */
-        sup = (1.0 - 1.0 / (dim - 1.0));
+        sup = (1.0 - 2.0 / (dim - 1.0));
+        inf = 1.0001 / (dim - 1.0);
         h->n_anchors = SCE_VTerrain_Derp (factor, h->vertices, h->n_vertices,
-                                          0.0000001, sup, h->anchors);
+                                          inf, sup, h->anchors);
         SCE_QEMD_Set (&h->qmesh, h->vertices, h->indices, h->n_vertices,
                       h->n_indices);
         SCE_QEMD_AnchorVertices (&h->qmesh, h->anchors, h->n_anchors);
