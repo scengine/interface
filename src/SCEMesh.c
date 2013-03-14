@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 31/07/2009
-   updated: 09/03/2013 */
+   updated: 14/03/2013 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -406,18 +406,18 @@ static void SCE_Mesh_MakeIndependantVB (SCE_SMesh *mesh)
             SCE_EVertexAttribute attrib;
             attrib = SCE_Geometry_GetArrayVertexAttribute (array);
             /* TODO: just shit. */
-            if (attrib == SCE_POSITION) {
-                stream = SCE_MESH_STREAM_G;
+            if (attrib == SCE_POSITION || attrib == SCE_IPOSITION) {
+                stream = MIN (stream, SCE_MESH_STREAM_G);
                 break;
             } else if (attrib == SCE_NORMAL || attrib == SCE_TANGENT ||
-                       attrib == SCE_BINORMAL) {
-                stream = SCE_MESH_STREAM_N;
+                       attrib == SCE_BINORMAL || attrib == SCE_INORMAL) {
+                stream = MIN (stream, SCE_MESH_STREAM_N);
             } else if (attrib >= SCE_TEXCOORD0 && attrib < SCE_ATTRIB0 &&
                        stream > SCE_MESH_STREAM_T) {
-                stream = SCE_MESH_STREAM_T;
+                stream = MIN (stream, SCE_MESH_STREAM_T);
             } else              /* A is considered as a trash, SCE_ATTRIBn
                                    and SCE_COLOR will be stored here */
-                stream = SCE_MESH_STREAM_A;
+                stream = MIN (stream, SCE_MESH_STREAM_A);
             array = SCE_Geometry_GetChild (array);
         }
 #ifdef SCE_DEBUG
