@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 12/03/2013 */
+   updated: 14/03/2013 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
@@ -44,12 +44,9 @@ struct sce_svoxelterrainregion {
     int wx, wy, wz;             /**< Wrapped coordinates (dynamic) */
     SCE_SVoxelMesh vm;          /**< Abstract voxel mesh */
     SCE_SMesh *mesh;            /**< Pointer to the mesh */
-    SCE_SMesh *mesh2;           /**< Pointer to the mesh (hybrid) */
     SCE_TMatrix4 matrix;        /**< World transform matrix */
     int draw;                   /**< Whether this region should be rendered */
     SCE_SListIterator it, it2, it3;
-    int hybrid;                 /**< Whether it contains geometry generated
-                                     with the hybrid method */
     int need_update;               /**< Hehe. */
     SCE_SList *level_list;         /**< Update list the region is in */
     SCE_SVoxelTerrainLevel *level; /**< Owner of this region */
@@ -66,7 +63,6 @@ struct sce_svoxelterrainlevel {
     SCEuint subregions;      /**< Number of sub-regions per side */
     SCE_SVoxelTerrainRegion *regions;  /**< Level sub-regions */
     SCE_SMesh *mesh;         /**< Final meshes */
-    SCE_SMesh *mesh2;        /**< Final meshes for hybrid version */
     int wrap_x, wrap_y, wrap_z; /**< Sub-regions wrapping */
     int enabled;             /**< Is this level enabled? */
     int x, y, z;             /**< Position of the origin of the regions */
@@ -120,11 +116,11 @@ struct sce_svoxelterrainhybridgenerator {
     SCEuint mc_step;
     int query;                /* whether we are waiting for data */
     int grid_ready;           /* whether we have the data we wanted */
-    SCE_SGeometry geom;
     SCEvertices *vertices;
     SCEvertices *normals;
     SCEindices *indices;
     SCEindices *anchors;
+    void *interleaved;
     SCEuint n_vertices;
     SCEuint n_indices;
     SCEuint n_anchors;
@@ -150,7 +146,7 @@ typedef struct sce_svoxelterrain SCE_SVoxelTerrain;
  */
 struct sce_svoxelterrain {
     SCE_SVoxelTemplate template;
-    SCE_SVoxelTemplate software;
+    int comp_pos, comp_nor;     /**< Compress positions? normals? */
     SCE_EVoxelRenderPipeline rpipeline;
     SCEuint cut;                /**< cut for the hybrid generation method */
     SCE_SVoxelTerrainHybridGenerator hybrid;
