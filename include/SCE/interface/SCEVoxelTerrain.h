@@ -245,9 +245,6 @@ void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain*, SCEuint, int);
 void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain*, SCEuint,
                                  SCE_SIntRect3*, int);
 
-int SCE_VTerrain_GetOffset (const SCE_SVoxelTerrain*, SCEuint,
-                            int*, int*, int*);
-
 void SCE_VTerrain_ActivateShadowMode (SCE_SVoxelTerrain*, int);
 void SCE_VTerrain_ActivatePointShadowMode (SCE_SVoxelTerrain*, int);
 void SCE_VTerrain_Render (SCE_SVoxelTerrain*);

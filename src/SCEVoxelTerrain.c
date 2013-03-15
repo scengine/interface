@@ -1622,29 +1622,6 @@ void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,
     }
 }
 
-/**
- * \brief Gets the missing data of a grid's level
- * \param vt a voxel terrain
- * \param level level number
- * \param dx,dy,dz number of missing slices in each direction
- * \return SCE_TRUE if there is any missing slice, SCE_FALSE otherwise
- */
-int SCE_VTerrain_GetOffset (const SCE_SVoxelTerrain *vt, SCEuint level,
-                            int *dx, int *dy, int *dz)
-{
-    SCE_SVoxelTerrainLevel *l;
-    SCEuint coef = 1 << level;
-
-    l = &vt->levels[level];
-    *dx = (vt->x - l->x) / coef;
-    *dy = (vt->y - l->y) / coef;
-    *dz = (vt->z - l->z) / coef;
-
-    if (*dx != 0 || *dy != 0 || *dz != 0)
-        return SCE_TRUE;
-    return SCE_FALSE;
-}
-
 
 /**
  * \brief Activate/deactivate shadow rendering mode
