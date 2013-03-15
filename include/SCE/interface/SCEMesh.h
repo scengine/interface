@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 31/07/2009
-   updated: 09/03/2013 */
+   updated: 15/03/2013 */
 
 #ifndef SCEMESH_H
 #define SCEMESH_H
@@ -122,6 +122,7 @@ SCE_SMesh* SCE_Mesh_Load (const char*, int);
 
 SCE_RVertexBuffer* SCE_Mesh_GetStream (SCE_SMesh*, SCE_EMeshStream);
 SCE_RIndexBuffer* SCE_Mesh_GetIndexBuffer (SCE_SMesh*);
+size_t SCE_Mesh_GetUsedVRAM (const SCE_SMesh*);
 
 void SCE_Mesh_UploadVertices (SCE_SMesh*, SCE_EMeshStream, const SCEvertices*,
                               size_t, size_t);

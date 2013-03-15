@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 31/07/2009
-   updated: 14/03/2013 */
+   updated: 15/03/2013 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -628,6 +628,14 @@ SCE_RVertexBuffer* SCE_Mesh_GetStream (SCE_SMesh *mesh, SCE_EMeshStream s)
 SCE_RIndexBuffer* SCE_Mesh_GetIndexBuffer (SCE_SMesh *mesh)
 {
     return &mesh->ib;
+}
+size_t SCE_Mesh_GetUsedVRAM (const SCE_SMesh *mesh)
+{
+    size_t i, size = 0;
+    for (i = 0; i < SCE_MESH_NUM_STREAMS; i++)
+        size += SCE_RGetVertexBufferSize (&mesh->streams[i]);
+    size += SCE_RGetIndexBufferUsedVRAM (&mesh->ib);
+    return size;
 }
 
 void SCE_Mesh_UploadVertices (SCE_SMesh *mesh, SCE_EMeshStream str,
