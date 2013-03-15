@@ -160,6 +160,7 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
     SCE_VRender_SetPipeline (&vt->template, vt->rpipeline);
     vt->cut = 0;
     SCE_VTerrain_InitHybridGenerator (&vt->hybrid);
+    vt->pool = NULL;
 
     vt->subregion_dim = 0;
     vt->n_subregions = 1;
@@ -379,6 +380,11 @@ void SCE_VTerrain_SetHybrid (SCE_SVoxelTerrain *vt, SCEuint cut)
 void SCE_VTerrain_SetHybridMCStep (SCE_SVoxelTerrain *vt, SCEuint step)
 {
     vt->hybrid.mc_step = step;
+}
+void SCE_VTerrain_SetBufferPool (SCE_SVoxelTerrain *vt, SCE_RBufferPool *pool)
+{
+    vt->pool = pool;
+    SCE_VRender_SetBufferPool (&vt->template, pool);
 }
 
 /**
@@ -1348,7 +1354,19 @@ static void SCE_VTerrain_EncodeCompressNor (SCEvertices *v, size_t n,
     }
 }
 
-static void SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
+static int SCE_VTerrain_ReallocMesh (SCE_SMesh *mesh, SCE_RBufferPool *pool)
+{
+    if (SCE_Mesh_ReallocStream (mesh, SCE_MESH_STREAM_G, pool) < 0)
+        goto fail;
+    if (SCE_Mesh_ReallocIndexBuffer (mesh, pool) < 0)
+        goto fail;
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
+}
+
+static int SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
 {
     SCE_SVoxelTerrainHybridGenerator *h = &vt->hybrid;
     SCE_SVoxelTerrainLevel *l = NULL;
@@ -1399,12 +1417,16 @@ static void SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
         h->n_vertices = SCE_MC_GenerateVerticesRange (&h->mc_gen, &r, &h->grid,
                                                       h->vertices, h->mc_step);
         if (!SCE_MC_IsGenerationFinished (&h->mc_gen))
-            return;
+            return SCE_OK;
         if (!h->n_vertices) {
             SCE_List_RemoveFirst (&h->queue);
+            SCE_Mesh_SetNumVertices (tr->mesh, 0);
+            SCE_Mesh_SetNumIndices (tr->mesh, 0);
+            if (vt->pool && SCE_VTerrain_ReallocMesh (tr->mesh, vt->pool) < 0)
+                goto fail;
             tr->draw = SCE_FALSE;
             h->grid_ready = SCE_FALSE;
-            return;
+            return SCE_OK;
         }
         h->n_indices = SCE_MC_GenerateIndices (&h->mc_gen, h->indices);
 
@@ -1452,6 +1474,10 @@ static void SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
            the incoming variable length vertex buffer feature */
 
         /* upload geometry */
+        SCE_Mesh_SetNumVertices (tr->mesh, h->n_vertices);
+        SCE_Mesh_SetNumIndices (tr->mesh, h->n_indices);
+        if (vt->pool && SCE_VTerrain_ReallocMesh (tr->mesh, vt->pool) < 0)
+            goto fail;
         size = stride * h->n_vertices;
         SCE_Mesh_UploadVertices (tr->mesh, SCE_MESH_STREAM_G, h->interleaved,
                                  0, size);
@@ -1465,17 +1491,20 @@ static void SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
             /* TODO: direct member access */
             ib->ia.type = SCE_INDICES_TYPE;
         }
-        SCE_Mesh_SetNumVertices (tr->mesh, h->n_vertices);
-        SCE_Mesh_SetNumIndices (tr->mesh, h->n_indices);
 
         /* done */
-        tr->draw = (h->n_vertices > 0 && h->n_indices > 0) ? SCE_TRUE : SCE_FALSE;
+        tr->draw = (h->n_vertices>0 && h->n_indices>0) ? SCE_TRUE : SCE_FALSE;
         SCE_List_RemoveFirst (&h->queue);
         h->grid_ready = SCE_FALSE;
     }
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
 }
 
-void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
+int SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
 {
     size_t i;
     SCE_SListIterator *it = NULL, *pro = NULL;
@@ -1519,16 +1548,18 @@ void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
 
         switch (vt->rpipeline) {
         case SCE_VRENDER_SOFTWARE:
-            SCE_VRender_Software (&vt->template, &tr->level->grid, &tr->vm,
-                                  x, y, z);
+            if (SCE_VRender_Software (&vt->template, &tr->level->grid, &tr->vm,
+                                      x, y, z) < 0)
+                goto fail;
             break;
         case SCE_VRENDER_HARDWARE:
             x += l->wrap[0];
             y += l->wrap[1];
             z += l->wrap[2];
 
-            SCE_VRender_Hardware (&vt->template, tr->level->tex, &tr->vm,
-                                  x, y, z);
+            if (SCE_VRender_Hardware (&vt->template, tr->level->tex, &tr->vm,
+                                      x, y, z) < 0)
+                goto fail;
             /* TODO: see UpdateHybrid() */
             {
                 SCE_RIndexBuffer *ib = SCE_Mesh_GetIndexBuffer (tr->mesh);
@@ -1555,8 +1586,15 @@ void SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
     }
     vt->update_level = fresh;
 
-    if (vt->cut)
-        SCE_VTerrain_UpdateHybrid (vt);
+    if (vt->cut) {
+        if (SCE_VTerrain_UpdateHybrid (vt) < 0)
+            goto fail;
+    }
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
 }
 
 void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level, int draw)

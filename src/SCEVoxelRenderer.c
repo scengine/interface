@@ -433,6 +433,7 @@ void SCE_VRender_Init (SCE_SVoxelTemplate *vt)
     vt->compressed_nor = SCE_FALSE;
     vt->comp_scale = 1.0;
     SCE_Geometry_Init (&vt->final_geom);
+    vt->pool = NULL;
 
     vt->vwidth = vt->vheight = vt->vdepth = 0;
     vt->width = vt->height = vt->depth = 0;
@@ -583,6 +584,10 @@ void SCE_VRender_SetAlgorithm (SCE_SVoxelTemplate *vt,
                                SCE_EVoxelRenderAlgorithm a)
 {
     vt->algo = a;
+}
+void SCE_VRender_SetBufferPool (SCE_SVoxelTemplate *vt, SCE_RBufferPool *pool)
+{
+    vt->pool = pool;
 }
 
 static const char *non_empty_vs =
@@ -2117,10 +2122,13 @@ void SCE_VRender_SetIBRange (SCE_SVoxelMesh *vm, const int *r)
  * \param vt a voxel template
  * \param vm abstract output mesh
  * \param volume source voxels
- * \param x,y,z coordinates of the origin for volume texture fetches
+ * \param x,y,z coordinates of the origin for \p volume fetches
+ * \returns SCE_ERROR on error, SCE_OK otherwise. Note that if you haven't set
+ * any buffer pool to \p vt (see SCE_VRender_SetBufferPool()), this function
+ * always returns SCE_OK.
  */
-void SCE_VRender_Software (SCE_SVoxelTemplate *vt, const SCE_SGrid *volume,
-                           SCE_SVoxelMesh *vm, int x, int y, int z)
+int SCE_VRender_Software (SCE_SVoxelTemplate *vt, const SCE_SGrid *volume,
+                          SCE_SVoxelMesh *vm, int x, int y, int z)
 {
     SCE_SIntRect3 rect;
     size_t n_vertices, n_indices;
@@ -2139,6 +2147,16 @@ void SCE_VRender_Software (SCE_SVoxelTemplate *vt, const SCE_SGrid *volume,
         vm->render = SCE_FALSE;
         SCE_Mesh_SetNumVertices (vm->mesh, 0);
         SCE_Mesh_SetNumIndices (vm->mesh, 0);
+        if (vt->pool) {
+            if (SCE_Mesh_ReallocStream (vm->mesh, SCE_MESH_STREAM_G,
+                                        vt->pool) < 0)
+                goto fail;
+            if (SCE_Mesh_ReallocStream (vm->mesh, SCE_MESH_STREAM_N,
+                                        vt->pool) < 0)
+                goto fail;
+            if (SCE_Mesh_ReallocIndexBuffer (vm->mesh, vt->pool) < 0)
+                goto fail;
+        }
         return;
     }
     n_indices = SCE_MC_GenerateIndices (&vt->mc_gen, vt->indices);
@@ -2149,6 +2167,16 @@ void SCE_VRender_Software (SCE_SVoxelTemplate *vt, const SCE_SGrid *volume,
 
     /* we kinda wanna upload these data asap, because we dont really want
        to keep a copy on CPU memory */
+    SCE_Mesh_SetNumVertices (vm->mesh, n_vertices);
+    SCE_Mesh_SetNumIndices (vm->mesh, n_indices);
+    if (vt->pool) {
+        if (SCE_Mesh_ReallocStream (vm->mesh, SCE_MESH_STREAM_G, vt->pool) < 0)
+            goto fail;
+        if (SCE_Mesh_ReallocStream (vm->mesh, SCE_MESH_STREAM_N, vt->pool) < 0)
+            goto fail;
+        if (SCE_Mesh_ReallocIndexBuffer (vm->mesh, vt->pool) < 0)
+            goto fail;
+    }
     SCE_Mesh_UploadVertices (vm->mesh, SCE_MESH_STREAM_G, vt->vertices,
                              0, n_vertices * vertex_size);
     SCE_Mesh_UploadVertices (vm->mesh, SCE_MESH_STREAM_N, vt->normals,
@@ -2157,8 +2185,10 @@ void SCE_VRender_Software (SCE_SVoxelTemplate *vt, const SCE_SGrid *volume,
     /* TODO: we want to use BindBufferRange() since only a small part of the
        buffer will actually be needed. */
 
-    SCE_Mesh_SetNumVertices (vm->mesh, n_vertices);
-    SCE_Mesh_SetNumIndices (vm->mesh, n_indices);
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
 }
 
 /**
@@ -2167,9 +2197,12 @@ void SCE_VRender_Software (SCE_SVoxelTemplate *vt, const SCE_SGrid *volume,
  * \param vm abstract output mesh
  * \param volume source voxels
  * \param x,y,z coordinates of the origin for volume texture fetches
+ * \returns SCE_ERROR on error, SCE_OK otherwise. Note that if you haven't set
+ * any buffer pool to \p vt (see SCE_VRender_SetBufferPool()), this function
+ * always returns SCE_OK.
  */
-void SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_STexture *volume,
-                           SCE_SVoxelMesh *vm, int x, int y, int z)
+int SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_STexture *volume,
+                          SCE_SVoxelMesh *vm, int x, int y, int z)
 {
     SCE_TVector3 wrap;
     float w, h, d;
@@ -2198,12 +2231,19 @@ void SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_STexture *volume,
         vm->render = SCE_TRUE;
     } else {
         vm->render = SCE_FALSE;
-        /* ... so I setup those as a precaution :) */
+        /* ... so I setup those as a precaution :) (wat?) */
         SCE_Mesh_SetNumVertices (vm->mesh, 0);
         SCE_Mesh_SetNumIndices (vm->mesh, 0);
+        if (vt->pool) {
+            if (SCE_Mesh_ReallocStream (vm->mesh, SCE_MESH_STREAM_G,
+                                        vt->pool) < 0)
+                goto fail;
+            if (SCE_Mesh_ReallocIndexBuffer (vm->mesh, vt->pool) < 0)
+                goto fail;
+        }
         SCE_Shader_Use (NULL);
         SCE_Texture_Use (NULL);
-        return;
+        return SCE_OK;
     }
 
     /* 2nd pass: render a list of vertices */
@@ -2215,6 +2255,13 @@ void SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_STexture *volume,
     SCE_Mesh_EndRenderTo (&vt->list_verts);
 
     /* 3rd pass: process vertices to generate final coords & normal */
+    if (vt->pool) {
+        SCE_Mesh_SetNumVertices (vm->mesh,
+                                 SCE_Mesh_GetNumVertices (&vt->list_verts));
+        if (SCE_Mesh_ReallocStream (vm->mesh, SCE_MESH_STREAM_G, vt->pool) < 0)
+            goto fail;
+    }
+
     SCE_Mesh_SetPrimitiveType (vm->mesh, SCE_POINTS);
     SCE_Shader_Use (vt->final_shader);
     SCE_Shader_SetParam3fv (vt->final_offset_loc, 1, wrap);
@@ -2234,6 +2281,13 @@ void SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_STexture *volume,
     SCE_Mesh_Render ();
     SCE_Mesh_Unuse ();
     SCE_Texture_RenderTo (NULL, 0);
+
+    if (vt->pool) {
+        SCE_Mesh_SetNumIndices (vm->mesh,
+                                15 * SCE_Mesh_GetNumVertices (&vt->non_empty));
+        if (SCE_Mesh_ReallocIndexBuffer (vm->mesh, vt->pool) < 0)
+            goto fail;
+    }
 
     /* 5th pass: generate the index buffer */
     SCE_Mesh_SetPrimitiveType (vm->mesh, SCE_POINTS);
@@ -2257,6 +2311,11 @@ void SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_STexture *volume,
 
     SCE_Shader_Use (NULL);
     SCE_Texture_Flush ();
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
 }
 
 

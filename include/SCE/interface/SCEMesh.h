@@ -124,6 +124,9 @@ SCE_RVertexBuffer* SCE_Mesh_GetStream (SCE_SMesh*, SCE_EMeshStream);
 SCE_RIndexBuffer* SCE_Mesh_GetIndexBuffer (SCE_SMesh*);
 size_t SCE_Mesh_GetUsedVRAM (const SCE_SMesh*);
 
+int SCE_Mesh_ReallocStream (SCE_SMesh*, SCE_EMeshStream, SCE_RBufferPool*);
+int SCE_Mesh_ReallocIndexBuffer (SCE_SMesh*, SCE_RBufferPool*);
+
 void SCE_Mesh_UploadVertices (SCE_SMesh*, SCE_EMeshStream, const SCEvertices*,
                               size_t, size_t);
 void SCE_Mesh_UploadIndices (SCE_SMesh*, const SCEindices*, size_t);

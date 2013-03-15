@@ -150,6 +150,7 @@ struct sce_svoxelterrain {
     SCE_EVoxelRenderPipeline rpipeline;
     SCEuint cut;                /**< cut for the hybrid generation method */
     SCE_SVoxelTerrainHybridGenerator hybrid;
+    SCE_RBufferPool *pool;
 
     SCEuint subregion_dim;      /**< Dimensions of one subregion */
     SCEuint n_subregions;       /**< Number of subregions per side */
@@ -207,6 +208,7 @@ void SCE_VTerrain_SetPipeline (SCE_SVoxelTerrain*, SCE_EVoxelRenderPipeline);
 void SCE_VTerrain_SetAlgorithm (SCE_SVoxelTerrain*, SCE_EVoxelRenderAlgorithm);
 void SCE_VTerrain_SetHybrid (SCE_SVoxelTerrain*, SCEuint);
 void SCE_VTerrain_SetHybridMCStep (SCE_SVoxelTerrain*, SCEuint);
+void SCE_VTerrain_SetBufferPool (SCE_SVoxelTerrain*, SCE_RBufferPool*);
 
 void SCE_VTerrain_SetShader (SCE_SVoxelTerrain*, SCE_SShader*);
 
@@ -240,7 +242,7 @@ void SCE_VTerrain_SetRegion (SCE_SVoxelTerrain*, const unsigned char*);
 
 void SCE_VTerrain_CullRegions (SCE_SVoxelTerrain*, const SCE_SFrustum*);
 
-void SCE_VTerrain_Update (SCE_SVoxelTerrain*);
+int SCE_VTerrain_Update (SCE_SVoxelTerrain*);
 void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain*, SCEuint, int);
 void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain*, SCEuint,
                                  SCE_SIntRect3*, int);

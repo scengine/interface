@@ -51,6 +51,7 @@ struct sce_svoxeltemplate {
     int compressed_nor;
     float comp_scale;            /**< Scaling for compressed positions */
     SCE_SGeometry final_geom;
+    SCE_RBufferPool *pool;       /**< Buffer pool for buffer reallocations */
 
     int vwidth, vheight, vdepth; /**< Dimensions of the voxel volume */
     int width, height, depth;    /**< Dimensions of the grid to render */
@@ -123,6 +124,7 @@ void SCE_VRender_CompressPosition (SCE_SVoxelTemplate*, int);
 void SCE_VRender_CompressNormal (SCE_SVoxelTemplate*, int);
 void SCE_VRender_SetCompressedScale (SCE_SVoxelTemplate*, float);
 void SCE_VRender_SetAlgorithm (SCE_SVoxelTemplate*, SCE_EVoxelRenderAlgorithm);
+void SCE_VRender_SetBufferPool (SCE_SVoxelTemplate*, SCE_RBufferPool*);
 
 int SCE_VRender_Build (SCE_SVoxelTemplate*);
 
@@ -134,10 +136,10 @@ void SCE_VRender_SetMesh (SCE_SVoxelMesh*, SCE_SMesh*);
 void SCE_VRender_SetVBRange (SCE_SVoxelMesh*, const int*);
 void SCE_VRender_SetIBRange (SCE_SVoxelMesh*, const int*);
 
-void SCE_VRender_Software (SCE_SVoxelTemplate*, const SCE_SGrid*,
-                           SCE_SVoxelMesh*, int, int, int);
-void SCE_VRender_Hardware (SCE_SVoxelTemplate*, SCE_STexture*, SCE_SVoxelMesh*,
-                           int, int, int);
+int SCE_VRender_Software (SCE_SVoxelTemplate*, const SCE_SGrid*,
+                          SCE_SVoxelMesh*, int, int, int);
+int SCE_VRender_Hardware (SCE_SVoxelTemplate*, SCE_STexture*, SCE_SVoxelMesh*,
+                          int, int, int);
 
 unsigned int SCE_VRender_GetMaxV (void);
 unsigned int SCE_VRender_GetMaxI (void);

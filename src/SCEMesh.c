@@ -638,6 +638,24 @@ size_t SCE_Mesh_GetUsedVRAM (const SCE_SMesh *mesh)
     return size;
 }
 
+int SCE_Mesh_ReallocStream (SCE_SMesh *mesh, SCE_EMeshStream s,
+                            SCE_RBufferPool *pool)
+{
+    if (SCE_RReallocVertexBuffer (&mesh->streams[s], pool) < 0) {
+        SCEE_LogSrc ();
+        return SCE_ERROR;
+    }
+    return SCE_OK;
+}
+int SCE_Mesh_ReallocIndexBuffer (SCE_SMesh *mesh, SCE_RBufferPool *pool)
+{
+    if (SCE_RReallocIndexBuffer (&mesh->ib, pool) < 0) {
+        SCEE_LogSrc ();
+        return SCE_ERROR;
+    }
+    return SCE_OK;
+}
+
 void SCE_Mesh_UploadVertices (SCE_SMesh *mesh, SCE_EMeshStream str,
                               const SCEvertices *v, size_t first, size_t s)
 {
