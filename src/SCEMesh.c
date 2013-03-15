@@ -215,19 +215,23 @@ SCEuint SCE_Mesh_GetNumIndices (const SCE_SMesh *mesh)
 
 void SCE_Mesh_SetNumVertices (SCE_SMesh *mesh, SCEuint n)
 {
+    size_t i;
     mesh->n_vertices = n;
+    for (i = 0; i < SCE_MESH_NUM_STREAMS; i++)
+        SCE_RSetVertexBufferNumVertices (&mesh->streams[i], n);
 }
 void SCE_Mesh_SetNumIndices (SCE_SMesh *mesh, SCEuint n)
 {
     mesh->n_indices = n;
+    SCE_RSetIndexBufferNumIndices (&mesh->ib, n);
 }
 void SCE_Mesh_UpdateNumVertices (SCE_SMesh *mesh)
 {
-    mesh->n_vertices = SCE_Geometry_GetNumVertices (mesh->geom);
+    SCE_Mesh_SetNumVertices (mesh, SCE_Geometry_GetNumVertices (mesh->geom));
 }
 void SCE_Mesh_UpdateNumIndices (SCE_SMesh *mesh)
 {
-    mesh->n_indices = SCE_Geometry_GetNumIndices (mesh->geom);
+    SCE_Mesh_SetNumIndices (mesh, SCE_Geometry_GetNumIndices (mesh->geom));
 }
 
 
@@ -369,9 +373,8 @@ int SCE_Mesh_SetGeometry (SCE_SMesh *mesh, SCE_SGeometry *geom, int canfree)
         SCE_SGeometryArrayData *vdata = SCE_Geometry_GetArrayData (index_array);
         ia.type = vdata->type;
         ia.data = vdata->data;
-        mesh->n_indices = SCE_Geometry_GetNumIndices (geom);
+        SCE_Mesh_SetNumIndices (mesh, SCE_Geometry_GetNumIndices (geom));
         SCE_RSetIndexBufferIndexArray (&mesh->ib, &ia);
-        SCE_RSetIndexBufferNumIndices (&mesh->ib, mesh->n_indices);
         mesh->use_ib = SCE_TRUE;
         SCE_Geometry_AddUser (index_array, &mesh->index_auser,
                               SCE_Mesh_UpdateIndexArrayCallback, &mesh->ib);
@@ -380,7 +383,7 @@ int SCE_Mesh_SetGeometry (SCE_SMesh *mesh, SCE_SGeometry *geom, int canfree)
     mesh->prim = SCE_Geometry_GetPrimitiveType (geom);
     mesh->geom = geom;
     mesh->canfree_geom = canfree;
-    mesh->n_vertices = n_vertices;
+    SCE_Mesh_SetNumVertices (mesh, n_vertices);
     return SCE_OK;
 fail:
     SCEE_LogSrc ();
@@ -477,15 +480,12 @@ static void SCE_Mesh_BuildBuffers (SCE_SMesh *mesh, SCE_RBufferUsage
         rmode = SCE_VA_RENDER_MODE;
     mesh->rmode = rmode;
 
+    SCE_Mesh_UpdateNumVertices (mesh);
     if (mesh->use_ib)
         SCE_RBuildIndexBuffer (&mesh->ib, usage[SCE_MESH_NUM_STREAMS]);
     for (i = 0; i < SCE_MESH_NUM_STREAMS; i++) {
-        if (mesh->used_streams[i]) {
-            /* TODO: how can it work? why dont we use mesh->n_vertices? */
-            SCE_RSetVertexBufferNumVertices (
-                &mesh->streams[i], SCE_Geometry_GetNumVertices (mesh->geom));
+        if (mesh->used_streams[i])
             SCE_RBuildVertexBuffer (&mesh->streams[i], usage[i], rmode);
-        }
     }
 }
 /**
@@ -650,16 +650,10 @@ void SCE_Mesh_Use (SCE_SMesh *mesh)
 {
     size_t i;
     for (i = 0; i < SCE_MESH_NUM_STREAMS; i++) {
-        if (activated_streams[i] && mesh->used_streams[i]) {
-            /* TODO: if the geometry updates its number of vertices,
-               we're screwed */
-            SCE_RSetVertexBufferNumVertices(&mesh->streams[i],mesh->n_vertices);
+        if (activated_streams[i] && mesh->used_streams[i])
             SCE_RUseVertexBuffer (&mesh->streams[i]);
-        }
     }
     if (mesh->use_ib) {
-        /* TODO: if the geometry updates its number of indices, we're screwed */
-        SCE_RSetIndexBufferNumIndices (&mesh->ib, mesh->n_indices);
         SCE_RUseIndexBuffer (&mesh->ib);
         render_func = SCE_RRenderVertexBufferIndexed;
         render_func_instanced = SCE_RRenderVertexBufferIndexedInstanced;
@@ -719,8 +713,8 @@ void SCE_Mesh_EndRenderTo (SCE_SMesh *mesh)
         SCE_REndFeedback (&mesh->feedback);
         n_prim = SCE_RGetFeedbackNumPrimitives (&mesh->feedback,
                                                 mesh->counting_buffer);
-        mesh->n_vertices =
-            n_prim * SCE_Geometry_GetPrimitiveVertices (mesh->prim);
+        SCE_Mesh_SetNumVertices (
+            mesh, n_prim * SCE_Geometry_GetPrimitiveVertices (mesh->prim));
         feedback_enabled = SCE_FALSE;
     }
     feedback_target = NULL;
@@ -737,8 +731,8 @@ void SCE_Mesh_EndRenderToIndices (SCE_SMesh *mesh)
         SCE_REndFeedback (&mesh->feedback_id);
         n_prim = SCE_RGetFeedbackNumPrimitives (&mesh->feedback_id,
                                                 mesh->counting_buffer_id);
-        mesh->n_indices =
-            n_prim * SCE_Geometry_GetPrimitiveVertices (mesh->prim);
+        SCE_Mesh_SetNumIndices (
+            mesh, n_prim * SCE_Geometry_GetPrimitiveVertices (mesh->prim));
         feedback_enabled_id = SCE_FALSE;
     }
     feedback_target_id = NULL;
