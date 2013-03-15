@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 14/03/2013 */
+   updated: 15/03/2013 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -308,7 +308,21 @@ int SCE_VTerrain_GetDepth (const SCE_SVoxelTerrain *vt)
 {
     return vt->depth;
 }
+size_t SCE_VTerrain_GetUsedVRAM (const SCE_SVoxelTerrain *vt)
+{
+    size_t size = 0, i, j, n;
+    SCE_SVoxelTerrainLevel *l = NULL;
 
+    for (i = 0; i < vt->n_levels; i++) {
+        l = &vt->levels[i];
+        n = l->subregions;
+        n = n * n * n;
+        for (j = 0; j < n; j++)
+            size += SCE_Mesh_GetUsedVRAM (l->regions[j].mesh);
+    }
+
+    return size;
+}
 
 void SCE_VTerrain_SetUnit (SCE_SVoxelTerrain *vt, float unit)
 {

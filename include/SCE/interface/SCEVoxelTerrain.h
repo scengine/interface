@@ -191,6 +191,7 @@ void SCE_VTerrain_SetDepth (SCE_SVoxelTerrain*, int);
 int SCE_VTerrain_GetWidth (const SCE_SVoxelTerrain*);
 int SCE_VTerrain_GetHeight (const SCE_SVoxelTerrain*);
 int SCE_VTerrain_GetDepth (const SCE_SVoxelTerrain*);
+size_t SCE_VTerrain_GetUsedVRAM (const SCE_SVoxelTerrain*);
 
 void SCE_VTerrain_SetUnit (SCE_SVoxelTerrain*, float);
 
