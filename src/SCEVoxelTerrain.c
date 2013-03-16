@@ -1374,7 +1374,7 @@ static int SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
     long x, y, z;
 
     if (!SCE_List_HasElements (&h->queue) || h->query)
-        return;
+        return SCE_OK;
 
     tr = SCE_List_GetData (SCE_List_GetFirst (&h->queue));
     l = tr->level;
@@ -1798,20 +1798,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
 
         tl = &vt->levels[vt->n_levels - 1];
 
-        /* non lod */
-        SCE_Texture_BeginLot ();
-        if (0/*generate_normals*/)
-            SCE_Texture_Use (tl->tex);
-        SCE_Texture_Use (vt->top_diffuse);
-        SCE_Texture_Use (vt->side_diffuse);
-        SCE_Texture_Use (vt->noise);
-        SCE_Texture_EndLot ();
-
         SCE_Shader_Use (defshd->shd);
-
-        SCE_Shader_SetParam (defshd->topdiffuse_loc, 2);
-        SCE_Shader_SetParam (defshd->sidediffuse_loc, 3);
-        SCE_Shader_SetParam (defshd->noise_loc, 4);
 
         SCE_VTerrain_RenderLevel (vt, vt->n_levels - 1, tl, NULL, defshd);
 
