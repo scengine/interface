@@ -56,8 +56,10 @@ static void SCE_VTerrain_InitLevel (SCE_SVoxelTerrainLevel *tl)
 {
     tl->level = 0;
     SCE_Grid_Init (&tl->grid);
+    SCE_Grid_Init (&tl->grid2);
     tl->wrap[0] = tl->wrap[1] = tl->wrap[2] = 0;
     tl->tex = NULL;
+    tl->mat = NULL;
     tl->subregions = 1;
     tl->regions = NULL;
     tl->mesh = NULL;
@@ -83,7 +85,9 @@ static void SCE_VTerrain_ClearLevel (SCE_SVoxelTerrainLevel *tl)
     SCEuint i, n;
 
     SCE_Grid_Clear (&tl->grid);
+    SCE_Grid_Clear (&tl->grid2);
     SCE_Texture_Delete (tl->tex);
+    SCE_Texture_Delete (tl->mat);
 
     n = tl->subregions * tl->subregions;
     n *= tl->subregions;
@@ -110,6 +114,7 @@ static void SCE_VTerrain_InitShader (SCE_SVoxelTerrainShader *shader)
     shader->hightex_loc = shader->lowtex_loc = SCE_SHADER_BAD_INDEX;
     shader->topdiffuse_loc = shader->sidediffuse_loc = SCE_SHADER_BAD_INDEX;
     shader->noise_loc = SCE_SHADER_BAD_INDEX;
+    shader->material_loc = SCE_SHADER_BAD_INDEX;
 }
 static void SCE_VTerrain_ClearShader (SCE_SVoxelTerrainShader *shader)
 {
@@ -386,6 +391,14 @@ void SCE_VTerrain_SetBufferPool (SCE_SVoxelTerrain *vt, SCE_RBufferPool *pool)
     vt->pool = pool;
     SCE_VRender_SetBufferPool (&vt->template, pool);
 }
+void SCE_VTerrain_EnableMaterials (SCE_SVoxelTerrain *vt)
+{
+    vt->use_materials = SCE_TRUE;
+}
+void SCE_VTerrain_DisableMaterials (SCE_SVoxelTerrain *vt)
+{
+    vt->use_materials = SCE_FALSE;
+}
 
 /**
  * \brief Set the shader that will be used for rendering
@@ -456,6 +469,25 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
     SCE_Texture_AddTexData (tl->tex, SCE_TEX_3D, tc);
     SCE_Texture_Build (tl->tex, SCE_FALSE);
 
+    if (vt->use_materials) {
+        SCE_Grid_SetPointSize (&tl->grid2, 1);
+        SCE_Grid_SetDimensions (&tl->grid2, vt->width, vt->height, vt->depth);
+        if (SCE_Grid_Build (&tl->grid2) < 0)
+            goto fail;
+
+        if (!(tc = SCE_TexData_Create ()))
+            goto fail;
+        /* SCE_PXF_LUMINANCE: 8 bits density precision */
+        /* TODO: luminance format is deprecated */
+        SCE_Grid_ToTexture (&tl->grid2, tc, SCE_PXF_LUMINANCE,
+                            SCE_UNSIGNED_BYTE);
+
+        if (!(tl->mat = SCE_Texture_Create (SCE_TEX_3D, 0, 0, 0)))
+            goto fail;
+        SCE_Texture_SetUnit (tl->mat, 5);
+        SCE_Texture_AddTexData (tl->mat, SCE_TEX_3D, tc);
+        SCE_Texture_Build (tl->mat, SCE_FALSE);
+    }
 
     /* setup regions */
     tl->subregions = vt->n_subregions;
@@ -856,6 +888,7 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
         SCE_LOC (topdiffuse_loc, "sce_top_diffuse");
         SCE_LOC (sidediffuse_loc, "sce_side_diffuse");
         SCE_LOC (noise_loc, "sce_noise_tex");
+        SCE_LOC (material_loc, "sce_material_tex");
 #undef SCE_LOC
 
     }
@@ -963,6 +996,10 @@ SCE_SGrid* SCE_VTerrain_GetLevelGrid (SCE_SVoxelTerrain *vt, SCEuint level)
 {
     return &vt->levels[level].grid;
 }
+SCE_SGrid* SCE_VTerrain_GetLevelMaterialGrid (SCE_SVoxelTerrain *vt, SCEuint level)
+{
+    return &vt->levels[level].grid2;
+}
 
 void SCE_VTerrain_ActivateLevel (SCE_SVoxelTerrain *vt, SCEuint level,
                                  int activate)
@@ -971,8 +1008,9 @@ void SCE_VTerrain_ActivateLevel (SCE_SVoxelTerrain *vt, SCEuint level,
 }
 
 
-void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
-                               SCE_EBoxFace f, const unsigned char *slice)
+static void
+SCE_VTerrain_AppendDensitySlice (SCE_SVoxelTerrain *vt, SCEuint level,
+                                 SCE_EBoxFace f, const unsigned char *slice)
 {
     SCE_SVoxelTerrainLevel *tl = NULL;
     int w, h, d, dim;
@@ -1026,7 +1064,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
             tl->x += vt->subregion_dim - 1;
             tl->wrap_x++;
             SCE_Rectangle3_Set (&r, tl->x + dim - HERP, 0, 0, w, h, d);
-            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
+            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE, SCE_FALSE);
         }
         break;
     case SCE_BOX_NEGX:
@@ -1036,7 +1074,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
             tl->x -= vt->subregion_dim - 1;
             tl->wrap_x--;
             SCE_Rectangle3_Set (&r, 0, 0, 0, vt->subregion_dim - 2, h, d);
-            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
+            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE, SCE_FALSE);
         }
         break;
     case SCE_BOX_POSY:
@@ -1046,7 +1084,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
             tl->y += vt->subregion_dim - 1;
             tl->wrap_y++;
             SCE_Rectangle3_Set (&r, 0, tl->y + dim - HERP, 0, w, h, d);
-            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
+            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE, SCE_FALSE);
         }
         break;
     case SCE_BOX_NEGY:
@@ -1056,7 +1094,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
             tl->y -= vt->subregion_dim - 1;
             tl->wrap_y--;
             SCE_Rectangle3_Set (&r, 0, 0, 0, w, vt->subregion_dim - 2, d);
-            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
+            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE, SCE_FALSE);
         }
         break;
     case SCE_BOX_POSZ:
@@ -1066,7 +1104,7 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
             tl->z += vt->subregion_dim - 1;
             tl->wrap_z++;
             SCE_Rectangle3_Set (&r, 0, 0, tl->z + dim - HERP, w, h, d);
-            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
+            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE, SCE_FALSE);
         }
         break;
     case SCE_BOX_NEGZ:
@@ -1076,12 +1114,32 @@ void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
             tl->z -= vt->subregion_dim - 1;
             tl->wrap_z--;
             SCE_Rectangle3_Set (&r, 0, 0, 0, w, h, vt->subregion_dim - 2);
-            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE);
+            SCE_VTerrain_UpdateSubGrid (vt, level, &r, SCE_FALSE, SCE_FALSE);
         }
         break;
     }
 
     tl->need_update = SCE_TRUE;
+}
+
+static void
+SCE_VTerrain_AppendMaterialSlice (SCE_SVoxelTerrain *vt, SCEuint level,
+                                  SCE_EBoxFace f,const unsigned char *slice)
+{
+    SCE_SVoxelTerrainLevel *tl = NULL;
+
+    tl = &vt->levels[level];
+    SCE_Grid_UpdateFace (&tl->grid2, f, slice);
+}
+
+void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain *vt, SCEuint level,
+                               SCE_EBoxFace f, const unsigned char *slice,
+                               int mat)
+{
+    if (mat)
+        SCE_VTerrain_AppendMaterialSlice (vt, level, f, slice);
+    else
+        SCE_VTerrain_AppendDensitySlice (vt, level, f, slice);
 }
 
 /* TODO: add a parameter to specify whether data is full or empty */
@@ -1312,7 +1370,7 @@ static void SCE_VTerrain_EncodePos (SCEvertices *v, size_t n, size_t stride,
 
     for (i = 0; i < n; i++) {
         memcpy (out, &v[i * 3], 3 * sizeof *v);
-        u = out;
+        u = (SCEvertices*)out;
         u[3] = 1.0;
         out = &out[stride];
     }
@@ -1523,6 +1581,7 @@ int SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
             fresh = SCE_List_GetData (it);
             SCE_List_Removel (it);
             SCE_Texture_Update (fresh->tex);
+            SCE_Texture_Update (fresh->mat);
             derp = fresh->updating;
             fresh->updating = fresh->queue;
             fresh->queue = derp;
@@ -1597,17 +1656,19 @@ fail:
     return SCE_ERROR;
 }
 
-void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level, int draw)
+
+void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain *vt, SCEuint level, int mat,
+                              int draw)
 {
     SCE_SIntRect3 r;
 
     SCE_Rectangle3_Set (&r, 0, 0, 0,
                         vt->width - 1, vt->height - 1, vt->depth - 1);
-    SCE_VTerrain_UpdateSubGrid (vt, level, &r, draw);
+    SCE_VTerrain_UpdateSubGrid (vt, level, &r, mat, draw);
 }
 
 void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,
-                                 SCE_SIntRect3 *rect, int draw)
+                                 SCE_SIntRect3 *rect, int mat, int draw)
 {
     SCEuint x, y, z;
     SCEuint sx, sy, sz;
@@ -1616,6 +1677,12 @@ void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain *vt, SCEuint level,
     int l;
     SCE_SIntRect3 r, grid_area;
     SCE_SVoxelTerrainLevel *tl = &vt->levels[level];
+
+    if (mat) {
+        /* TODO: use rect and stuff blbl */
+        SCE_Texture_Update (tl->mat);
+        return;
+    }
 
     /* get the intersection between the area to update and the grid area */
     SCE_Rectangle3_Set (&grid_area, 0, 0, 0, vt->width, vt->height, vt->depth);
@@ -1822,6 +1889,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
         SCE_Shader_SetParam (lodshd->topdiffuse_loc, 2);
         SCE_Shader_SetParam (lodshd->sidediffuse_loc, 3);
         SCE_Shader_SetParam (lodshd->noise_loc, 4);
+        SCE_Shader_SetParam (lodshd->material_loc, 5);
 
         SCE_Texture_BeginLot ();
 
@@ -1837,6 +1905,8 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
             SCE_Texture_SetUnit (tl3->tex, (i % 2 ? 0 : 1));
             SCE_Texture_Use (tl3->tex);
             SCE_Texture_Use (tl->tex);
+            if (vt->use_materials)
+                SCE_Texture_Use (tl->mat);
             SCE_Texture_Use (vt->top_diffuse);
             SCE_Texture_Use (vt->side_diffuse);
             SCE_Texture_Use (vt->noise);
@@ -1865,6 +1935,8 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
         SCE_Texture_BeginLot ();
         if (0/*generate_normals*/)
             SCE_Texture_Use (tl->tex);
+        if (vt->use_materials)
+            SCE_Texture_Use (tl->mat);
         SCE_Texture_Use (vt->top_diffuse);
         SCE_Texture_Use (vt->side_diffuse);
         SCE_Texture_Use (vt->noise);
@@ -1875,6 +1947,7 @@ void SCE_VTerrain_Render (SCE_SVoxelTerrain *vt)
         SCE_Shader_SetParam (defshd->topdiffuse_loc, 2);
         SCE_Shader_SetParam (defshd->sidediffuse_loc, 3);
         SCE_Shader_SetParam (defshd->noise_loc, 4);
+        SCE_Shader_SetParam (defshd->material_loc, 5);
 
         SCE_RSetStencilFunc (SCE_LEQUAL, vt->n_levels, ~0U);
         SCE_VTerrain_RenderLevel (vt, vt->n_levels - 1, tl, NULL, defshd);

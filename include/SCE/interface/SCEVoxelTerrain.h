@@ -57,9 +57,11 @@ struct sce_svoxelterrainregion {
  */
 struct sce_svoxelterrainlevel {
     int level;               /**< Level. */
-    SCE_SGrid grid;          /**< Uniform grid of this level */
+    SCE_SGrid grid;          /**< Density data */
+    SCE_SGrid grid2;         /**< Material data */
     int wrap[3];             /**< Texture wrapping */
-    SCE_STexture *tex;       /**< GPU-side grid */
+    SCE_STexture *tex;       /**< Density texture */
+    SCE_STexture *mat;       /**< Material texture */
     SCEuint subregions;      /**< Number of sub-regions per side */
     SCE_SVoxelTerrainRegion *regions;  /**< Level sub-regions */
     SCE_SMesh *mesh;         /**< Final meshes */
@@ -93,6 +95,7 @@ struct sce_svoxelterrainshader {
     int topdiffuse_loc;
     int sidediffuse_loc;
     int noise_loc;
+    int material_loc;
 };
 
 /* shader flags */
@@ -170,6 +173,7 @@ struct sce_svoxelterrain {
     int trans_enabled;
     int shadow_mode;                 /**< Whether we are filling shadow maps */
     int point_shadow;                /**< If the shadow is a point light */
+    int use_materials;
 
     SCE_SShader *pipeline;           /**< Pipeline of all shaders below */
     SCE_SVoxelTerrainShader shaders[SCE_NUM_VTERRAIN_SHADERS];
@@ -209,6 +213,8 @@ void SCE_VTerrain_SetAlgorithm (SCE_SVoxelTerrain*, SCE_EVoxelRenderAlgorithm);
 void SCE_VTerrain_SetHybrid (SCE_SVoxelTerrain*, SCEuint);
 void SCE_VTerrain_SetHybridMCStep (SCE_SVoxelTerrain*, SCEuint);
 void SCE_VTerrain_SetBufferPool (SCE_SVoxelTerrain*, SCE_RBufferPool*);
+void SCE_VTerrain_EnableMaterials (SCE_SVoxelTerrain*);
+void SCE_VTerrain_DisableMaterials (SCE_SVoxelTerrain*);
 
 void SCE_VTerrain_SetShader (SCE_SVoxelTerrain*, SCE_SShader*);
 
@@ -234,18 +240,19 @@ void SCE_VTerrain_GetOrigin (const SCE_SVoxelTerrain*, SCEuint,
 
 void SCE_VTerrain_SetLevel (SCE_SVoxelTerrain*, SCEuint, const SCE_SGrid*);
 SCE_SGrid* SCE_VTerrain_GetLevelGrid (SCE_SVoxelTerrain*, SCEuint);
+SCE_SGrid* SCE_VTerrain_GetLevelMaterialGrid (SCE_SVoxelTerrain*, SCEuint);
 void SCE_VTerrain_ActivateLevel (SCE_SVoxelTerrain*, SCEuint, int);
 
 void SCE_VTerrain_AppendSlice (SCE_SVoxelTerrain*, SCEuint,
-                               SCE_EBoxFace, const unsigned char*);
+                               SCE_EBoxFace, const unsigned char*, int);
 void SCE_VTerrain_SetRegion (SCE_SVoxelTerrain*, const unsigned char*);
 
 void SCE_VTerrain_CullRegions (SCE_SVoxelTerrain*, const SCE_SFrustum*);
 
 int SCE_VTerrain_Update (SCE_SVoxelTerrain*);
-void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain*, SCEuint, int);
+void SCE_VTerrain_UpdateGrid (SCE_SVoxelTerrain*, SCEuint, int, int);
 void SCE_VTerrain_UpdateSubGrid (SCE_SVoxelTerrain*, SCEuint,
-                                 SCE_SIntRect3*, int);
+                                 SCE_SIntRect3*, int, int);
 
 void SCE_VTerrain_ActivateShadowMode (SCE_SVoxelTerrain*, int);
 void SCE_VTerrain_ActivatePointShadowMode (SCE_SVoxelTerrain*, int);
