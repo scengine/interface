@@ -2336,7 +2336,7 @@ unsigned int SCE_VRender_GetLimitI (void)
     return sce_indices_limit;
 }
 
-int SCE_VRender_IsVoid (const SCE_SVoxelMesh *vm)
+int SCE_VRender_IsEmpty (const SCE_SVoxelMesh *vm)
 {
-    return vm->render;
+    return !vm->render;
 }

@@ -146,7 +146,7 @@ unsigned int SCE_VRender_GetMaxI (void);
 unsigned int SCE_VRender_GetLimitV (void);
 unsigned int SCE_VRender_GetLimitI (void);
 
-int SCE_VRender_IsVoid (const SCE_SVoxelMesh*);
+int SCE_VRender_IsEmpty (const SCE_SVoxelMesh*);
 
 #ifdef __cplusplus
 } /* extern "C" */

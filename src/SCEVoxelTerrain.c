@@ -959,6 +959,7 @@ void SCE_VTerrain_GetRectangle (const SCE_SVoxelTerrain *vt, SCEuint level,
     SCE_Rectangle3_SetFromCenterl (r, x,y,z, vt->width, vt->height, vt->depth);
 }
 
+/* TODO: what's this function for? */
 void SCE_VTerrain_SetOrigin (SCE_SVoxelTerrain *vt, SCEuint level,
                              long x, long y, long z)
 {
@@ -1060,6 +1061,7 @@ SCE_VTerrain_AppendDensitySlice (SCE_SVoxelTerrain *vt, SCEuint level,
     case SCE_BOX_POSX:
         tl->map_x++;
         tl->x--;
+        /* TODO: replace with a while() */
         if (tl->x < 1) {
             tl->x += vt->subregion_dim - 1;
             tl->wrap_x++;
@@ -1630,7 +1632,7 @@ int SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
         default:;
         }
 
-        tr->draw = SCE_VRender_IsVoid (&tr->vm);
+        tr->draw = !SCE_VRender_IsEmpty (&tr->vm);
         SCE_VTerrain_RemoveRegion (vt, tr);
 
         i++;
