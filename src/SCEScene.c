@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2013  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2008
-   updated: 11/04/2012 */
+   updated: 17/03/2013 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -175,6 +175,7 @@ static void SCE_Scene_Init (SCE_SScene *scene)
     /* TODO: remove sprite node? */
 
     scene->vterrain = NULL;
+    scene->voterrain = NULL;
 
     scene->rclear = scene->gclear = scene->bclear = scene->aclear = 0.5;
     scene->dclear = 1.0;
@@ -758,11 +759,22 @@ void SCE_Scene_SetSkybox (SCE_SScene *scene, SCE_SSkybox *skybox)
  * \brief Sets the voxel terrain of the scene
  * \param scene a scene
  * \param vt a voxel terrain
- * \sa SCE_SVoxelTerrain
+ * \sa SCE_SVoxelTerrain, SCE_Scene_SetVoxelOctreeTerrain()
  */
 void SCE_Scene_SetVoxelTerrain (SCE_SScene *scene, SCE_SVoxelTerrain *vt)
 {
     scene->vterrain = vt;
+}
+/**
+ * \brief Sets the voxel octree terrain of the scene
+ * \param scene a scene
+ * \param vt a voxel terrain
+ * \sa SCE_SVoxelOctreeTerrain, SCE_Scene_SetVoxelTerrain()
+ */
+void SCE_Scene_SetVoxelOctreeTerrain (SCE_SScene *scene,
+                                      SCE_SVoxelOctreeTerrain *vt)
+{
+    scene->voterrain = vt;
 }
 
 /**
@@ -1111,6 +1123,8 @@ void SCE_Scene_Update (SCE_SScene *scene, SCE_SCamera *camera,
 
     if (scene->vterrain)
         SCE_VTerrain_CullRegions (scene->vterrain, fc ? frustum : NULL);
+    else if (scene->vterrain)
+        SCE_VOTerrain_CullRegions (scene->voterrain, fc ? frustum : NULL);
 }
 
 
@@ -1228,6 +1242,9 @@ static void SCE_Scene_ForwardRender (SCE_SScene *scene, SCE_SCamera *cam,
         int mode = scene->state->state & SCE_SCENE_SHADOW_MAP_STATE;
         SCE_VTerrain_ActivateShadowMode (scene->vterrain, mode);
         SCE_VTerrain_Render (scene->vterrain);
+    }
+    if (scene->voterrain) {
+        SCE_VOTerrain_Render (scene->voterrain);
     }
     SCE_Scene_RenderEntities (scene, &scene->entities);
 
@@ -1714,6 +1731,9 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
         int mode = scene->state->state & SCE_SCENE_SHADOW_MAP_STATE;
         SCE_VTerrain_ActivateShadowMode (scene->vterrain, mode);
         SCE_VTerrain_Render (scene->vterrain);
+    }
+    if (scene->voterrain) {
+        SCE_VOTerrain_Render (scene->voterrain);
     }
     SCE_Scene_RenderEntities (scene, &scene->entities);
     SCE_SceneEntity_SetDefaultShader (NULL);

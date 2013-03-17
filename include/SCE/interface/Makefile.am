@@ -10,6 +10,7 @@ sce_include_interface_HEADERS = SCEBatch.h \
                                 SCESceneEntity.h \
                                 SCEVoxelRenderer.h \
                                 SCEVoxelTerrain.h \
+                                SCEVoxelOctreeTerrain.h \
                                 SCEDeferred.h \
                                 SCEScene.h \
                                 SCESceneResource.h \

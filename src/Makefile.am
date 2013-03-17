@@ -28,6 +28,7 @@ libsceinterface_la_SOURCES  = SCELight.c \
                               SCEModel.c \
                               SCEVoxelRenderer.c \
                               SCEVoxelTerrain.c \
+                              SCEVoxelOctreeTerrain.c \
                               SCEDeferred.c \
                               SCEScene.c \
                               SCEInterface.c

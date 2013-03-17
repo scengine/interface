@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------
     SCEngine - A 3D real time rendering engine written in the C language
-    Copyright (C) 2006-2012  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
+    Copyright (C) 2006-2013  Antony Martin <martin(dot)antony(at)yahoo(dot)fr>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
  
 /* created: 19/01/2007
-   updated: 02/02/2012 */
+   updated: 17/03/2013 */
 
 #ifndef SCESCENE_H
 #define SCESCENE_H
@@ -36,6 +36,7 @@
 #include "SCE/interface/SCESprite.h"
 #include "SCE/interface/SCEDeferred.h"
 #include "SCE/interface/SCEVoxelTerrain.h"
+#include "SCE/interface/SCEVoxelOctreeTerrain.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -114,6 +115,7 @@ struct sce_sscene {
     SCE_SList sprites;          /**< Scene's sprites */
 
     SCE_SVoxelTerrain *vterrain; /**< Voxel terrain, if any */
+    SCE_SVoxelOctreeTerrain *voterrain; /**< Voxel octree terrain, if any */
 
     /** Color buffer clear values */
     float rclear, gclear, bclear, aclear;
@@ -168,6 +170,7 @@ void SCE_Scene_RemoveResource (SCE_SSceneResource*);
 
 void SCE_Scene_SetSkybox (SCE_SScene*, SCE_SSkybox*);
 void SCE_Scene_SetVoxelTerrain (SCE_SScene*, SCE_SVoxelTerrain*);
+void SCE_Scene_SetVoxelOctreeTerrain (SCE_SScene*, SCE_SVoxelOctreeTerrain*);
 
 SCE_SList* SCE_Scene_GetSelectedInstancesList (SCE_SScene*);
 
