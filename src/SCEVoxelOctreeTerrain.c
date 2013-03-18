@@ -589,6 +589,24 @@ void SCE_VOTerrain_GetCurrentRectangle (const SCE_SVoxelOctreeTerrain *vt,
                                    tl->origin_z, w, h, d);
 }
 
+size_t SCE_VOTerrain_GetUsedVRAM (const SCE_SVoxelOctreeTerrain *vt)
+{
+    size_t size = 0;
+    int i;
+    SCE_SListIterator *it = NULL;
+    SCE_SVOTerrainRegion *region = NULL;
+
+    for (i = 0; i < vt->n_levels; i++) {
+        SCE_List_ForEach (it, &vt->levels[i].regions) {
+            region = SCE_List_GetData (it);
+            size += SCE_Mesh_GetUsedVRAM (&region->mesh);
+        }
+    }
+
+    return size;
+}
+
+
 static void SCE_VOTerrain_MakeRegionMatrix (SCE_SVoxelOctreeTerrain *vt,
                                             SCEuint level,
                                             SCE_SVOTerrainRegion *region)

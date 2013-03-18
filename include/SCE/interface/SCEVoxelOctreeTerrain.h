@@ -147,6 +147,7 @@ void SCE_VOTerrain_GetRectangle (const SCE_SVoxelOctreeTerrain*, SCEuint,
                                  SCE_SLongRect3*);
 void SCE_VOTerrain_GetCurrentRectangle (const SCE_SVoxelOctreeTerrain*, SCEuint,
                                         SCE_SLongRect3*);
+size_t SCE_VOTerrain_GetUsedVRAM (const SCE_SVoxelOctreeTerrain*);
 
 void SCE_VOTerrain_CullRegions (SCE_SVoxelOctreeTerrain*, const SCE_SFrustum*);
 
