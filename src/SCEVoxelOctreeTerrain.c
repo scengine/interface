@@ -781,6 +781,7 @@ static int SCE_VOTerrain_Stage1 (SCE_SVoxelOctreeTerrain *vt,
     SCE_VOctree_GetNodeOriginv (region->node, &x, &y, &z);
     SCE_Rectangle3_SetFromOriginl (&rect, x - 2, y - 2, z - 2,
                                    vt->w + 4, vt->h + 4, vt->d + 4);
+    SCE_Grid_FillupZeros (&pipe->grid);
     SCE_VWorld_GetRegion (vt->vw, region->level->level, &rect,
                           SCE_Grid_GetRaw (&pipe->grid));
 
