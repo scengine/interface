@@ -722,10 +722,21 @@ fail:
     return SCE_ERROR;
 }
 
+static void
+SCE_VOTerrain_MakeRegionRectangle (SCE_SVoxelOctreeTerrain *vt,
+                                   SCE_SVOTerrainRegion *region,
+                                   SCE_SLongRect3 *rect)
+{
+    long x, y, z;
+    SCE_VOctree_GetNodeOriginv (region->node, &x, &y, &z);
+    SCE_Rectangle3_SetFromOriginl (rect, x, y, z, vt->w, vt->h, vt->d);
+}
+
 void SCE_VOTerrain_Render (SCE_SVoxelOctreeTerrain *vt)
 {
     SCE_SListIterator *it = NULL;
     SCE_SVOTerrainRegion *region = NULL;
+    int draw = SCE_FALSE;
 
     /* TODO: apparently in "shadow mode" shaders are locked, but maybe
        with this kind of terrain we dont need special shadow shaders */
@@ -735,12 +746,24 @@ void SCE_VOTerrain_Render (SCE_SVoxelOctreeTerrain *vt)
     SCE_List_ForEach (it, &vt->to_render) {
         region = SCE_List_GetData (it);
 
-        SCE_VOTerrain_MakeRegionMatrix (vt, region->level->level, region);
+        if (region->level->level == 0) {
+            draw = SCE_TRUE;
+        } else {
+            SCE_SLongRect3 rect, rect2;
+            SCE_VOTerrain_MakeRegionRectangle (vt, region, &rect);
+            SCE_Rectangle3_Mull (&rect, 2, 2, 2);
+            SCE_VOTerrain_GetCurrentRectangle (vt, region->level->level - 1,
+                                               &rect2);
+            draw = !SCE_Rectangle3_IsInsidel (&rect2, &rect);
+        }
 
-        SCE_RLoadMatrix (SCE_MAT_OBJECT, region->matrix);
-        SCE_Mesh_Use (&region->mesh);
-        SCE_Mesh_Render ();
-        SCE_Mesh_Unuse ();
+        if (draw) {
+            SCE_VOTerrain_MakeRegionMatrix (vt, region->level->level, region);
+            SCE_RLoadMatrix (SCE_MAT_OBJECT, region->matrix);
+            SCE_Mesh_Use (&region->mesh);
+            SCE_Mesh_Render ();
+            SCE_Mesh_Unuse ();
+        }
     }
 
     SCE_Shader_Use (NULL);
