@@ -247,14 +247,16 @@ static int SCE_VOTerrain_BuildPipeline (SCE_SVoxelOctreeTerrain *vt,
     h = SCE_VWorld_GetHeight (vt->vw);
     d = SCE_VWorld_GetDepth (vt->vw);
 
-    SCE_VRender_SetDimensions (&pipe->template, w+1, h+1, d+1);
-    SCE_VRender_SetVolumeDimensions (&pipe->template, w + 3, h + 3, d + 3);
+    SCE_VRender_SetDimensions (&pipe->template, w+2, h+2, d+2);
+    SCE_VRender_SetVolumeDimensions (&pipe->template, w + 4, h + 4, d + 4);
     SCE_VRender_SetCompressedScale (&pipe->template, 1.0);
     if (SCE_VRender_Build (&pipe->template) < 0)
         goto fail;
 
-    /* +3 for complete triangle set and normals */
-    SCE_Grid_SetDimensions (&pipe->grid, w + 3, h + 3, d + 3);
+    /* one row on each side for normals, one row at the end for complete
+       triangle set, one row at the beginning for sharing triangles with
+       neighboring regions */
+    SCE_Grid_SetDimensions (&pipe->grid, w + 4, h + 4, d + 4);
     SCE_Grid_SetPointSize (&pipe->grid, 1);
     if (SCE_Grid_Build (&pipe->grid) < 0)
         goto fail;
@@ -592,8 +594,12 @@ static void SCE_VOTerrain_MakeRegionMatrix (SCE_SVoxelOctreeTerrain *vt,
                                             SCE_SVOTerrainRegion *region)
 {
     long x, y, z;
+    float w, w2;
     float x_, y_, z_;
     float scale;
+
+    w = vt->w + 4;
+    w2 = w - 2;
 
     /* voxel scale */
     SCE_Matrix4_Scale (region->matrix, vt->scale, vt->scale, vt->scale);
@@ -602,13 +608,14 @@ static void SCE_VOTerrain_MakeRegionMatrix (SCE_SVoxelOctreeTerrain *vt,
     SCE_Matrix4_MulScale (region->matrix, scale, scale, scale);
     /* translate */
     SCE_VOctree_GetNodeOriginv (region->node, &x, &y, &z);
-    x_ = x * ((float)(vt->w + 2) / ((float)vt->w + 3));
-    y_ = y * ((float)(vt->h + 2) / ((float)vt->h + 3));
-    z_ = z * ((float)(vt->d + 2) / ((float)vt->d + 3));
+    /* TODO: why -1 ??? probably because we now generate one extra row */
+    x_ = x * (w2 - 1.0) / (w - 1.0) - 1;
+    y_ = y * (w2 - 1.0) / (w - 1.0) - 1;
+    z_ = z * (w2 - 1.0) / (w - 1.0) - 1;
 
     SCE_Matrix4_MulTranslate (region->matrix, x_, y_, z_);
     /* voxel unit */
-    scale = (vt->w + 2.0) / (float)vt->w;
+    scale = (w - 1.0) / (w2 - 1.0);
     SCE_Matrix4_MulScale (region->matrix, scale, scale, scale);
     SCE_Matrix4_MulScale (region->matrix, vt->w, vt->h, vt->d);
 }
@@ -753,8 +760,8 @@ static int SCE_VOTerrain_Stage1 (SCE_SVoxelOctreeTerrain *vt,
 
     /* retrieve data */
     SCE_VOctree_GetNodeOriginv (region->node, &x, &y, &z);
-    SCE_Rectangle3_SetFromOriginl (&rect, x - 1, y - 1, z - 1,
-                                   vt->w + 3, vt->h + 3, vt->d + 3);
+    SCE_Rectangle3_SetFromOriginl (&rect, x - 2, y - 2, z - 2,
+                                   vt->w + 4, vt->h + 4, vt->d + 4);
     SCE_VWorld_GetRegion (vt->vw, region->level->level, &rect,
                           SCE_Grid_GetRaw (&pipe->grid));
 
