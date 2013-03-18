@@ -709,9 +709,10 @@ static void SCE_VOTerrain_UpdateRegions (SCE_SVoxelOctreeTerrain *vt)
 
         SCE_List_ForEachProtected (pro, it, &vt->levels[i].hidden) {
             region = SCE_List_GetData (it);
-            /* TODO: we are not sure whether region is being updated in
-               the pipeline or not, this could be kinda devastating */
-            SCE_VOTerrain_Region (vt, region, SCE_VOTERRAIN_REGION_RENDER);
+            /* TODO: maybe there's a better scheme for that: how can we be
+               sure that we want to render this region? */
+            if (!SCE_List_IsAttached (&region->it))
+                SCE_VOTerrain_Region (vt, region, SCE_VOTERRAIN_REGION_RENDER);
         }
 
         SCE_VWorld_FetchNodes (vt->vw, i, &rect, &list);
