@@ -600,8 +600,12 @@ static int SCE_VOTerrain_UpdateGeometry (SCE_SVoxelOctreeTerrain *vt)
     int level;
     SCE_SLongRect3 rect;
 
-    while ((level = SCE_VWorld_GetNextUpdatedRegion (vt->vw, &rect)) >= 0)
-        SCE_VOTerrain_UpdateNodes (vt, level, &rect);
+    while ((level = SCE_VWorld_GetNextUpdatedRegion (vt->vw, &rect)) >= 0) {
+        if (SCE_VOTerrain_UpdateNodes (vt, level, &rect) < 0) {
+            SCEE_LogSrc ();
+            return SCE_ERROR;
+        }
+    }
 
     return SCE_OK;
 }
