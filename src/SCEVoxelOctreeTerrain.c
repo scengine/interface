@@ -404,6 +404,10 @@ static int SCE_VOTerrain_UpdateNodes(SCE_SVoxelOctreeTerrain *vt, SCEuint level,
         node = SCE_List_GetData (it);
         region = SCE_VOctree_GetNodeData (node);
 
+        status = SCE_VOctree_GetNodeStatus (node);
+        if (status == SCE_VOCTREE_NODE_EMPTY || status == SCE_VOCTREE_NODE_FULL)
+            continue;
+
         /* get a region from the global pool */
         if (!(region = SCE_VOTerrain_GetFromPool (vt)))
             goto fail;
