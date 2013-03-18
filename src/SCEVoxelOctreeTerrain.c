@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 16/03/2013
-   updated: 17/03/2013 */
+   updated: 18/03/2013 */
 
 #include <SCE/core/SCECore.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -30,6 +30,7 @@
 
 static void SCE_VOTerrain_InitRegion (SCE_SVOTerrainRegion *region)
 {
+    region->status = SCE_VOTERRAIN_REGION_POOL; /* even though it's not true. */
     SCE_VRender_InitMesh (&region->vm);
     SCE_Mesh_Init (&region->mesh);
     SCE_Matrix4_Identity (region->matrix);
@@ -86,11 +87,16 @@ static void SCE_VOTerrain_InitLevel (SCE_SVOTerrainLevel *tl)
     tl->origin_x = tl->origin_y = tl->origin_z = 0;
     SCE_List_Init (&tl->regions);
     SCE_List_SetFreeFunc (&tl->regions, SCE_VOTerrain_FreeRegion);
+    SCE_List_Init (&tl->ready);
     SCE_List_Init (&tl->to_render);
+    SCE_List_Init (&tl->hidden);
 }
 static void SCE_VOTerrain_ClearLevel (SCE_SVOTerrainLevel *tl)
 {
     SCE_List_Clear (&tl->regions);
+    SCE_List_Clear (&tl->ready);
+    SCE_List_Clear (&tl->to_render);
+    SCE_List_Clear (&tl->hidden);
 }
 
 
@@ -357,6 +363,67 @@ fail:
     return NULL;
 }
 
+static void SCE_VOTerrain_Region (SCE_SVoxelOctreeTerrain *vt,
+                                  SCE_SVOTerrainRegion *region,
+                                  SCE_EVOTerrainRegionStatus status)
+{
+    switch (status) {
+    case SCE_VOTERRAIN_REGION_POOL:
+        if (SCE_List_IsAttached (&region->it)) {
+            SCEE_SendMsg ("removing a pipelined region dErP\n");
+            /* TODO: super ugly, remove from the pipeline */
+            SCE_List_Remove (&region->it);
+        }
+        SCE_VOctree_SetNodeData (region->node, NULL);
+        /* why do we need node to be NULL? probably for safety purposes */
+        region->node = NULL;
+        SCE_List_Remove (&region->it2);
+        SCE_List_Remove (&region->it3);
+        SCE_List_Remove (&region->it4);
+        SCE_VOTerrain_SetToPool (vt, region);
+        break;
+
+    case SCE_VOTERRAIN_REGION_PIPELINE:
+        /* TODO: we do want to remove it from the pipeline and put it back
+           actually, because the pipeline could be working on outdated data */
+        if (!SCE_List_IsAttached (&region->it)) {
+            SCE_List_Remove (&region->it2);
+            SCE_List_Remove (&region->it4);
+            SCE_List_Appendl (&vt->pipe.stages[0], &region->it);
+        }
+        break;
+
+    case SCE_VOTERRAIN_REGION_READY:
+        SCE_List_Remove (&region->it2); /* ? */
+        SCE_List_Appendl (&region->level->ready, &region->it2);
+        break;
+
+    case SCE_VOTERRAIN_REGION_RENDER:
+        SCE_List_Remove (&region->it);
+        SCE_List_Remove (&region->it2);
+        SCE_List_Remove (&region->it4);
+        SCE_List_Appendl (&region->level->to_render, &region->it2);
+        SCE_List_Appendl (&vt->to_render, &region->it4);
+        break;
+
+    case SCE_VOTERRAIN_REGION_HIDDEN:
+        SCE_List_Remove (&region->it2);
+        SCE_List_Remove (&region->it4);
+        SCE_List_Appendl (&region->level->hidden, &region->it2);
+        break;
+
+#if SCE_DEBUG
+    default:
+        SCEE_SendMsg ("SCE_VOTerrain_Region(): wrong status value\n");
+        return;
+#endif
+    }
+    /* TODO: is it always useful? particularly for hidden: we dont really
+       need this information in the status, but we do need to know whether
+       a region is being updated in the pipeline or not */
+    region->status = status;
+}
+
 static int SCE_VOTerrain_UpdateNodes(SCE_SVoxelOctreeTerrain *vt, SCEuint level,
                                      SCE_SLongRect3 *rect)
 {
@@ -364,6 +431,7 @@ static int SCE_VOTerrain_UpdateNodes(SCE_SVoxelOctreeTerrain *vt, SCEuint level,
     SCE_SList list, tmp;
     SCE_SVoxelOctreeNode *node = NULL;
     SCE_SVOTerrainRegion *region = NULL;
+    SCE_EVoxelOctreeStatus status;
     SCE_SVOTerrainLevel *tl = &vt->levels[level];
 
     /* flush, but dont append them to vt->pool yet */
@@ -387,22 +455,11 @@ static int SCE_VOTerrain_UpdateNodes(SCE_SVoxelOctreeTerrain *vt, SCEuint level,
     /* those remaining can be marked as expired and added to the global pool */
     SCE_List_ForEachProtected (pro, it, &tmp) {
         region = SCE_List_GetData (it);
-        SCE_VOctree_SetNodeData (region->node, NULL);
-        /* why do we need node to be NULL? probably for safety purposes */
-        region->node = NULL;
-        if (SCE_List_IsAttached (&region->it)) {
-            SCEE_SendMsg ("removing a pipelined region dErP\n");
-            /* TODO: super ugly, remove from the pipeline */
-            SCE_List_Remove (&region->it);
-        }
-        SCE_List_Remove (&region->it2); /* TODO: remove that call see what happen */
-        SCE_List_Remove (&region->it4);
-        SCE_VOTerrain_SetToPool (vt, region);
+        SCE_VOTerrain_Region (vt, region, SCE_VOTERRAIN_REGION_POOL);
     }
     /* create missing regions and queue them for updating */
     SCE_List_ForEach (it, &list) {
         node = SCE_List_GetData (it);
-        region = SCE_VOctree_GetNodeData (node);
 
         status = SCE_VOctree_GetNodeStatus (node);
         if (status == SCE_VOCTREE_NODE_EMPTY || status == SCE_VOCTREE_NODE_FULL)
@@ -421,10 +478,7 @@ static int SCE_VOTerrain_UpdateNodes(SCE_SVoxelOctreeTerrain *vt, SCEuint level,
         SCE_List_Appendl (&tl->regions, &region->it3);
 
         /* queue for update */
-        /* TODO: we do want to remove it from the pipeline and put it back
-           actually, because the pipeline could be working on outdated data */
-        if (!SCE_List_IsAttached (&region->it))
-            SCE_List_Appendl (&vt->pipe.stages[0], &region->it);
+        SCE_VOTerrain_Region (vt, region, SCE_VOTERRAIN_REGION_PIPELINE);
     }
 
     SCE_List_Flush (&list);
@@ -611,26 +665,91 @@ static int SCE_VOTerrain_UpdateGeometry (SCE_SVoxelOctreeTerrain *vt)
 }
 
 
+static void SCE_VOTerrain_UpdateRegions (SCE_SVoxelOctreeTerrain *vt)
+{
+    int i, j;
+    SCE_SLongRect3 rect;
+    SCE_SList list;
+    SCE_SListIterator *it = NULL, *pro = NULL;
+    SCE_SVoxelOctreeNode *node = NULL, **children = NULL;
+    SCE_SVOTerrainRegion *region = NULL, *head = NULL;
+    SCE_EVoxelOctreeStatus status;
+
+    SCE_List_Init (&list);
+
+    for (i = 1; i < vt->n_levels; i++) {
+        /* fetch nodes underneath the higher LOD */
+        SCE_VOTerrain_GetCurrentRectangle (vt, i - 1, &rect);
+        SCE_Rectangle3_Divl (&rect, 2, 2, 2);
+
+        SCE_List_ForEachProtected (pro, it, &vt->levels[i].hidden) {
+            region = SCE_List_GetData (it);
+            /* TODO: we are not sure whether region is being updated in
+               the pipeline or not, this could be kinda devastating */
+            SCE_VOTerrain_Region (vt, region, SCE_VOTERRAIN_REGION_RENDER);
+        }
+
+        SCE_VWorld_FetchNodes (vt->vw, i, &rect, &list);
+        SCE_List_ForEach (it, &list) {
+            int k = 0;
+            node = SCE_List_GetData (it);
+            head = SCE_VOctree_GetNodeData (node);
+            status = SCE_VOctree_GetNodeStatus (node);
+
+            if (!head || status != SCE_VOCTREE_NODE_NODE)
+                continue;
+
+            children = SCE_VOctree_GetNodeChildren (node);
+            for (j = 0; j < 8; j++) {
+                status = SCE_VOctree_GetNodeStatus (children[j]);
+
+                switch (status) {
+                case SCE_VOCTREE_NODE_EMPTY:
+                case SCE_VOCTREE_NODE_FULL:
+                    k++;
+                    break;
+
+                case SCE_VOCTREE_NODE_NODE:
+                case SCE_VOCTREE_NODE_LEAF:
+                    region = SCE_VOctree_GetNodeData (children[j]);
+                    if (region->status != SCE_VOTERRAIN_REGION_PIPELINE)
+                        k++;
+                    break;
+                }
+            }
+
+            if (k == 8) {
+                for (j = 0; j < 8; j++) {
+                    region = SCE_VOctree_GetNodeData (children[j]);
+                    if (region && region->status == SCE_VOTERRAIN_REGION_READY)
+                        SCE_VOTerrain_Region (vt, region,
+                                              SCE_VOTERRAIN_REGION_RENDER);
+                }
+                /* NOTE: we dont wanna pull head off the pipeline; make sure
+                   Region() doesnt do it */
+                SCE_VOTerrain_Region (vt, head, SCE_VOTERRAIN_REGION_HIDDEN);
+            }
+        }
+        SCE_List_Flush (&list);
+    }
+}
+
+
 /* upload texture */
 static int SCE_VOTerrain_Stage1 (SCE_SVoxelOctreeTerrain *vt,
                                  SCE_SVOTerrainPipeline *pipe)
 {
     SCE_SVOTerrainRegion *region;
-    SCE_EVoxelOctreeStatus status;
     SCE_SVoxelOctree *vo = NULL;
     SCE_STexData *tc = NULL;
     SCE_SLongRect3 rect;
     long x, y, z;
 
-    do {
-        if (!SCE_List_HasElements (&pipe->stages[0]))
-            return SCE_OK;
+    if (!SCE_List_HasElements (&pipe->stages[0]))
+        return SCE_OK;
 
-        region = SCE_List_GetData (SCE_List_GetFirst (&pipe->stages[0]));
-        SCE_List_Removel (&region->it);
-        status = SCE_VOctree_GetNodeStatus (region->node);
-    } while (status == SCE_VOCTREE_NODE_EMPTY ||
-             status == SCE_VOCTREE_NODE_FULL);
+    region = SCE_List_GetData (SCE_List_GetFirst (&pipe->stages[0]));
+    SCE_List_Removel (&region->it);
 
     /* retrieve data */
     SCE_VOctree_GetNodeOriginv (region->node, &x, &y, &z);
@@ -688,9 +807,7 @@ static int SCE_VOTerrain_Stage3 (SCE_SVoxelOctreeTerrain *vt,
     region = SCE_List_GetData (SCE_List_GetFirst (&pipe->stages[2]));
     SCE_List_Removel (&region->it);
 
-    SCE_List_Remove (&region->it2);
-    SCE_List_Appendl (&region->level->to_render, &region->it2);
-    SCE_List_Appendl (&vt->to_render, &region->it4);
+    SCE_VOTerrain_Region (vt, region, SCE_VOTERRAIN_REGION_READY);
 
     return SCE_OK;
 fail:
@@ -725,6 +842,9 @@ int SCE_VOTerrain_Update (SCE_SVoxelOctreeTerrain *vt)
 {
     /* queue regions that need to be updated */
     if (SCE_VOTerrain_UpdateGeometry (vt) < 0) goto fail;
+    /* see which regions can be rendered (compute hidden regions under higher,
+       LOD, etc.) */
+    SCE_VOTerrain_UpdateRegions (vt);
     /* render queued regions */
     if (SCE_VOTerrain_UpdatePipeline (vt, &vt->pipe) < 0) goto fail;
     return SCE_OK;
@@ -747,7 +867,6 @@ void SCE_VOTerrain_Render (SCE_SVoxelOctreeTerrain *vt)
 {
     SCE_SListIterator *it = NULL;
     SCE_SVOTerrainRegion *region = NULL;
-    int draw = SCE_FALSE;
 
     /* TODO: apparently in "shadow mode" shaders are locked, but maybe
        with this kind of terrain we dont need special shadow shaders */
@@ -757,24 +876,12 @@ void SCE_VOTerrain_Render (SCE_SVoxelOctreeTerrain *vt)
     SCE_List_ForEach (it, &vt->to_render) {
         region = SCE_List_GetData (it);
 
-        if (region->level->level == 0) {
-            draw = SCE_TRUE;
-        } else {
-            SCE_SLongRect3 rect, rect2;
-            SCE_VOTerrain_MakeRegionRectangle (vt, region, &rect);
-            SCE_Rectangle3_Mull (&rect, 2, 2, 2);
-            SCE_VOTerrain_GetCurrentRectangle (vt, region->level->level - 1,
-                                               &rect2);
-            draw = !SCE_Rectangle3_IsInsidel (&rect2, &rect);
-        }
+        SCE_VOTerrain_MakeRegionMatrix (vt, region->level->level, region);
 
-        if (draw) {
-            SCE_VOTerrain_MakeRegionMatrix (vt, region->level->level, region);
-            SCE_RLoadMatrix (SCE_MAT_OBJECT, region->matrix);
-            SCE_Mesh_Use (&region->mesh);
-            SCE_Mesh_Render ();
-            SCE_Mesh_Unuse ();
-        }
+        SCE_RLoadMatrix (SCE_MAT_OBJECT, region->matrix);
+        SCE_Mesh_Use (&region->mesh);
+        SCE_Mesh_Render ();
+        SCE_Mesh_Unuse ();
     }
 
     SCE_Shader_Use (NULL);

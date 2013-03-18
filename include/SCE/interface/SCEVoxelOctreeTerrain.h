@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 16/03/2013
-   updated: 17/03/2013 */
+   updated: 18/03/2013 */
 
 #ifndef SCEVOXELOCTREETERRAIN_H
 #define SCEVOXELOCTREETERRAIN_H
@@ -32,6 +32,19 @@
 extern "C" {
 #endif
 
+typedef enum {
+    /* region is unused */
+    SCE_VOTERRAIN_REGION_POOL,
+    /* region is being processed in the pipeline */
+    SCE_VOTERRAIN_REGION_PIPELINE,
+    /* region has been processed, now ready to be rendered */
+    SCE_VOTERRAIN_REGION_READY,
+    /* region is being used for rendering */
+    SCE_VOTERRAIN_REGION_RENDER,
+    /* region could be rendered but higher LOD covers this area */
+    SCE_VOTERRAIN_REGION_HIDDEN
+} SCE_EVOTerrainRegionStatus;
+
 /** \copydoc sce_svoterrainlevel */
 typedef struct sce_svoterrainlevel SCE_SVOTerrainLevel;
 
@@ -41,15 +54,17 @@ typedef struct sce_svoterrainregion SCE_SVOTerrainRegion;
  * \brief A single sub-region of a terrain level
  */
 struct sce_svoterrainregion {
+    SCE_EVOTerrainRegionStatus status;
     SCE_SVoxelMesh vm;          /**< Abstract voxel mesh */
     SCE_SMesh mesh;             /**< Pointer to the mesh */
     SCE_TMatrix4 matrix;        /**< World transform matrix */
     int draw;                   /**< Whether this region should be rendered */
     SCE_SVoxelOctreeNode *node; /**< Node associated with this region */
     SCE_SVOTerrainLevel *level; /**< Owner of this region */
-    /* it used for pipeline, it2 level->to_render, it3 for level->regions,
-       it4 for terrain->to_render */
-    SCE_SListIterator it, it2, it3, it4;
+    SCE_SListIterator it;       /* pipeline */
+    SCE_SListIterator it2;      /* level->to_render,ready,hidden */
+    SCE_SListIterator it3;      /* level->regions */
+    SCE_SListIterator it4;      /* terrain->to_render */
 };
 
 
@@ -60,7 +75,9 @@ struct sce_svoterrainlevel {
     long origin_x, origin_y, origin_z;
 
     SCE_SList regions;
+    SCE_SList ready;            /* regions ready to be rendered */
     SCE_SList to_render;        /* regions to render */
+    SCE_SList hidden;
 };
 
 #define SCE_VOTERRAIN_NUM_PIPELINE_STAGES 3
