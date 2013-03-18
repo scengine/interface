@@ -42,6 +42,8 @@ static void SCE_VOTerrain_InitRegion (SCE_SVOTerrainRegion *region)
     SCE_List_SetData (&region->it2, region);
     SCE_List_InitIt (&region->it3);
     SCE_List_SetData (&region->it3, region);
+    SCE_List_InitIt (&region->it4);
+    SCE_List_SetData (&region->it4, region);
 }
 static void SCE_VOTerrain_ClearRegion (SCE_SVOTerrainRegion *region)
 {
@@ -53,6 +55,7 @@ static void SCE_VOTerrain_ClearRegion (SCE_SVOTerrainRegion *region)
     SCE_List_Remove (&region->it);
     SCE_List_Remove (&region->it2);
     SCE_List_Remove (&region->it3);
+    SCE_List_Remove (&region->it4);
 }
 static SCE_SVOTerrainRegion* SCE_VOTerrain_CreateRegion (void)
 {
@@ -154,6 +157,8 @@ void SCE_VOTerrain_Init (SCE_SVoxelOctreeTerrain *vt)
 
     SCE_List_Init (&vt->pool);
     SCE_List_SetFreeFunc (&vt->pool, SCE_VOTerrain_FreeRegion);
+    SCE_List_Init (&vt->to_render);
+
     for (i = 0; i < SCE_VOTERRAIN_MAX_LEVELS; i++) {
         SCE_VOTerrain_InitLevel (&vt->levels[i]);
         vt->levels[i].level = i;
@@ -165,6 +170,7 @@ void SCE_VOTerrain_Clear (SCE_SVoxelOctreeTerrain *vt)
     int i;
     SCE_VOTerrain_ClearPipeline (&vt->pipe);
     SCE_List_Clear (&vt->pool);
+    SCE_List_Clear (&vt->to_render);
     for (i = 0; i < SCE_VOTERRAIN_MAX_LEVELS; i++)
         SCE_VOTerrain_ClearLevel (&vt->levels[i]);
 }
@@ -390,6 +396,7 @@ static int SCE_VOTerrain_UpdateNodes(SCE_SVoxelOctreeTerrain *vt, SCEuint level,
             SCE_List_Remove (&region->it);
         }
         SCE_List_Remove (&region->it2); /* TODO: remove that call see what happen */
+        SCE_List_Remove (&region->it4);
         SCE_VOTerrain_SetToPool (vt, region);
     }
     /* create missing regions and queue them for updating */
@@ -522,35 +529,63 @@ void SCE_VOTerrain_GetCurrentRectangle (const SCE_SVoxelOctreeTerrain *vt,
                                    tl->origin_z, w, h, d);
 }
 
-static void SCE_VOTerrain_Cull (SCE_SVoxelOctreeTerrain *vt,
-                                SCE_SVoxelOctreeNode *node,
-                                const SCE_SFrustum *f)
+static void SCE_VOTerrain_MakeRegionMatrix (SCE_SVoxelOctreeTerrain *vt,
+                                            SCEuint level,
+                                            SCE_SVOTerrainRegion *region)
 {
-    SCE_SVOTerrainRegion *region = NULL;
+    long x, y, z;
+    float x_, y_, z_;
+    float scale;
 
-    region = SCE_VOctree_GetNodeData (node);
+    /* voxel scale */
+    SCE_Matrix4_Scale (region->matrix, vt->scale, vt->scale, vt->scale);
+    /* level space */
+    scale = 1 << level;
+    SCE_Matrix4_MulScale (region->matrix, scale, scale, scale);
+    /* translate */
+    SCE_VOctree_GetNodeOriginv (region->node, &x, &y, &z);
+    x_ = x * ((float)(vt->w - 1) / (float)vt->w);
+    y_ = y * ((float)(vt->h - 1) / (float)vt->h);
+    z_ = z * ((float)(vt->d - 1) / (float)vt->d);
+
+    SCE_Matrix4_MulTranslate (region->matrix, x_, y_, z_);
+    /* voxel unit */
+    SCE_Matrix4_MulScale (region->matrix, vt->w, vt->h, vt->d);
 }
+
 
 void SCE_VOTerrain_CullRegions (SCE_SVoxelOctreeTerrain *vt,
                                 const SCE_SFrustum *f)
 {
+    int i;
     SCE_SListIterator *it = NULL;
-    SCE_SList list;
-    SCE_SLongRect3 rect;
-    SCE_SVoxelWorldTree *wt = NULL;
-    SCE_SVoxelOctree *vo = NULL;
+    SCE_SVOTerrainRegion *region = NULL;
+    SCE_SBoundingBox box;
+    SCE_SBox b;
+    SCE_TVector3 pos;
 
-    SCE_List_Init (&list);
+    if (!f)
+        return;
 
-    SCE_VOTerrain_GetCurrentRectangle (vt, 0, &rect);
-    SCE_VWorld_FetchTrees (vt->vw, 0, &rect, &list);
-    SCE_List_ForEach (it, &list) {
-        wt = SCE_List_GetData (it);
-        vo = SCE_VWorld_GetOctree (wt);
-        SCE_VOTerrain_Cull (vt, SCE_VOctree_GetRootNode (vo), f);
+    /* construct bounding box */
+    SCE_Box_Init (&b);
+    SCE_Vector3_Set (pos, 0.0, 0.0, 0.0);
+    SCE_Box_Set (&b, pos, 1.0, 1.0, 1.0);
+    SCE_BoundingBox_Init (&box);
+    SCE_BoundingBox_SetFrom (&box, &b);
+
+    SCE_List_Flush (&vt->to_render);
+
+    for (i = 0; i < vt->n_levels; i++) {
+        SCE_List_ForEach (it, &vt->levels[i].to_render) {
+            region = SCE_List_GetData (it);
+            SCE_VOTerrain_MakeRegionMatrix (vt, i, region);
+            SCE_BoundingBox_Push (&box, region->matrix, &b);
+            if (SCE_Frustum_BoundingBoxInBool (f, &box))
+                SCE_List_Appendl (&vt->to_render, &region->it4);
+            SCE_BoundingBox_Pop (&box, &b);
+        }
     }
-
-    SCE_List_Flush (&list);
 }
 
 
@@ -643,8 +678,8 @@ static int SCE_VOTerrain_Stage3 (SCE_SVoxelOctreeTerrain *vt,
     SCE_List_Removel (&region->it);
 
     SCE_List_Remove (&region->it2);
-    /* TODO: add it to something like level->to_cull */
     SCE_List_Appendl (&region->level->to_render, &region->it2);
+    SCE_List_Appendl (&vt->to_render, &region->it4);
 
     return SCE_OK;
 fail:
@@ -687,40 +722,20 @@ fail:
     return SCE_ERROR;
 }
 
-static void SCE_VOTerrain_RenderLevel (SCE_SVoxelOctreeTerrain *vt,
-                                       SCE_SVOTerrainLevel *level)
+void SCE_VOTerrain_Render (SCE_SVoxelOctreeTerrain *vt)
 {
     SCE_SListIterator *it = NULL;
     SCE_SVOTerrainRegion *region = NULL;
-    long x, y, z;
-    float x_, y_, z_;
-    long scale;
-    float scalef;
-    int l = level->level;
 
     /* TODO: apparently in "shadow mode" shaders are locked, but maybe
        with this kind of terrain we dont need special shadow shaders */
 
     SCE_Shader_Use (vt->shader);
 
-    SCE_List_ForEach (it, &level->to_render) {
+    SCE_List_ForEach (it, &vt->to_render) {
         region = SCE_List_GetData (it);
 
-        /* voxel scale */
-        SCE_Matrix4_Scale (region->matrix, vt->scale, vt->scale, vt->scale);
-        /* level space */
-        scale = 1 << level->level;
-        scalef = scale;
-        SCE_Matrix4_MulScale (region->matrix, scalef, scalef, scalef);
-        /* translate */
-        SCE_VOctree_GetNodeOriginv (region->node, &x, &y, &z);
-        x_ = x * ((float)(vt->w - 1) / (float)vt->w);
-        y_ = y * ((float)(vt->h - 1) / (float)vt->h);
-        z_ = z * ((float)(vt->d - 1) / (float)vt->d);
-
-        SCE_Matrix4_MulTranslate (region->matrix, x_, y_, z_);
-        /* voxel unit */
-        SCE_Matrix4_MulScale (region->matrix, vt->w, vt->h, vt->d);
+        SCE_VOTerrain_MakeRegionMatrix (vt, region->level->level, region);
 
         SCE_RLoadMatrix (SCE_MAT_OBJECT, region->matrix);
         SCE_Mesh_Use (&region->mesh);
@@ -728,15 +743,5 @@ static void SCE_VOTerrain_RenderLevel (SCE_SVoxelOctreeTerrain *vt,
         SCE_Mesh_Unuse ();
     }
 
-    /* bicans Cull() should be called for that right */
-    /* SCE_List_Flush (&level->to_render); */
-
     SCE_Shader_Use (NULL);
-}
-
-void SCE_VOTerrain_Render (SCE_SVoxelOctreeTerrain *vt)
-{
-    int i;
-    for (i = 0; i < vt->n_levels; i++)
-        SCE_VOTerrain_RenderLevel (vt, &vt->levels[i]);
 }

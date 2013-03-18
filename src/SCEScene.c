@@ -1123,7 +1123,7 @@ void SCE_Scene_Update (SCE_SScene *scene, SCE_SCamera *camera,
 
     if (scene->vterrain)
         SCE_VTerrain_CullRegions (scene->vterrain, fc ? frustum : NULL);
-    else if (scene->vterrain)
+    else if (scene->voterrain)
         SCE_VOTerrain_CullRegions (scene->voterrain, fc ? frustum : NULL);
 }
 

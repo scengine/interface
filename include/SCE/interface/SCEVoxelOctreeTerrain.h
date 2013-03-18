@@ -47,8 +47,9 @@ struct sce_svoterrainregion {
     int draw;                   /**< Whether this region should be rendered */
     SCE_SVoxelOctreeNode *node; /**< Node associated with this region */
     SCE_SVOTerrainLevel *level; /**< Owner of this region */
-    /* it used for pipeline, it2 for rendering, it3 for level->regions */
-    SCE_SListIterator it, it2, it3;
+    /* it used for pipeline, it2 level->to_render, it3 for level->regions,
+       it4 for terrain->to_render */
+    SCE_SListIterator it, it2, it3, it4;
 };
 
 
@@ -95,7 +96,6 @@ struct sce_svoxeloctreeterrain {
     SCE_SVoxelWorld *vw;
     SCEuint n_levels;
     SCEuint w, h, d;            /* dimensions of a region */
-    //SCEuint region_w, region_h, region_d;
     SCEuint n_regions;          /* width of a level */
 
     long x, y, z;               /* position of the viewer */
@@ -106,6 +106,7 @@ struct sce_svoxeloctreeterrain {
     SCE_SVOTerrainPipeline pipe;
 
     SCE_SList pool;             /* global pool of available regions */
+    SCE_SList to_render;
     SCE_SVOTerrainLevel levels[SCE_VOTERRAIN_MAX_LEVELS];
     SCE_SShader *shader;
 };
