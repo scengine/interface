@@ -665,6 +665,26 @@ void SCE_Mesh_UploadIndices (SCE_SMesh *mesh, const SCEindices *i, size_t s)
 {
     SCE_RInstantIndexBufferUpdate (&mesh->ib, i, 0, s);
 }
+void SCE_Mesh_DownloadVertices (SCE_SMesh *mesh, SCE_EMeshStream str,
+                                SCEvertices *v, size_t first, size_t s)
+{
+    SCE_RInstantVertexBufferFetch (&mesh->streams[str], v, first, s);
+}
+void SCE_Mesh_DownloadIndices (SCE_SMesh *mesh, SCEindices *i, size_t s)
+{
+    SCE_RInstantIndexBufferFetch (&mesh->ib, i, 0, s);
+}
+void SCE_Mesh_DownloadAllVertices (SCE_SMesh *mesh, SCE_EMeshStream str,
+                                   SCEvertices *v)
+{
+    size_t size = SCE_RGetVertexBufferSize (&mesh->streams[str]);
+    SCE_RInstantVertexBufferFetch (&mesh->streams[str], v, 0, size);
+}
+void SCE_Mesh_DownloadAllIndices (SCE_SMesh *mesh, SCEindices *i)
+{
+    size_t size = SCE_RGetIndexBufferSize (&mesh->ib);
+    SCE_RInstantIndexBufferFetch (&mesh->ib, i, 0, size);
+}
 
 
 /**

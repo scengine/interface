@@ -130,6 +130,11 @@ int SCE_Mesh_ReallocIndexBuffer (SCE_SMesh*, SCE_RBufferPool*);
 void SCE_Mesh_UploadVertices (SCE_SMesh*, SCE_EMeshStream, const SCEvertices*,
                               size_t, size_t);
 void SCE_Mesh_UploadIndices (SCE_SMesh*, const SCEindices*, size_t);
+void SCE_Mesh_DownloadVertices (SCE_SMesh*, SCE_EMeshStream, SCEvertices*,
+                                size_t, size_t);
+void SCE_Mesh_DownloadIndices (SCE_SMesh*, SCEindices*, size_t);
+void SCE_Mesh_DownloadAllVertices (SCE_SMesh*, SCE_EMeshStream, SCEvertices*);
+void SCE_Mesh_DownloadAllIndices (SCE_SMesh*, SCEindices*);
 
 void SCE_Mesh_Use (SCE_SMesh*);
 void SCE_Mesh_Render (void);
