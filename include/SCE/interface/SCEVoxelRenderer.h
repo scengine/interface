@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 14/02/2012
-   updated: 11/03/2013 */
+   updated: 18/03/2013 */
 
 #ifndef SCEVOXELRENDERER_H
 #define SCEVOXELRENDERER_H
@@ -51,7 +51,8 @@ struct sce_svoxeltemplate {
     int compressed_nor;
     float comp_scale;            /**< Scaling for compressed positions */
     SCE_SGeometry final_geom;
-    SCE_RBufferPool *pool;       /**< Buffer pool for buffer reallocations */
+    SCE_RBufferPool *vertex_pool;   /**< VB pool for buffer reallocations */
+    SCE_RBufferPool *index_pool;    /**< IB pool for buffer reallocations */
 
     int vwidth, vheight, vdepth; /**< Dimensions of the voxel volume */
     int width, height, depth;    /**< Dimensions of the grid to render */
@@ -124,7 +125,8 @@ void SCE_VRender_CompressPosition (SCE_SVoxelTemplate*, int);
 void SCE_VRender_CompressNormal (SCE_SVoxelTemplate*, int);
 void SCE_VRender_SetCompressedScale (SCE_SVoxelTemplate*, float);
 void SCE_VRender_SetAlgorithm (SCE_SVoxelTemplate*, SCE_EVoxelRenderAlgorithm);
-void SCE_VRender_SetBufferPool (SCE_SVoxelTemplate*, SCE_RBufferPool*);
+void SCE_VRender_SetVertexBufferPool (SCE_SVoxelTemplate*, SCE_RBufferPool*);
+void SCE_VRender_SetIndexBufferPool (SCE_SVoxelTemplate*, SCE_RBufferPool*);
 
 int SCE_VRender_Build (SCE_SVoxelTemplate*);
 

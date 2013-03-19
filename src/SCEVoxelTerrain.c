@@ -165,7 +165,7 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
     SCE_VRender_SetPipeline (&vt->template, vt->rpipeline);
     vt->cut = 0;
     SCE_VTerrain_InitHybridGenerator (&vt->hybrid);
-    vt->pool = NULL;
+    vt->vertex_pool = vt->index_pool = NULL;
 
     vt->subregion_dim = 0;
     vt->n_subregions = 1;
@@ -386,10 +386,17 @@ void SCE_VTerrain_SetHybridMCStep (SCE_SVoxelTerrain *vt, SCEuint step)
 {
     vt->hybrid.mc_step = step;
 }
-void SCE_VTerrain_SetBufferPool (SCE_SVoxelTerrain *vt, SCE_RBufferPool *pool)
+void SCE_VTerrain_SetVertexBufferPool (SCE_SVoxelTerrain *vt,
+                                       SCE_RBufferPool *pool)
 {
-    vt->pool = pool;
-    SCE_VRender_SetBufferPool (&vt->template, pool);
+    vt->vertex_pool = pool;
+    SCE_VRender_SetVertexBufferPool (&vt->template, pool);
+}
+void SCE_VTerrain_SetIndexBufferPool (SCE_SVoxelTerrain *vt,
+                                      SCE_RBufferPool *pool)
+{
+    vt->index_pool = pool;
+    SCE_VRender_SetIndexBufferPool (&vt->template, pool);
 }
 void SCE_VTerrain_EnableMaterials (SCE_SVoxelTerrain *vt)
 {
@@ -1414,12 +1421,17 @@ static void SCE_VTerrain_EncodeCompressNor (SCEvertices *v, size_t n,
     }
 }
 
-static int SCE_VTerrain_ReallocMesh (SCE_SMesh *mesh, SCE_RBufferPool *pool)
+static int SCE_VTerrain_ReallocMesh (SCE_SMesh *mesh, SCE_RBufferPool *v,
+                                     SCE_RBufferPool *i)
 {
-    if (SCE_Mesh_ReallocStream (mesh, SCE_MESH_STREAM_G, pool) < 0)
-        goto fail;
-    if (SCE_Mesh_ReallocIndexBuffer (mesh, pool) < 0)
-        goto fail;
+    if (v) {
+        if (SCE_Mesh_ReallocStream (mesh, SCE_MESH_STREAM_G, v) < 0)
+            goto fail;
+    }
+    if (i) {
+        if (SCE_Mesh_ReallocIndexBuffer (mesh, i) < 0)
+            goto fail;
+    }
     return SCE_OK;
 fail:
     SCEE_LogSrc ();
@@ -1482,7 +1494,8 @@ static int SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
             SCE_List_RemoveFirst (&h->queue);
             SCE_Mesh_SetNumVertices (tr->mesh, 0);
             SCE_Mesh_SetNumIndices (tr->mesh, 0);
-            if (vt->pool && SCE_VTerrain_ReallocMesh (tr->mesh, vt->pool) < 0)
+            if (SCE_VTerrain_ReallocMesh (tr->mesh, vt->vertex_pool,
+                                          vt->index_pool) < 0)
                 goto fail;
             tr->draw = SCE_FALSE;
             h->grid_ready = SCE_FALSE;
@@ -1536,7 +1549,8 @@ static int SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
         /* upload geometry */
         SCE_Mesh_SetNumVertices (tr->mesh, h->n_vertices);
         SCE_Mesh_SetNumIndices (tr->mesh, h->n_indices);
-        if (vt->pool && SCE_VTerrain_ReallocMesh (tr->mesh, vt->pool) < 0)
+        if (SCE_VTerrain_ReallocMesh (tr->mesh, vt->vertex_pool,
+                                      vt->index_pool) < 0)
             goto fail;
         size = stride * h->n_vertices;
         SCE_Mesh_UploadVertices (tr->mesh, SCE_MESH_STREAM_G, h->interleaved,

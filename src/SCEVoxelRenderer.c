@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 14/02/2012
-   updated: 11/03/2013 */
+   updated: 18/03/2013 */
 
 #include <SCE/utils/SCEUtils.h>
 #include <SCE/core/SCECore.h>
@@ -433,7 +433,7 @@ void SCE_VRender_Init (SCE_SVoxelTemplate *vt)
     vt->compressed_nor = SCE_FALSE;
     vt->comp_scale = 1.0;
     SCE_Geometry_Init (&vt->final_geom);
-    vt->pool = NULL;
+    vt->index_pool = vt->vertex_pool = NULL;
 
     vt->vwidth = vt->vheight = vt->vdepth = 0;
     vt->width = vt->height = vt->depth = 0;
@@ -585,9 +585,15 @@ void SCE_VRender_SetAlgorithm (SCE_SVoxelTemplate *vt,
 {
     vt->algo = a;
 }
-void SCE_VRender_SetBufferPool (SCE_SVoxelTemplate *vt, SCE_RBufferPool *pool)
+void SCE_VRender_SetVertexBufferPool (SCE_SVoxelTemplate *vt,
+                                      SCE_RBufferPool *pool)
 {
-    vt->pool = pool;
+    vt->vertex_pool = pool;
+}
+void SCE_VRender_SetIndexBufferPool (SCE_SVoxelTemplate *vt,
+                                     SCE_RBufferPool *pool)
+{
+    vt->index_pool = pool;
 }
 
 static const char *non_empty_vs =
@@ -990,6 +996,7 @@ static const char *mc_final_vs =
     "#define OD (1.0/D)\n"
 
     "in uint sce_position;"
+    /* TODO: why do I use 4 components vectors instead of 3? */
     "\n#if SCE_VRENDER_HIGHP_VERTEX_POS\n"
     "out vec4 pos;"
     "\n#else\n"
@@ -2147,14 +2154,16 @@ int SCE_VRender_Software (SCE_SVoxelTemplate *vt, const SCE_SGrid *volume,
         vm->render = SCE_FALSE;
         SCE_Mesh_SetNumVertices (vm->mesh, 0);
         SCE_Mesh_SetNumIndices (vm->mesh, 0);
-        if (vt->pool) {
+        if (vt->vertex_pool) {
             if (SCE_Mesh_ReallocStream (vm->mesh, SCE_MESH_STREAM_G,
-                                        vt->pool) < 0)
+                                        vt->vertex_pool) < 0)
                 goto fail;
             if (SCE_Mesh_ReallocStream (vm->mesh, SCE_MESH_STREAM_N,
-                                        vt->pool) < 0)
+                                        vt->vertex_pool) < 0)
                 goto fail;
-            if (SCE_Mesh_ReallocIndexBuffer (vm->mesh, vt->pool) < 0)
+        }
+        if (vt->index_pool) {
+            if (SCE_Mesh_ReallocIndexBuffer (vm->mesh, vt->index_pool) < 0)
                 goto fail;
         }
         return;
@@ -2169,12 +2178,16 @@ int SCE_VRender_Software (SCE_SVoxelTemplate *vt, const SCE_SGrid *volume,
        to keep a copy on CPU memory */
     SCE_Mesh_SetNumVertices (vm->mesh, n_vertices);
     SCE_Mesh_SetNumIndices (vm->mesh, n_indices);
-    if (vt->pool) {
-        if (SCE_Mesh_ReallocStream (vm->mesh, SCE_MESH_STREAM_G, vt->pool) < 0)
+    if (vt->vertex_pool) {
+        if (SCE_Mesh_ReallocStream (vm->mesh, SCE_MESH_STREAM_G,
+                                    vt->vertex_pool) < 0)
             goto fail;
-        if (SCE_Mesh_ReallocStream (vm->mesh, SCE_MESH_STREAM_N, vt->pool) < 0)
+        if (SCE_Mesh_ReallocStream (vm->mesh, SCE_MESH_STREAM_N,
+                                    vt->vertex_pool) < 0)
             goto fail;
-        if (SCE_Mesh_ReallocIndexBuffer (vm->mesh, vt->pool) < 0)
+    }
+    if (vt->index_pool) {
+        if (SCE_Mesh_ReallocIndexBuffer (vm->mesh, vt->index_pool) < 0)
             goto fail;
     }
     SCE_Mesh_UploadVertices (vm->mesh, SCE_MESH_STREAM_G, vt->vertices,
@@ -2234,11 +2247,13 @@ int SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_STexture *volume,
         /* ... so I setup those as a precaution :) (wat?) */
         SCE_Mesh_SetNumVertices (vm->mesh, 0);
         SCE_Mesh_SetNumIndices (vm->mesh, 0);
-        if (vt->pool) {
+        if (vt->vertex_pool) {
             if (SCE_Mesh_ReallocStream (vm->mesh, SCE_MESH_STREAM_G,
-                                        vt->pool) < 0)
+                                        vt->vertex_pool) < 0)
                 goto fail;
-            if (SCE_Mesh_ReallocIndexBuffer (vm->mesh, vt->pool) < 0)
+        }
+        if (vt->index_pool) {
+            if (SCE_Mesh_ReallocIndexBuffer (vm->mesh, vt->index_pool) < 0)
                 goto fail;
         }
         SCE_Shader_Use (NULL);
@@ -2255,10 +2270,11 @@ int SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_STexture *volume,
     SCE_Mesh_EndRenderTo (&vt->list_verts);
 
     /* 3rd pass: process vertices to generate final coords & normal */
-    if (vt->pool) {
+    if (vt->vertex_pool) {
         SCE_Mesh_SetNumVertices (vm->mesh,
                                  SCE_Mesh_GetNumVertices (&vt->list_verts));
-        if (SCE_Mesh_ReallocStream (vm->mesh, SCE_MESH_STREAM_G, vt->pool) < 0)
+        if (SCE_Mesh_ReallocStream (vm->mesh, SCE_MESH_STREAM_G,
+                                    vt->vertex_pool) < 0)
             goto fail;
     }
 
@@ -2282,10 +2298,12 @@ int SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_STexture *volume,
     SCE_Mesh_Unuse ();
     SCE_Texture_RenderTo (NULL, 0);
 
-    if (vt->pool) {
+    if (vt->index_pool) {
+        /* TODO: would 5 * SCE_Mesh_GetNumVertices (&vt->list_verts) be
+           more accurate? (and would it be enough) */
         SCE_Mesh_SetNumIndices (vm->mesh,
                                 15 * SCE_Mesh_GetNumVertices (&vt->non_empty));
-        if (SCE_Mesh_ReallocIndexBuffer (vm->mesh, vt->pool) < 0)
+        if (SCE_Mesh_ReallocIndexBuffer (vm->mesh, vt->index_pool) < 0)
             goto fail;
     }
 

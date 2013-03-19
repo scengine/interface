@@ -109,10 +109,16 @@ static void SCE_VOTerrain_InitPipeline (SCE_SVOTerrainPipeline *pipe)
     SCE_Grid_Init (&pipe->grid);
     pipe->tc = pipe->tc2 = NULL;
     pipe->tex = pipe->tex2 = NULL;
-    pipe->pool = &pipe->default_pool;
-    SCE_RInitBufferPool (&pipe->default_pool);
+    pipe->vertex_pool = &pipe->default_vertex_pool;
+    pipe->index_pool = &pipe->default_index_pool;
+    SCE_RInitBufferPool (&pipe->default_vertex_pool);
+    SCE_RSetBufferPoolTarget (&pipe->default_vertex_pool, GL_ARRAY_BUFFER);
+    SCE_RInitBufferPool (&pipe->default_index_pool);
+    SCE_RSetBufferPoolTarget (&pipe->default_index_pool,
+                              GL_ELEMENT_ARRAY_BUFFER);
     /* TODO: set pool usage? */
-    SCE_VRender_SetBufferPool (&pipe->template, pipe->pool);
+    SCE_VRender_SetVertexBufferPool (&pipe->template, pipe->vertex_pool);
+    SCE_VRender_SetIndexBufferPool (&pipe->template, pipe->index_pool);
 
     for (i = 0; i < SCE_VOTERRAIN_NUM_PIPELINE_STAGES; i++)
         SCE_List_Init (&pipe->stages[i]);
@@ -132,7 +138,8 @@ static void SCE_VOTerrain_ClearPipeline (SCE_SVOTerrainPipeline *pipe)
     SCE_VRender_Clear (&pipe->template);
     SCE_Texture_Delete (pipe->tex);
     SCE_Grid_Clear (&pipe->grid);
-    SCE_RClearBufferPool (&pipe->default_pool);
+    SCE_RClearBufferPool (&pipe->default_vertex_pool);
+    SCE_RClearBufferPool (&pipe->default_index_pool);
 
     for (i = 0; i < SCE_VOTERRAIN_NUM_PIPELINE_STAGES; i++)
         SCE_List_Clear (&pipe->stages[i]);
@@ -328,8 +335,9 @@ static void SCE_VOTerrain_SetToPool (SCE_SVoxelOctreeTerrain *vt,
 {
     SCE_Mesh_SetNumVertices (&region->mesh, 0);
     SCE_Mesh_SetNumIndices (&region->mesh, 0);
-    SCE_Mesh_ReallocStream (&region->mesh, SCE_MESH_STREAM_G, vt->pipe.pool);
-    SCE_Mesh_ReallocIndexBuffer (&region->mesh, vt->pipe.pool);
+    SCE_Mesh_ReallocStream (&region->mesh, SCE_MESH_STREAM_G,
+                            vt->pipe.vertex_pool);
+    SCE_Mesh_ReallocIndexBuffer (&region->mesh, vt->pipe.index_pool);
     SCE_List_Remove (&region->it3);
     SCE_List_Appendl (&vt->pool, &region->it3);
 }

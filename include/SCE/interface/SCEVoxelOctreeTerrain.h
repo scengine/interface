@@ -88,8 +88,10 @@ struct sce_svoterrainpipeline {
     SCE_SGrid grid;
     SCE_STexData *tc, *tc2;
     SCE_STexture *tex, *tex2;
-    SCE_RBufferPool *pool;
-    SCE_RBufferPool default_pool;
+    SCE_RBufferPool *vertex_pool;
+    SCE_RBufferPool *index_pool;
+    SCE_RBufferPool default_vertex_pool;
+    SCE_RBufferPool default_index_pool;
 
     /* pipeline stages */
     SCE_SList stages[SCE_VOTERRAIN_NUM_PIPELINE_STAGES];

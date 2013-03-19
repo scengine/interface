@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 30/01/2012
-   updated: 14/03/2013 */
+   updated: 18/03/2013 */
 
 #ifndef SCEVOXELTERRAIN_H
 #define SCEVOXELTERRAIN_H
@@ -153,7 +153,8 @@ struct sce_svoxelterrain {
     SCE_EVoxelRenderPipeline rpipeline;
     SCEuint cut;                /**< cut for the hybrid generation method */
     SCE_SVoxelTerrainHybridGenerator hybrid;
-    SCE_RBufferPool *pool;
+    SCE_RBufferPool *vertex_pool;
+    SCE_RBufferPool *index_pool;
 
     SCEuint subregion_dim;      /**< Dimensions of one subregion */
     SCEuint n_subregions;       /**< Number of subregions per side */
@@ -212,7 +213,8 @@ void SCE_VTerrain_SetPipeline (SCE_SVoxelTerrain*, SCE_EVoxelRenderPipeline);
 void SCE_VTerrain_SetAlgorithm (SCE_SVoxelTerrain*, SCE_EVoxelRenderAlgorithm);
 void SCE_VTerrain_SetHybrid (SCE_SVoxelTerrain*, SCEuint);
 void SCE_VTerrain_SetHybridMCStep (SCE_SVoxelTerrain*, SCEuint);
-void SCE_VTerrain_SetBufferPool (SCE_SVoxelTerrain*, SCE_RBufferPool*);
+void SCE_VTerrain_SetVertexBufferPool (SCE_SVoxelTerrain*, SCE_RBufferPool*);
+void SCE_VTerrain_SetIndexBufferPool (SCE_SVoxelTerrain*, SCE_RBufferPool*);
 void SCE_VTerrain_EnableMaterials (SCE_SVoxelTerrain*);
 void SCE_VTerrain_DisableMaterials (SCE_SVoxelTerrain*);
 
