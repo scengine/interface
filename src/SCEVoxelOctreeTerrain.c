@@ -747,7 +747,8 @@ static void SCE_VOTerrain_UpdateRegions (SCE_SVoxelOctreeTerrain *vt)
                 case SCE_VOCTREE_NODE_NODE:
                 case SCE_VOCTREE_NODE_LEAF:
                     region = SCE_VOctree_GetNodeData (children[j]);
-                    if (region->status != SCE_VOTERRAIN_REGION_PIPELINE)
+                    if (region &&
+                        region->status != SCE_VOTERRAIN_REGION_PIPELINE)
                         k++;
                     break;
                 }
