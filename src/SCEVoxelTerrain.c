@@ -1549,6 +1549,15 @@ static int SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
         /* upload geometry */
         SCE_Mesh_SetNumVertices (tr->mesh, h->n_vertices);
         SCE_Mesh_SetNumIndices (tr->mesh, h->n_indices);
+        /* indices are now SCE_INDICES_TYPE: pretty ugly, because it forces
+           us to put the type back to SCE_UNSIGNED_INT when generating the
+           mesh with the GPU */
+        /* change it before reallocating the mesh */
+        {
+            SCE_RIndexBuffer *ib = SCE_Mesh_GetIndexBuffer (tr->mesh);
+            /* TODO: direct member access */
+            ib->ia.type = SCE_INDICES_TYPE;
+        }
         if (SCE_VTerrain_ReallocMesh (tr->mesh, vt->vertex_pool,
                                       vt->index_pool) < 0)
             goto fail;
@@ -1557,14 +1566,6 @@ static int SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
                                  0, size);
         size = h->n_indices * sizeof *h->indices;
         SCE_Mesh_UploadIndices (tr->mesh, h->indices, size);
-        /* indices are now SCE_INDICES_TYPE: pretty ugly, because it forces
-           us to put the type back to SCE_UNSIGNED_INT when generating the
-           mesh with the GPU */
-        {
-            SCE_RIndexBuffer *ib = SCE_Mesh_GetIndexBuffer (tr->mesh);
-            /* TODO: direct member access */
-            ib->ia.type = SCE_INDICES_TYPE;
-        }
 
         /* done */
         tr->draw = (h->n_vertices>0 && h->n_indices>0) ? SCE_TRUE : SCE_FALSE;
@@ -1632,15 +1633,17 @@ int SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
             y += l->wrap[1];
             z += l->wrap[2];
 
-            if (SCE_VRender_Hardware (&vt->template, tr->level->tex, &tr->vm,
-                                      x, y, z) < 0)
-                goto fail;
             /* TODO: see UpdateHybrid() */
+            /* update before Hardware(), so that the realloc work
+               properly */
             {
                 SCE_RIndexBuffer *ib = SCE_Mesh_GetIndexBuffer (tr->mesh);
                 /* TODO: direct member access */
                 ib->ia.type = SCE_UNSIGNED_INT;
             }
+            if (SCE_VRender_Hardware (&vt->template, tr->level->tex, &tr->vm,
+                                      x, y, z) < 0)
+                goto fail;
 
             break;
         default:;
