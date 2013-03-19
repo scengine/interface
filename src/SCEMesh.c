@@ -633,7 +633,7 @@ size_t SCE_Mesh_GetUsedVRAM (const SCE_SMesh *mesh)
 {
     size_t i, size = 0;
     for (i = 0; i < SCE_MESH_NUM_STREAMS; i++)
-        size += SCE_RGetVertexBufferSize (&mesh->streams[i]);
+        size += SCE_RGetVertexBufferUsedVRAM (&mesh->streams[i]);
     size += SCE_RGetIndexBufferUsedVRAM (&mesh->ib);
     return size;
 }
