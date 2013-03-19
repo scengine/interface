@@ -101,7 +101,7 @@ struct sce_svoterrainpipeline {
     SCEvertices *normals;
     SCEindices *indices;
     SCEindices *anchors;
-    void *interleaved;
+    SCEvertices *interleaved;
     SCEuint n_vertices;
     SCEuint n_indices;
     SCEuint n_anchors;

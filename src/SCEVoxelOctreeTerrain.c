@@ -295,7 +295,7 @@ static int SCE_VOTerrain_BuildPipeline (SCE_SVoxelOctreeTerrain *vt,
         goto fail;
     if (!(pipe->normals = SCE_malloc (n * 9 * sizeof *pipe->normals)))
         goto fail;
-    if (!(pipe->indices = SCE_malloc (n * 15 * sizeof *pipe->indices)))
+    if (!(pipe->indices = SCE_malloc (n * 15 * sizeof (SCEuint))))
         goto fail;
     if (!(pipe->anchors = SCE_malloc (dim * dim * 6 * sizeof *pipe->anchors)))
         goto fail;
@@ -505,7 +505,7 @@ static int SCE_VOTerrain_SetLevelPosition (SCE_SVoxelOctreeTerrain *vt,
 {
     int moved = SCE_FALSE;
     long threshold;
-    long w, h, d, p1[3], p2[3];
+    long w, h, d;
     SCE_SLongRect3 rect;
     SCE_SVOTerrainLevel *tl = &vt->levels[level];
 
@@ -674,6 +674,7 @@ void SCE_VOTerrain_CullRegions (SCE_SVoxelOctreeTerrain *vt,
             region = SCE_List_GetData (it);
             SCE_VOTerrain_MakeRegionMatrix (vt, i, region);
             SCE_BoundingBox_Push (&box, region->matrix, &b);
+            /* TODO: fix SCE_Frustum_Bounblblbl() 1st param const */
             if (SCE_Frustum_BoundingBoxInBool (f, &box))
                 SCE_List_Appendl (&vt->to_render, &region->it4);
             SCE_BoundingBox_Pop (&box, &b);
@@ -830,17 +831,160 @@ fail:
     return SCE_ERROR;
 }
 
-/* TODO: download the geometry (and then simplify and then blblbl) */
+static int SCE_VOTerrain_ReallocMesh (SCE_SMesh *mesh, SCE_RBufferPool *v,
+                                      SCE_RBufferPool *i)
+{
+    if (v) {
+        if (SCE_Mesh_ReallocStream (mesh, SCE_MESH_STREAM_G, v) < 0)
+            goto fail;
+    }
+    if (i) {
+        if (SCE_Mesh_ReallocIndexBuffer (mesh, i) < 0)
+            goto fail;
+    }
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
+}
+
+static void SCE_VOTerrain_Decode (SCE_SVOTerrainPipeline *pipe)
+{
+    size_t i;
+    SCEindices *ind1 = NULL;
+    SCEuint *ind2 = NULL;
+
+    /* vertices */
+    /* TODO: for some reason vrender position data is 4 components vector */
+    for (i = 0; i < pipe->n_vertices; i++) {
+        memcpy (&pipe->vertices[i * 3],
+                &pipe->interleaved[i * 7],
+                3 * sizeof *pipe->vertices);
+        memcpy (&pipe->normals[i * 3],
+                &pipe->interleaved[i * 7 + 4],
+                3 * sizeof *pipe->vertices);
+    }
+
+    /* indices */
+    ind1 = pipe->indices;
+    ind2 = (SCEuint*)pipe->indices;
+    for (i = 0; i < pipe->n_indices; i++)
+        ind1[i] = ind2[i];
+}
+
+static void SCE_VOTerrain_Encode (SCE_SVOTerrainPipeline *pipe)
+{
+    long i;
+    SCEindices *ind1 = NULL;
+    SCEuint *ind2 = NULL;
+
+    /* TODO: this stride is defined upon the geometry as defined by the
+       vrender module. our mesh actually doesnt need to fit this geometry
+       if we dont plan on rendering data directly emitted by the GPU. */
+
+    /* vertices */
+    for (i = 0; i < pipe->n_vertices; i++) {
+        memcpy (&pipe->interleaved[i * 7],
+                &pipe->vertices[i * 3],
+                3 * sizeof *pipe->vertices);
+        pipe->interleaved[i * 7 + 3] = 1.0;
+        memcpy (&pipe->interleaved[i * 7 + 4],
+                &pipe->normals[i * 3],
+                3 * sizeof *pipe->vertices);
+    }
+
+    /* indices */
+    ind1 = pipe->indices;
+    ind2 = (SCEuint*)pipe->indices;
+    for (i = pipe->n_indices - 1; i >= 0; i--)
+        ind2[i] = ind1[i];
+}
+
+size_t SCE_VOTerrain_Anchors (SCEvertices *vertices, size_t n_vertices,
+                              float inf, float sup, SCEindices *out)
+{
+    SCEuint i, j;
+    SCEvertices *v;
+
+    j = 0;
+    for (i = 0; i < n_vertices; i++) {
+        v = &vertices[i * 3];
+        if (v[0] < inf || v[0] > sup ||
+            v[1] < inf || v[1] > sup ||
+            v[2] < inf || v[2] > sup) {
+            out[j++] = i;
+        }
+    }
+
+    return j;
+}
+
+/* decimate the geometry */
 static int SCE_VOTerrain_Stage3 (SCE_SVoxelOctreeTerrain *vt,
                                  SCE_SVOTerrainPipeline *pipe)
 {
     SCE_SVOTerrainRegion *region;
+    SCEuint n_collapses;
+    size_t size, stride;
+    float inf, sup;
 
     if (!SCE_List_HasElements (&pipe->stages[2]))
         return SCE_OK;
 
     region = SCE_List_GetData (SCE_List_GetFirst (&pipe->stages[2]));
     SCE_List_Removel (&region->it);
+
+    /* download geometry */
+    pipe->n_vertices = SCE_Mesh_GetNumVertices (&region->mesh);
+    pipe->n_indices = SCE_Mesh_GetNumIndices (&region->mesh);
+    SCE_Mesh_DownloadAllVertices (&region->mesh, SCE_MESH_STREAM_G,
+                                  pipe->interleaved);
+    SCE_Mesh_DownloadAllIndices (&region->mesh, pipe->indices);
+
+    /* decode (might include decompression) */
+    /* TODO: handle materials brah */
+    SCE_VOTerrain_Decode (pipe);
+
+    /* decimate */
+    inf = 0.00001 + 1.0 / vt->w;
+    sup = (vt->w - 4.0) / (vt->w - 1.0) - 0.0001;
+    pipe->n_anchors = SCE_VOTerrain_Anchors (pipe->vertices, pipe->n_vertices,
+                                             inf, sup, pipe->anchors);
+    SCE_QEMD_Set (&pipe->qmesh, pipe->vertices, pipe->normals, pipe->indices,
+                  pipe->n_vertices, pipe->n_indices);
+    SCE_QEMD_AnchorVertices (&pipe->qmesh, pipe->anchors, pipe->n_anchors);
+    /* aiming at 60% vertex reduction */
+    n_collapses = (pipe->n_vertices - pipe->n_anchors) * 0.6;
+    SCE_QEMD_Process (&pipe->qmesh, n_collapses);
+    SCE_QEMD_Get (&pipe->qmesh, pipe->vertices, pipe->normals, pipe->indices,
+                  &pipe->n_vertices, &pipe->n_indices);
+
+    /* encode (might include compression) */
+    SCE_VOTerrain_Encode (pipe);
+
+    /* upload geometry */
+    SCE_Mesh_SetNumVertices (&region->mesh, pipe->n_vertices);
+    SCE_Mesh_SetNumIndices (&region->mesh, pipe->n_indices);
+    if (SCE_VOTerrain_ReallocMesh (&region->mesh, pipe->vertex_pool,
+                                   pipe->index_pool) < 0)
+        goto fail;
+
+    stride = 7 * sizeof (SCEvertices);
+    size = stride * pipe->n_vertices;
+    SCE_Mesh_UploadVertices (&region->mesh, SCE_MESH_STREAM_G,
+                             pipe->interleaved, 0, size);
+    size = pipe->n_indices * sizeof *pipe->indices;
+    size = pipe->n_indices * sizeof (SCEuint);
+    SCE_Mesh_UploadIndices (&region->mesh, pipe->indices, size);
+
+#if 0
+    /* TODO: separate GPU generated meshes from final meshes */
+    {
+        SCE_RIndexBuffer *ib = SCE_Mesh_GetIndexBuffer (&region->mesh);
+        /* TODO: direct member access */
+        ib->ia.type = SCE_INDICES_TYPE;
+    }
+#endif
 
     SCE_VOTerrain_Region (vt, region, SCE_VOTERRAIN_REGION_READY);
 
