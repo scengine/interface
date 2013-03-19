@@ -1508,13 +1508,13 @@ static int SCE_VTerrain_UpdateHybrid (SCE_SVoxelTerrain *vt)
         inf = 1.0001 / (dim - 1.0);
         h->n_anchors = SCE_VTerrain_Derp (factor, h->vertices, h->n_vertices,
                                           inf, sup, h->anchors);
-        SCE_QEMD_Set (&h->qmesh, h->vertices, h->indices, h->n_vertices,
+        SCE_QEMD_Set (&h->qmesh, h->vertices, NULL, h->indices, h->n_vertices,
                       h->n_indices);
         SCE_QEMD_AnchorVertices (&h->qmesh, h->anchors, h->n_anchors);
         /* aiming at 80% vertex reduction */
         n_collapses = (h->n_vertices - h->n_anchors) * 0.8;
         SCE_QEMD_Process (&h->qmesh, n_collapses);
-        SCE_QEMD_Get (&h->qmesh, h->vertices, h->indices, &h->n_vertices,
+        SCE_QEMD_Get (&h->qmesh, h->vertices, NULL, h->indices, &h->n_vertices,
                       &h->n_indices);
 
         /* generate normals */
