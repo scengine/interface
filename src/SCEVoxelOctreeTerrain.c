@@ -475,6 +475,27 @@ static void SCE_VOTerrain_Region (SCE_SVoxelOctreeTerrain *vt,
 }
 
 
+static int
+SCE_VOTerrain_AddNewRegion (SCE_SVoxelOctreeTerrain *vt, SCEuint level,
+                            SCE_SVoxelOctreeNode *node)
+{
+    SCE_SVOTerrainRegion *region = NULL;
+    /* get a region from the global pool */
+    if (!(region = SCE_VOTerrain_GetFromPool (vt))) {
+        SCEE_LogSrc ();
+        return SCE_ERROR;
+    }
+    region->level = &vt->levels[level];
+    region->node = node;
+    SCE_VOctree_SetNodeData (node, region);
+    /* TODO: freefunc */
+    /* actually we dont really need any, since we keep every
+       region in tl->regions */
+    SCE_VOctree_SetNodeFreeFunc (node, NULL);
+    SCE_List_Appendl (&region->level->regions, &region->it3);
+    return SCE_OK;
+}
+
 /* same as UpdateNodes() but fetches from a rectangle first */
 static int
 SCE_VOTerrain_UpdateMatchingNodes (SCE_SVoxelOctreeTerrain *vt, SCEuint level,
@@ -505,8 +526,9 @@ SCE_VOTerrain_UpdateMatchingNodes (SCE_SVoxelOctreeTerrain *vt, SCEuint level,
                 SCE_VOTerrain_Region (vt, region, SCE_VOTERRAIN_REGION_POOL);
             continue;
         } else if (!region) {
-            if (!(region = SCE_VOTerrain_GetFromPool (vt)))
+            if (SCE_VOTerrain_AddNewRegion (vt, level, node) < 0)
                 goto fail;
+            region = SCE_VOctree_GetNodeData (node);
         }
         /* queue for update */
         SCE_VOTerrain_Region (vt, region, SCE_VOTERRAIN_REGION_PIPELINE);
@@ -561,17 +583,10 @@ static int SCE_VOTerrain_UpdateLevel(SCE_SVoxelOctreeTerrain *vt, SCEuint level,
         if (status == SCE_VOCTREE_NODE_EMPTY || status == SCE_VOCTREE_NODE_FULL)
             continue;
 
-        /* get a region from the global pool */
-        if (!(region = SCE_VOTerrain_GetFromPool (vt)))
+        /* add new region */
+        if (SCE_VOTerrain_AddNewRegion (vt, level, node) < 0)
             goto fail;
-        region->level = &vt->levels[level];
-        region->node = node;
-        SCE_VOctree_SetNodeData (node, region);
-        /* TODO: freefunc */
-        /* actually we dont really need any, since we keep every
-           region in tl->regions */
-        SCE_VOctree_SetNodeFreeFunc (node, NULL);
-        SCE_List_Appendl (&tl->regions, &region->it3);
+        region = SCE_VOctree_GetNodeData (node);
 
         /* queue for update */
         SCE_VOTerrain_Region (vt, region, SCE_VOTERRAIN_REGION_PIPELINE);
@@ -882,7 +897,7 @@ static int SCE_VOTerrain_Stage1 (SCE_SVoxelOctreeTerrain *vt,
                           SCE_Grid_GetRaw (&pipe->grid));
 
     /* upload */
-    glPixelStorei (GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei (GL_UNPACK_ALIGNMENT, 2);
     SCE_Texture_Update (pipe->tex);
     glPixelStorei (GL_UNPACK_ALIGNMENT, 4);
     SCE_List_Appendl (&pipe->stages[1], &region->it); /* onto the next stage */
