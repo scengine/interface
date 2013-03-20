@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 16/03/2013
-   updated: 18/03/2013 */
+   updated: 20/03/2013 */
 
 #include <SCE/core/SCECore.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -31,7 +31,6 @@
 static void SCE_VOTerrain_InitRegion (SCE_SVOTerrainRegion *region)
 {
     region->status = SCE_VOTERRAIN_REGION_POOL; /* even though it's not true. */
-    SCE_VRender_InitMesh (&region->vm);
     SCE_Mesh_Init (&region->mesh);
     SCE_Matrix4_Identity (region->matrix);
     region->draw = SCE_FALSE;
@@ -48,7 +47,6 @@ static void SCE_VOTerrain_InitRegion (SCE_SVOTerrainRegion *region)
 }
 static void SCE_VOTerrain_ClearRegion (SCE_SVOTerrainRegion *region)
 {
-    SCE_VRender_ClearMesh (&region->vm);
     SCE_Mesh_Clear (&region->mesh);
     /* TODO: avoid node callback from being called...? */
     if (region->node)
@@ -109,6 +107,12 @@ static void SCE_VOTerrain_InitPipeline (SCE_SVOTerrainPipeline *pipe)
     SCE_Grid_Init (&pipe->grid);
     pipe->tc = pipe->tc2 = NULL;
     pipe->tex = pipe->tex2 = NULL;
+    SCE_Mesh_Init (&pipe->mesh);
+    SCE_Mesh_Init (&pipe->mesh2);
+    SCE_VRender_InitMesh (&pipe->vmesh);
+    SCE_VRender_InitMesh (&pipe->vmesh2);
+    SCE_VRender_SetMesh (&pipe->vmesh, &pipe->mesh);
+    SCE_VRender_SetMesh (&pipe->vmesh2, &pipe->mesh2);
     pipe->vertex_pool = &pipe->default_vertex_pool;
     pipe->index_pool = &pipe->default_index_pool;
     SCE_RInitBufferPool (&pipe->default_vertex_pool);
@@ -137,6 +141,9 @@ static void SCE_VOTerrain_ClearPipeline (SCE_SVOTerrainPipeline *pipe)
 
     SCE_VRender_Clear (&pipe->template);
     SCE_Texture_Delete (pipe->tex);
+    SCE_Texture_Delete (pipe->tex2);
+    SCE_Mesh_Clear (&pipe->mesh);
+    SCE_Mesh_Clear (&pipe->mesh2);
     SCE_Grid_Clear (&pipe->grid);
     SCE_RClearBufferPool (&pipe->default_vertex_pool);
     SCE_RClearBufferPool (&pipe->default_index_pool);
@@ -166,6 +173,7 @@ void SCE_VOTerrain_Init (SCE_SVoxelOctreeTerrain *vt)
     vt->origin_x = vt->origin_y = vt->origin_z = 0;
     vt->scale = 1.0;
     vt->comp_pos = vt->comp_nor = SCE_FALSE;
+    SCE_Geometry_Init (&vt->region_geom);
     SCE_VOTerrain_InitPipeline (&vt->pipe);
 
     SCE_List_Init (&vt->pool);
@@ -181,6 +189,7 @@ void SCE_VOTerrain_Init (SCE_SVoxelOctreeTerrain *vt)
 void SCE_VOTerrain_Clear (SCE_SVoxelOctreeTerrain *vt)
 {
     int i;
+    SCE_Geometry_Clear (&vt->region_geom);
     SCE_VOTerrain_ClearPipeline (&vt->pipe);
     SCE_List_Clear (&vt->pool);
     SCE_List_Clear (&vt->to_render);
@@ -249,6 +258,7 @@ static int SCE_VOTerrain_BuildPipeline (SCE_SVoxelOctreeTerrain *vt,
 {
     long w, h, d;
     size_t n, dim, size;
+    SCE_SGeometry *geom = NULL;
 
     w = SCE_VWorld_GetWidth (vt->vw);
     h = SCE_VWorld_GetHeight (vt->vw);
@@ -288,6 +298,14 @@ static int SCE_VOTerrain_BuildPipeline (SCE_SVoxelOctreeTerrain *vt,
     SCE_Texture_Build (pipe->tex, SCE_FALSE);
     SCE_Texture_Build (pipe->tex2, SCE_FALSE);
 
+    geom = SCE_VRender_GetFinalGeometry (&pipe->template);
+    if (SCE_Mesh_SetGeometry (&pipe->mesh, geom, SCE_FALSE) < 0)
+        goto fail;
+    if (SCE_Mesh_SetGeometry (&pipe->mesh2, geom, SCE_FALSE) < 0)
+        goto fail;
+    SCE_Mesh_AutoBuild (&pipe->mesh);
+    SCE_Mesh_AutoBuild (&pipe->mesh2);
+
     n = SCE_Grid_GetNumPoints (&pipe->grid);
     dim = w;
 
@@ -316,12 +334,39 @@ fail:
     return SCE_ERROR;
 }
 
+static int SCE_VOTerrain_MakeRegionGeometry (SCE_SGeometry *geom)
+{
+    SCE_SGeometryArray ar1, ar2;
+
+    SCE_Geometry_Init (geom);
+    SCE_Geometry_InitArray (&ar1);
+    SCE_Geometry_InitArray (&ar2);
+    SCE_Geometry_SetArrayData (&ar1, SCE_POSITION, SCE_VERTICES_TYPE, 0, 3,
+                               NULL, SCE_FALSE);
+    SCE_Geometry_SetArrayData (&ar2, SCE_NORMAL, SCE_VERTICES_TYPE, 0, 3,
+                               NULL, SCE_FALSE);
+    SCE_Geometry_AttachArray (&ar1, &ar2);
+    if (SCE_Geometry_AddArrayRecDup (geom, &ar1, SCE_FALSE) < 0)
+        goto fail;
+    SCE_Geometry_InitArray (&ar1);
+    SCE_Geometry_SetArrayIndices (&ar1, SCE_INDICES_TYPE, NULL, SCE_FALSE);
+    if (SCE_Geometry_SetIndexArrayDup (geom, &ar1, SCE_FALSE) < 0)
+        goto fail;
+    SCE_Geometry_SetPrimitiveType (geom, SCE_TRIANGLES);
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
+}
+
 int SCE_VOTerrain_Build (SCE_SVoxelOctreeTerrain *vt)
 {
     if (SCE_VOTerrain_BuildPipeline (vt, &vt->pipe) < 0)
         goto fail;
 
-    /* derp? */
+    if (SCE_VOTerrain_MakeRegionGeometry (&vt->region_geom) < 0)
+        goto fail;
 
     return SCE_OK;
 fail:
@@ -353,18 +398,16 @@ SCE_VOTerrain_GetFromPool (SCE_SVoxelOctreeTerrain *vt)
     } else {
         /* allocate a new region... or a bunch of regions? whatev. */
         SCE_SVOTerrainRegion *region = NULL;
-        SCE_SGeometry *geom = NULL;
+        SCE_SGeometry geom;
 
         if (!(region = SCE_VOTerrain_CreateRegion ()))
             goto fail;
 
-        geom = SCE_VRender_GetFinalGeometry (&vt->pipe.template);
-        if (SCE_Mesh_SetGeometry (&region->mesh, geom, SCE_FALSE) < 0)
+        if (SCE_Mesh_SetGeometry (&region->mesh,&vt->region_geom,SCE_FALSE) < 0)
             goto fail;
         /* TODO: maybe not autobuild, maybe.. specify some buffer options
            (like "dont allocate them since the pool will do it") */
         SCE_Mesh_AutoBuild (&region->mesh);
-        SCE_VRender_SetMesh (&region->vm, &region->mesh);
 
         return region;
     }
@@ -380,7 +423,7 @@ static void SCE_VOTerrain_Region (SCE_SVoxelOctreeTerrain *vt,
     switch (status) {
     case SCE_VOTERRAIN_REGION_POOL:
         if (SCE_List_IsAttached (&region->it)) {
-            SCEE_SendMsg ("removing a pipelined region dErP\n");
+            SCEE_SendMsg ("ERROR: removing a pipelined region dErP\n");
             /* TODO: super ugly, remove from the pipeline */
             SCE_List_Remove (&region->it);
         }
@@ -396,11 +439,8 @@ static void SCE_VOTerrain_Region (SCE_SVoxelOctreeTerrain *vt,
     case SCE_VOTERRAIN_REGION_PIPELINE:
         /* TODO: we do want to remove it from the pipeline and put it back
            actually, because the pipeline could be working on outdated data */
-        if (!SCE_List_IsAttached (&region->it)) {
-            SCE_List_Remove (&region->it2);
-            SCE_List_Remove (&region->it4);
+        if (!SCE_List_IsAttached (&region->it))
             SCE_List_Appendl (&vt->pipe.stages[0], &region->it);
-        }
         break;
 
     case SCE_VOTERRAIN_REGION_READY:
@@ -434,7 +474,53 @@ static void SCE_VOTerrain_Region (SCE_SVoxelOctreeTerrain *vt,
     region->status = status;
 }
 
-static int SCE_VOTerrain_UpdateNodes(SCE_SVoxelOctreeTerrain *vt, SCEuint level,
+
+/* same as UpdateNodes() but fetches from a rectangle first */
+static int
+SCE_VOTerrain_UpdateMatchingNodes (SCE_SVoxelOctreeTerrain *vt, SCEuint level,
+                                   SCE_SLongRect3 *rect)
+{
+    SCE_SList list;
+    SCE_SLongRect3 r1, r2;
+    SCE_SListIterator *it = NULL;
+    SCE_SVoxelOctreeNode *node = NULL;
+    SCE_SVOTerrainRegion *region = NULL;
+    SCE_EVoxelOctreeStatus status;
+
+    /* crop rect inside level's */
+    SCE_VOTerrain_GetCurrentRectangle (vt, level, &r1);
+    SCE_Rectangle3_Intersectionl (&r1, rect, &r2);
+
+    /* select matching nodes */
+    SCE_List_Init (&list);
+    SCE_VWorld_FetchNodes (vt->vw, level, &r2, &list);
+
+    SCE_List_ForEach (it, &list) {
+        node = SCE_List_GetData (it);
+        status = SCE_VOctree_GetNodeStatus (node);
+        region = SCE_VOctree_GetNodeData (node);
+
+        if (status == SCE_VOCTREE_NODE_EMPTY || status == SCE_VOCTREE_NODE_FULL) {
+            if (region)
+                SCE_VOTerrain_Region (vt, region, SCE_VOTERRAIN_REGION_POOL);
+            continue;
+        } else if (!region) {
+            if (!(region = SCE_VOTerrain_GetFromPool (vt)))
+                goto fail;
+        }
+        /* queue for update */
+        SCE_VOTerrain_Region (vt, region, SCE_VOTERRAIN_REGION_PIPELINE);
+    }
+
+    SCE_List_Flush (&list);
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
+}
+
+static int SCE_VOTerrain_UpdateLevel(SCE_SVoxelOctreeTerrain *vt, SCEuint level,
                                      SCE_SLongRect3 *rect)
 {
     SCE_SListIterator *it = NULL, *pro = NULL;
@@ -478,7 +564,7 @@ static int SCE_VOTerrain_UpdateNodes(SCE_SVoxelOctreeTerrain *vt, SCEuint level,
         /* get a region from the global pool */
         if (!(region = SCE_VOTerrain_GetFromPool (vt)))
             goto fail;
-        region->level = tl;
+        region->level = &vt->levels[level];
         region->node = node;
         SCE_VOctree_SetNodeData (node, region);
         /* TODO: freefunc */
@@ -550,7 +636,7 @@ static int SCE_VOTerrain_SetLevelPosition (SCE_SVoxelOctreeTerrain *vt,
     }
 
     SCE_VOTerrain_GetCurrentRectangle (vt, level, &rect);
-    if (moved && SCE_VOTerrain_UpdateNodes (vt, level, &rect) < 0) {
+    if (moved && SCE_VOTerrain_UpdateLevel (vt, level, &rect) < 0) {
         SCEE_LogSrc ();
         return SCE_ERROR;
     }
@@ -689,7 +775,7 @@ static int SCE_VOTerrain_UpdateGeometry (SCE_SVoxelOctreeTerrain *vt)
     SCE_SLongRect3 rect;
 
     while ((level = SCE_VWorld_GetNextUpdatedRegion (vt->vw, &rect)) >= 0) {
-        if (SCE_VOTerrain_UpdateNodes (vt, level, &rect) < 0) {
+        if (SCE_VOTerrain_UpdateMatchingNodes (vt, level, &rect) < 0) {
             SCEE_LogSrc ();
             return SCE_ERROR;
         }
@@ -819,11 +905,11 @@ static int SCE_VOTerrain_Stage2 (SCE_SVoxelOctreeTerrain *vt,
     region = SCE_List_GetData (SCE_List_GetFirst (&pipe->stages[1]));
     SCE_List_Removel (&region->it);
 
-    if (SCE_VRender_Hardware (&pipe->template, pipe->tex, &region->vm,
+    if (SCE_VRender_Hardware (&pipe->template, pipe->tex, &pipe->vmesh,
                               1, 1, 1) < 0)
         goto fail;
 
-    if (!SCE_VRender_IsEmpty (&region->vm))
+    if (!SCE_VRender_IsEmpty (&pipe->vmesh))
         SCE_List_Appendl (&pipe->stages[2], &region->it);
 
     return SCE_OK;
@@ -856,6 +942,9 @@ static void SCE_VOTerrain_Decode (SCE_SVOTerrainPipeline *pipe)
     SCEuint *ind2 = NULL;
 
     /* vertices */
+    /* TODO: this stride is defined upon the geometry as defined by the
+       vrender module. our mesh actually doesnt need to fit this geometry
+       if we dont plan on rendering data directly emitted by the GPU. */
     /* TODO: for some reason vrender position data is 4 components vector */
     for (i = 0; i < pipe->n_vertices; i++) {
         memcpy (&pipe->vertices[i * 3],
@@ -876,29 +965,15 @@ static void SCE_VOTerrain_Decode (SCE_SVOTerrainPipeline *pipe)
 static void SCE_VOTerrain_Encode (SCE_SVOTerrainPipeline *pipe)
 {
     long i;
-    SCEindices *ind1 = NULL;
-    SCEuint *ind2 = NULL;
 
-    /* TODO: this stride is defined upon the geometry as defined by the
-       vrender module. our mesh actually doesnt need to fit this geometry
-       if we dont plan on rendering data directly emitted by the GPU. */
-
-    /* vertices */
     for (i = 0; i < pipe->n_vertices; i++) {
-        memcpy (&pipe->interleaved[i * 7],
+        memcpy (&pipe->interleaved[i * 6],
                 &pipe->vertices[i * 3],
                 3 * sizeof *pipe->vertices);
-        pipe->interleaved[i * 7 + 3] = 1.0;
-        memcpy (&pipe->interleaved[i * 7 + 4],
+        memcpy (&pipe->interleaved[i * 6 + 3],
                 &pipe->normals[i * 3],
                 3 * sizeof *pipe->vertices);
     }
-
-    /* indices */
-    ind1 = pipe->indices;
-    ind2 = (SCEuint*)pipe->indices;
-    for (i = pipe->n_indices - 1; i >= 0; i--)
-        ind2[i] = ind1[i];
 }
 
 size_t SCE_VOTerrain_Anchors (SCEvertices *vertices, size_t n_vertices,
@@ -936,11 +1011,11 @@ static int SCE_VOTerrain_Stage3 (SCE_SVoxelOctreeTerrain *vt,
     SCE_List_Removel (&region->it);
 
     /* download geometry */
-    pipe->n_vertices = SCE_Mesh_GetNumVertices (&region->mesh);
-    pipe->n_indices = SCE_Mesh_GetNumIndices (&region->mesh);
-    SCE_Mesh_DownloadAllVertices (&region->mesh, SCE_MESH_STREAM_G,
+    pipe->n_vertices = SCE_Mesh_GetNumVertices (&pipe->mesh);
+    pipe->n_indices = SCE_Mesh_GetNumIndices (&pipe->mesh);
+    SCE_Mesh_DownloadAllVertices (&pipe->mesh, SCE_MESH_STREAM_G,
                                   pipe->interleaved);
-    SCE_Mesh_DownloadAllIndices (&region->mesh, pipe->indices);
+    SCE_Mesh_DownloadAllIndices (&pipe->mesh, pipe->indices);
 
     /* decode (might include decompression) */
     /* TODO: handle materials brah */
@@ -970,12 +1045,11 @@ static int SCE_VOTerrain_Stage3 (SCE_SVoxelOctreeTerrain *vt,
                                    pipe->index_pool) < 0)
         goto fail;
 
-    stride = 7 * sizeof (SCEvertices);
+    stride = 6 * sizeof (SCEvertices);
     size = stride * pipe->n_vertices;
     SCE_Mesh_UploadVertices (&region->mesh, SCE_MESH_STREAM_G,
                              pipe->interleaved, 0, size);
     size = pipe->n_indices * sizeof *pipe->indices;
-    size = pipe->n_indices * sizeof (SCEuint);
     SCE_Mesh_UploadIndices (&region->mesh, pipe->indices, size);
 
 #if 0
@@ -1009,9 +1083,10 @@ static void SCE_VOTerrain_SwitchPipelineTextures (SCE_SVOTerrainPipeline *pipe)
 static int SCE_VOTerrain_UpdatePipeline (SCE_SVoxelOctreeTerrain *vt,
                                          SCE_SVOTerrainPipeline *pipe)
 {
-    if (SCE_VOTerrain_Stage3 (vt, pipe) < 0) goto fail;
     if (SCE_VOTerrain_Stage2 (vt, pipe) < 0) goto fail;
+    SCE_VOTerrain_SwitchPipelineTextures (pipe);
     if (SCE_VOTerrain_Stage1 (vt, pipe) < 0) goto fail;
+    if (SCE_VOTerrain_Stage3 (vt, pipe) < 0) goto fail;
     return SCE_OK;
 fail:
     SCEE_LogSrc ();
@@ -1022,11 +1097,11 @@ int SCE_VOTerrain_Update (SCE_SVoxelOctreeTerrain *vt)
 {
     /* queue regions that need to be updated */
     if (SCE_VOTerrain_UpdateGeometry (vt) < 0) goto fail;
+    /* generate queued regions */
+    if (SCE_VOTerrain_UpdatePipeline (vt, &vt->pipe) < 0) goto fail;
     /* see which regions can be rendered (compute hidden regions under higher,
        LOD, etc.) */
     SCE_VOTerrain_UpdateRegions (vt);
-    /* render queued regions */
-    if (SCE_VOTerrain_UpdatePipeline (vt, &vt->pipe) < 0) goto fail;
     return SCE_OK;
 fail:
     SCEE_LogSrc ();

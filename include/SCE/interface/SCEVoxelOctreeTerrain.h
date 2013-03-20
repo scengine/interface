@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 16/03/2013
-   updated: 18/03/2013 */
+   updated: 20/03/2013 */
 
 #ifndef SCEVOXELOCTREETERRAIN_H
 #define SCEVOXELOCTREETERRAIN_H
@@ -55,7 +55,6 @@ typedef struct sce_svoterrainregion SCE_SVOTerrainRegion;
  */
 struct sce_svoterrainregion {
     SCE_EVOTerrainRegionStatus status;
-    SCE_SVoxelMesh vm;          /**< Abstract voxel mesh */
     SCE_SMesh mesh;             /**< Pointer to the mesh */
     SCE_TMatrix4 matrix;        /**< World transform matrix */
     int draw;                   /**< Whether this region should be rendered */
@@ -88,6 +87,8 @@ struct sce_svoterrainpipeline {
     SCE_SGrid grid;
     SCE_STexData *tc, *tc2;
     SCE_STexture *tex, *tex2;
+    SCE_SMesh mesh, mesh2;
+    SCE_SVoxelMesh vmesh, vmesh2;
     SCE_RBufferPool *vertex_pool;
     SCE_RBufferPool *index_pool;
     SCE_RBufferPool default_vertex_pool;
@@ -122,6 +123,7 @@ struct sce_svoxeloctreeterrain {
     long origin_x, origin_y, origin_z;
     float scale;
     int comp_pos, comp_nor;     /* TODO: move to pipe */
+    SCE_SGeometry region_geom;
     SCE_SVOTerrainPipeline pipe;
 
     SCE_SList pool;             /* global pool of available regions */
