@@ -226,9 +226,9 @@ static const char *sce_skybox_ps =
 #define SCE_MY_STR(a) SCE_MY_STR_(a)
 
 static const char *shadowcube_vs_fun =
-    "out vec4 "SCE_DEFERRED_CAMERA_SPACE_POS_NAME";";
+    "varying out vec4 "SCE_DEFERRED_CAMERA_SPACE_POS_NAME";";
 static const char *shadowcube_ps_fun =
-    "in vec4 "SCE_DEFERRED_CAMERA_SPACE_POS_NAME";"
+    "varying in vec4 "SCE_DEFERRED_CAMERA_SPACE_POS_NAME";"
     "float sce_deferred_getdepth (void)"
     "{"
     "  return "SCE_MY_STR (SCE_DEFERRED_POINT_LIGHT_DEPTH_FACTOR)""
@@ -282,7 +282,7 @@ int SCE_Deferred_Build (SCE_SDeferred *def,
 {
     int i;
 
-    for (i = 0; i < 5; i++) {
+    for (i = 0; i < SCE_NUM_DEFERRED_TARGETS; i++) {
         def->targets[i] = SCE_Texture_Create (SCE_TEX_2D, def->w, def->h, 0);
         if (!def->targets[i])
             goto fail;
