@@ -588,21 +588,21 @@ static const char *vs_fun =
     "    vec3 texcoord = (sce_regions_origin + vec3 (1.0)) * vec3 (ow, oh, od);"
     "    texcoord = 0.5 * (texcoord + offset);"
     "    vec3 tc1 = texcoord + sce_wrapping1;"
-    "    diff = texture3D (sce_lowtex, tc1).x - texture3D (sce_hightex, tc0).x;"
+    "    diff = texture (sce_lowtex, tc1).x - texture (sce_hightex, tc0).x;"
 
          /* move the vertex along normal vector */
-    "    const vec3 foo = 4.0 * weight * diff * nor * vec3 (ow, oh, od);"
+    "    vec3 foo = 4.0 * weight * diff * nor * vec3 (ow, oh, od);"
     "    offset += foo;"
     "    pos += foo;"
 
          /* compute low resolution normal */
     "    vec3 grad;"
-    "    grad.x = texture3D (sce_lowtex, tc1 + vec3 (ow, 0., 0.)).x -"
-    "             texture3D (sce_lowtex, tc1 + vec3 (-ow, 0., 0.)).x;"
-    "    grad.y = texture3D (sce_lowtex, tc1 + vec3 (0., oh, 0.)).x -"
-    "             texture3D (sce_lowtex, tc1 + vec3 (0., -oh, 0.)).x;"
-    "    grad.z = texture3D (sce_lowtex, tc1 + vec3 (0., 0., od)).x -"
-    "             texture3D (sce_lowtex, tc1 + vec3 (0., 0., -od)).x;"
+    "    grad.x = texture (sce_lowtex, tc1 + vec3 (ow, 0., 0.)).x -"
+    "             texture (sce_lowtex, tc1 + vec3 (-ow, 0., 0.)).x;"
+    "    grad.y = texture (sce_lowtex, tc1 + vec3 (0., oh, 0.)).x -"
+    "             texture (sce_lowtex, tc1 + vec3 (0., -oh, 0.)).x;"
+    "    grad.z = texture (sce_lowtex, tc1 + vec3 (0., 0., od)).x -"
+    "             texture (sce_lowtex, tc1 + vec3 (0., 0., -od)).x;"
     "    grad = -normalize (grad);"
 
          /* interpolate low and high resolution normals */
@@ -680,12 +680,12 @@ static const char *vs_main =
     "  vec3 grad;"
     "  vec3 offset = sce_current_origin + sce_position;"
     "  vec3 tc = offset + sce_tc_origin + sce_wrapping0;"
-    "  grad.x = texture3D (sce_tex0, tc + vec3 (OW, 0., 0.)).x -"
-    "           texture3D (sce_tex0, tc + vec3 (-OW, 0., 0.)).x;"
-    "  grad.y = texture3D (sce_tex0, tc + vec3 (0., OH, 0.)).x -"
-    "           texture3D (sce_tex0, tc + vec3 (0., -OH, 0.)).x;"
-    "  grad.z = texture3D (sce_tex0, tc + vec3 (0., 0., OD)).x -"
-    "           texture3D (sce_tex0, tc + vec3 (0., 0., -OD)).x;"
+    "  grad.x = texture (sce_tex0, tc + vec3 (OW, 0., 0.)).x -"
+    "           texture (sce_tex0, tc + vec3 (-OW, 0., 0.)).x;"
+    "  grad.y = texture (sce_tex0, tc + vec3 (0., OH, 0.)).x -"
+    "           texture (sce_tex0, tc + vec3 (0., -OH, 0.)).x;"
+    "  grad.z = texture (sce_tex0, tc + vec3 (0., 0., OD)).x -"
+    "           texture (sce_tex0, tc + vec3 (0., 0., -OD)).x;"
     "  normal = -normalize (grad);"
     "\n#endif\n"
 
@@ -736,9 +736,9 @@ static const char *ps_main =
     "  weights = pow (weights, vec3 (8.0));"
     "  weights /= dot (weights, vec3 (1.0));"
     "  const float scale = 5.0;"
-    "  vec4 col1 = texture2D (sce_side_diffuse, tc1 * scale);"
-    "  vec4 col2 = texture2D (sce_side_diffuse, tc2 * scale);"
-    "  vec4 col3 = texture2D (sce_top_diffuse, tc3 * scale);"
+    "  vec4 col1 = texture (sce_side_diffuse, tc1 * scale);"
+    "  vec4 col2 = texture (sce_side_diffuse, tc2 * scale);"
+    "  vec4 col3 = texture (sce_top_diffuse, tc3 * scale);"
 
     "  vec4 color = weights.x * col1 + weights.y * col2 + weights.z * col3;"
     "  gl_FragColor = col * color;"
@@ -761,6 +761,10 @@ int SCE_VTerrain_BuildShader (SCE_SVoxelTerrain *vt, SCE_SShader *shd)
                             vt->subregion_dim) < 0) goto fail;
     if (SCE_Shader_Globali (shd, "SCE_N_SUBREGIONS",
                             vt->n_subregions) < 0) goto fail;
+    /* TODO: first, the user should know that this functions forces the shader
+       version. second, this version should match vrender's (which is currently
+       the case but you know it's kinda hardcoded right now) */
+    SCE_Shader_SetVersion (shd, 150);
 
     return SCE_OK;
 fail:
@@ -870,6 +874,7 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
     SCE_Shader_DisablePipelineShader (vt->pipeline, state, SCE_PIXEL_SHADER);
 
     /* build shaders */
+    SCE_Shader_SetVersion (vt->pipeline, 150);
     if (SCE_Shader_Build (vt->pipeline) < 0) goto fail;
 
     /* get uniform locations and setup mapping */
