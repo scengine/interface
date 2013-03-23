@@ -38,7 +38,10 @@ typedef enum {
 } SCE_ELightType;
 
 /* TODO: hax */
+#ifndef SCE_DECLARED_SDEFERREDLIGHTINGSHADER
+#define SCE_DECLARED_SDEFERREDLIGHTINGSHADER
 typedef struct sce_sdeferredlightingshader SCE_SDeferredLightingShader;
+#endif
 
 /** \copydoc sce_slight */
 typedef struct sce_slight SCE_SLight;

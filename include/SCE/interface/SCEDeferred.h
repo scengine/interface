@@ -84,7 +84,11 @@ typedef enum {
     SCE_NUM_DEFERRED_TARGETS
 } SCE_EDeferredTarget;
 
+/* NOTE: see SCELight.h */
+#ifndef SCE_DECLARED_SDEFERREDLIGHTINGSHADER
+#define SCE_DECLARED_SDEFERREDLIGHTINGSHADER
 typedef struct sce_sdeferredlightingshader SCE_SDeferredLightingShader;
+#endif
 struct sce_sdeferredlightingshader {
     SCE_SShader *shader;  /**< Lighting shader */
     int invproj_loc;      /**< Location of the inverse projection matrix */
