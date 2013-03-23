@@ -1016,7 +1016,7 @@ static const char *mc_final_vs =
     "\n#if !SCE_VRENDER_HIGHP_VERTEX_POS\n"
     "uint encode_pos (vec3 pos)"
     "{"
-    "  const float factor = 256.0 * comp_scale;"
+    "  float factor = 256.0 * comp_scale;"
     "  uvec3 v = uvec3 (pos * factor + vec3 (0.5));"
     "  uint p;"
     "  p = 0xFF000000u & (v.x << 24u) |"
