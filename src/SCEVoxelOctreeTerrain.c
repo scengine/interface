@@ -877,11 +877,10 @@ static int SCE_VOTerrain_Stage1 (SCE_SVoxelOctreeTerrain *vt,
                                  SCE_SVOTerrainPipeline *pipe)
 {
     SCE_SVOTerrainRegion *region;
-    SCE_SVoxelOctree *vo = NULL;
-    SCE_STexData *tc = NULL;
     SCE_SLongRect3 rect;
     long x, y, z;
 
+    (void)vt;
     if (!SCE_List_HasElements (&pipe->stages[0]))
         return SCE_OK;
 
@@ -892,10 +891,11 @@ static int SCE_VOTerrain_Stage1 (SCE_SVoxelOctreeTerrain *vt,
     SCE_VOctree_GetNodeOriginv (region->node, &x, &y, &z);
     SCE_Rectangle3_SetFromOriginl (&rect, x - 2, y - 2, z - 2,
                                    vt->w + 4, vt->h + 4, vt->d + 4);
-    /* only fill when querying a region outside the world */
-    //SCE_Grid_FillupZeros (&pipe->grid);
-    SCE_VWorld_GetRegion (vt->vw, region->level->level, &rect,
-                          SCE_Grid_GetRaw (&pipe->grid));
+    /* TODO: only fill when querying a region outside the world */
+    /* SCE_Grid_FillupZeros (&pipe->grid); */
+    if (SCE_VWorld_GetRegion (vt->vw, region->level->level, &rect,
+                              SCE_Grid_GetRaw (&pipe->grid)) < 0)
+        goto fail;
 
     /* upload */
     glPixelStorei (GL_UNPACK_ALIGNMENT, 2);
@@ -991,8 +991,8 @@ static void SCE_VOTerrain_Encode (SCE_SVOTerrainPipeline *pipe)
     }
 }
 
-size_t SCE_VOTerrain_Anchors (SCEvertices *vertices, size_t n_vertices,
-                              float inf, float sup, SCEindices *out)
+static size_t SCE_VOTerrain_Anchors (SCEvertices *vertices, size_t n_vertices,
+                                     float inf, float sup, SCEindices *out)
 {
     SCEuint i, j;
     SCEvertices *v;
@@ -1121,16 +1121,6 @@ int SCE_VOTerrain_Update (SCE_SVoxelOctreeTerrain *vt)
 fail:
     SCEE_LogSrc ();
     return SCE_ERROR;
-}
-
-static void
-SCE_VOTerrain_MakeRegionRectangle (SCE_SVoxelOctreeTerrain *vt,
-                                   SCE_SVOTerrainRegion *region,
-                                   SCE_SLongRect3 *rect)
-{
-    long x, y, z;
-    SCE_VOctree_GetNodeOriginv (region->node, &x, &y, &z);
-    SCE_Rectangle3_SetFromOriginl (rect, x, y, z, vt->w, vt->h, vt->d);
 }
 
 void SCE_VOTerrain_Render (SCE_SVoxelOctreeTerrain *vt)
