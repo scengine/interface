@@ -1067,15 +1067,6 @@ static int SCE_VOTerrain_Stage3 (SCE_SVoxelOctreeTerrain *vt,
     size = pipe->n_indices * sizeof *pipe->indices;
     SCE_Mesh_UploadIndices (&region->mesh, pipe->indices, size);
 
-#if 0
-    /* TODO: separate GPU generated meshes from final meshes */
-    {
-        SCE_RIndexBuffer *ib = SCE_Mesh_GetIndexBuffer (&region->mesh);
-        /* TODO: direct member access */
-        ib->ia.type = SCE_INDICES_TYPE;
-    }
-#endif
-
     SCE_VOTerrain_Region (vt, region, SCE_VOTERRAIN_REGION_READY);
 
     return SCE_OK;
