@@ -17,7 +17,7 @@
  -----------------------------------------------------------------------------*/
 
 /* created: 16/03/2013
-   updated: 20/03/2013 */
+   updated: 23/03/2013 */
 
 #include <SCE/core/SCECore.h>
 #include <SCE/renderer/SCERenderer.h>
@@ -774,8 +774,10 @@ void SCE_VOTerrain_CullRegions (SCE_SVoxelOctreeTerrain *vt,
             SCE_VOTerrain_MakeRegionMatrix (vt, i, region);
             SCE_BoundingBox_Push (&box, region->matrix, &b);
             /* TODO: fix SCE_Frustum_Bounblblbl() 1st param const */
-            if (SCE_Frustum_BoundingBoxInBool (f, &box))
+            if (SCE_Frustum_BoundingBoxInBool (f, &box)) {
+                SCE_List_Remove (&region->it4);
                 SCE_List_Appendl (&vt->to_render, &region->it4);
+            }
             SCE_BoundingBox_Pop (&box, &b);
         }
     }
