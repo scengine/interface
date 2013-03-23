@@ -892,7 +892,8 @@ static int SCE_VOTerrain_Stage1 (SCE_SVoxelOctreeTerrain *vt,
     SCE_VOctree_GetNodeOriginv (region->node, &x, &y, &z);
     SCE_Rectangle3_SetFromOriginl (&rect, x - 2, y - 2, z - 2,
                                    vt->w + 4, vt->h + 4, vt->d + 4);
-    SCE_Grid_FillupZeros (&pipe->grid);
+    /* only fill when querying a region outside the world */
+    //SCE_Grid_FillupZeros (&pipe->grid);
     SCE_VWorld_GetRegion (vt->vw, region->level->level, &rect,
                           SCE_Grid_GetRaw (&pipe->grid));
 
@@ -958,8 +959,7 @@ static void SCE_VOTerrain_Decode (SCE_SVOTerrainPipeline *pipe)
 
     /* vertices */
     /* TODO: this stride is defined upon the geometry as defined by the
-       vrender module. our mesh actually doesnt need to fit this geometry
-       if we dont plan on rendering data directly emitted by the GPU. */
+       vrender module */
     /* TODO: for some reason vrender position data is 4 components vector */
     for (i = 0; i < pipe->n_vertices; i++) {
         memcpy (&pipe->vertices[i * 3],
