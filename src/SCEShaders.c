@@ -601,6 +601,7 @@ int SCE_Shader_Build (SCE_SShader *shader)
         size_t i;
 
         for (i = 0; i < shader->pipeline.n_shaders; i++) {
+            shader->pipeline.shaders[i]->version = shader->version;
             if (SCE_Shader_BuildAux (shader->pipeline.shaders[i]) < 0)
                 return SCE_ERROR;
         }
