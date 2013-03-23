@@ -121,8 +121,6 @@ static void SCE_VOTerrain_InitPipeline (SCE_SVOTerrainPipeline *pipe)
     SCE_RSetBufferPoolTarget (&pipe->default_index_pool,
                               GL_ELEMENT_ARRAY_BUFFER);
     /* TODO: set pool usage? */
-    SCE_VRender_SetVertexBufferPool (&pipe->template, pipe->vertex_pool);
-    SCE_VRender_SetIndexBufferPool (&pipe->template, pipe->index_pool);
 
     for (i = 0; i < SCE_VOTERRAIN_NUM_PIPELINE_STAGES; i++)
         SCE_List_Init (&pipe->stages[i]);
