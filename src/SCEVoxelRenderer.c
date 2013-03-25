@@ -432,6 +432,7 @@ void SCE_VRender_Init (SCE_SVoxelTemplate *vt)
     vt->compressed_pos = SCE_FALSE;
     vt->compressed_nor = SCE_FALSE;
     vt->comp_scale = 1.0;
+    vt->use_materials = SCE_FALSE;
     SCE_Geometry_Init (&vt->final_geom);
     vt->index_pool = vt->vertex_pool = NULL;
 
@@ -575,6 +576,10 @@ void SCE_VRender_CompressPosition (SCE_SVoxelTemplate *vt, int comp)
 void SCE_VRender_CompressNormal (SCE_SVoxelTemplate *vt, int comp)
 {
     vt->compressed_nor = comp;
+}
+void SCE_VRender_UseMaterials (SCE_SVoxelTemplate *vt, int use)
+{
+    vt->use_materials = use;
 }
 void SCE_VRender_SetCompressedScale (SCE_SVoxelTemplate *vt, float scale)
 {
@@ -1010,6 +1015,7 @@ static const char *mc_final_vs =
     "\n#endif\n"
 
     "uniform sampler3D sce_tex0;"
+    "uniform sampler3D sce_tex1;"
     "uniform vec3 offset;"
     "uniform float comp_scale;"
 
@@ -1076,13 +1082,21 @@ static const char *mc_final_vs =
     "  vec3 position;"
     "  position = c1.xyz * (1.0 - w) + c2.xyz * w;"
 
-    "\n#if SCE_VRENDER_HIGHP_VERTEX_POS\n"
-    "  pos = vec4 (position, 1.0);"
-    "\n#else\n"
-    "  pos = encode_pos (position);"
+    "  tc = position + offset + 0.5 * vec3 (OW, OH, OD);"
+
+       /* fetch material (TODO: use fetch function since we dont want
+          filtering) */
+    "  float material = 1.0;"
+    "\n#if SCE_VRENDER_USE_MATERIALS\n"
+    "  material = texture (sce_tex1, tc).x;"
     "\n#endif\n"
 
-    "  tc = position + offset + 0.5 * vec3 (OW, OH, OD);"
+    "\n#if SCE_VRENDER_HIGHP_VERTEX_POS\n"
+    "  pos = vec4 (position, material);"
+    "\n#else\n"
+    "  pos = encode_pos (position);"
+    "  pos |= 0xFFu & uint (floor (material * 255.0));"
+    "\n#endif\n"
 
        /* normal generation */
     "  vec3 grad = vec3 (0.0);"
@@ -1932,6 +1946,9 @@ static int SCE_VRender_BuildHW (SCE_SVoxelTemplate *vt)
                             "SCE_VRENDER_HIGHP_VERTEX_NOR",
                             !vt->compressed_nor) < 0)
         goto fail;
+    if (SCE_Shader_Globali (vt->final_shader,
+                            "SCE_VRENDER_USE_MATERIALS", vt->use_materials) < 0)
+        goto fail;
     SCE_Shader_SetVersion (vt->final_shader, VERSION);
     varyings[0] = "pos_";
     varyings[1] = "nor_";
@@ -2211,13 +2228,15 @@ fail:
  * \param vt a voxel template
  * \param vm abstract output mesh
  * \param volume source voxels
+ * \param material source voxels, material data
  * \param x,y,z coordinates of the origin for volume texture fetches
  * \returns SCE_ERROR on error, SCE_OK otherwise. Note that if you haven't set
  * any buffer pool to \p vt (see SCE_VRender_SetBufferPool()), this function
  * always returns SCE_OK.
  */
 int SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_STexture *volume,
-                          SCE_SVoxelMesh *vm, int x, int y, int z)
+                          SCE_STexture *material, SCE_SVoxelMesh *vm,
+                          int x, int y, int z)
 {
     SCE_TVector3 wrap;
     float w, h, d;
@@ -2232,6 +2251,7 @@ int SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_STexture *volume,
     wrap[2] += (float)z / d;
 
     /* 1st pass: render non empty cells */
+    /* TODO: we are assuming that volume's unit is 0 */
     SCE_Texture_Use (volume);
     SCE_Shader_Use (vt->non_empty_shader);
     SCE_Shader_SetParam3fv (vt->non_empty_offset_loc, 1, wrap);
@@ -2280,6 +2300,10 @@ int SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_STexture *volume,
             goto fail;
     }
 
+    if (material && vt->use_materials) {
+        /* TODO: we are assuming that material's unit is 1 */
+        SCE_Texture_Use (material);
+    }
     SCE_Mesh_SetPrimitiveType (vm->mesh, SCE_POINTS);
     SCE_Shader_Use (vt->final_shader);
     SCE_Shader_SetParam3fv (vt->final_offset_loc, 1, wrap);
@@ -2293,6 +2317,8 @@ int SCE_VRender_Hardware (SCE_SVoxelTemplate *vt, SCE_STexture *volume,
     glPointSize (1.0);  /* TODO: take care of point size */
     /* 4th pass: generate the 3D map of indices */
     SCE_Texture_Use (NULL);
+    if (material && vt->use_materials)
+        SCE_Texture_Use (NULL);
     SCE_Texture_RenderTo (vt->splat, 0);
     SCE_Shader_Use (vt->splat_shader);
     SCE_Mesh_Use (&vt->list_verts);

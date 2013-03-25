@@ -1646,8 +1646,8 @@ int SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
                 /* TODO: direct member access */
                 ib->ia.type = SCE_UNSIGNED_INT;
             }
-            if (SCE_VRender_Hardware (&vt->template, tr->level->tex, &tr->vm,
-                                      x, y, z) < 0)
+            if (SCE_VRender_Hardware (&vt->template, tr->level->tex, NULL,
+                                      &tr->vm, x, y, z) < 0)
                 goto fail;
 
             break;
