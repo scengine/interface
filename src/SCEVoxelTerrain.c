@@ -1603,7 +1603,8 @@ int SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
             fresh = SCE_List_GetData (it);
             SCE_List_Removel (it);
             SCE_Texture_Update (fresh->tex);
-            SCE_Texture_Update (fresh->mat);
+            if (fresh->mat)
+                SCE_Texture_Update (fresh->mat);
             derp = fresh->updating;
             fresh->updating = fresh->queue;
             fresh->queue = derp;
