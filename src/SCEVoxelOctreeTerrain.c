@@ -105,8 +105,11 @@ static void SCE_VOTerrain_InitPipeline (SCE_SVOTerrainPipeline *pipe)
     SCE_VRender_Init (&pipe->template);
     SCE_VRender_SetPipeline (&pipe->template, SCE_VRENDER_HARDWARE);
     SCE_Grid_Init (&pipe->grid);
+    SCE_Grid_Init (&pipe->grid2);
     pipe->tc = pipe->tc2 = NULL;
     pipe->tex = pipe->tex2 = NULL;
+    pipe->tc_mat = pipe->tc_mat2 = NULL;
+    pipe->material = pipe->material2 = NULL;
     SCE_Mesh_Init (&pipe->mesh);
     SCE_Mesh_Init (&pipe->mesh2);
     SCE_VRender_InitMesh (&pipe->vmesh);
@@ -122,16 +125,22 @@ static void SCE_VOTerrain_InitPipeline (SCE_SVOTerrainPipeline *pipe)
                               GL_ELEMENT_ARRAY_BUFFER);
     /* TODO: set pool usage? */
 
+    pipe->use_materials = SCE_FALSE;
+
     for (i = 0; i < SCE_VOTERRAIN_NUM_PIPELINE_STAGES; i++)
         SCE_List_Init (&pipe->stages[i]);
 
     SCE_QEMD_Init (&pipe->qmesh);
     pipe->vertices = NULL;
     pipe->normals = NULL;
+    pipe->materials = NULL;
     pipe->indices = NULL;
     pipe->anchors = NULL;
     pipe->interleaved = NULL;
-    pipe->n_vertices = pipe->n_indices = pipe->n_anchors = 0;
+    pipe->n_vertices = pipe->n_indices = 0;
+
+    pipe->vstride = pipe->nstride = pipe->mstride = 0;
+    pipe->stride = 0;
 }
 static void SCE_VOTerrain_ClearPipeline (SCE_SVOTerrainPipeline *pipe)
 {
@@ -152,6 +161,7 @@ static void SCE_VOTerrain_ClearPipeline (SCE_SVOTerrainPipeline *pipe)
     SCE_QEMD_Clear (&pipe->qmesh);
     SCE_free (pipe->vertices);
     SCE_free (pipe->normals);
+    SCE_free (pipe->materials);
     SCE_free (pipe->indices);
     SCE_free (pipe->anchors);
     SCE_free (pipe->interleaved);
@@ -163,6 +173,7 @@ void SCE_VOTerrain_Init (SCE_SVoxelOctreeTerrain *vt)
     int i;
 
     vt->vw = NULL;
+    vt->mw = NULL;
     vt->n_levels = 0;
     vt->w = vt->h = vt->d = 0;
     vt->n_regions = 0;
@@ -230,6 +241,12 @@ void SCE_VOTerrain_SetVoxelWorld (SCE_SVoxelOctreeTerrain *vt,
     /* reset vt->origin_* values and allocate regions */
     SCE_VOTerrain_SetPosition (vt, vt->x, vt->y, vt->z);
 }
+void SCE_VOTerrain_SetMaterialWorld (SCE_SVoxelOctreeTerrain *vt,
+                                     SCE_SVoxelWorld *mw)
+{
+    vt->mw = mw;
+    /* TODO: SCE_VOTerrain_UseMaterials (vt, SCE_TRUE) ? */
+}
 SCE_SVoxelWorld* SCE_VOTerrain_GetVoxelWorld (SCE_SVoxelOctreeTerrain *vt)
 {
     return vt->vw;
@@ -250,6 +267,12 @@ void SCE_VOTerrain_SetShader (SCE_SVoxelOctreeTerrain *vt, SCE_SShader *shader)
 {
     vt->shader = shader;
 }
+void SCE_VOTerrain_UseMaterials (SCE_SVoxelOctreeTerrain *vt, int use)
+{
+    vt->pipe.use_materials = use;
+    SCE_VRender_UseMaterials (&vt->pipe.template, use);
+}
+
 
 static int SCE_VOTerrain_BuildPipeline (SCE_SVoxelOctreeTerrain *vt,
                                         SCE_SVOTerrainPipeline *pipe)
@@ -275,6 +298,12 @@ static int SCE_VOTerrain_BuildPipeline (SCE_SVoxelOctreeTerrain *vt,
     SCE_Grid_SetPointSize (&pipe->grid, 1);
     if (SCE_Grid_Build (&pipe->grid) < 0)
         goto fail;
+    /* the material grid could actually be smaller because we dont need extra
+       rows, but it couldn't use the same texture coordinates as density's */
+    SCE_Grid_SetDimensions (&pipe->grid2, w + 4, h + 4, d + 4);
+    SCE_Grid_SetPointSize (&pipe->grid2, 1);
+    if (SCE_Grid_Build (&pipe->grid2) < 0)
+        goto fail;
 
     if (!(pipe->tc = SCE_TexData_Create ()))
         goto fail;
@@ -283,6 +312,14 @@ static int SCE_VOTerrain_BuildPipeline (SCE_SVoxelOctreeTerrain *vt,
     if (!(pipe->tex = SCE_Texture_Create (SCE_TEX_3D, 0, 0, 0)))
         goto fail;
     if (!(pipe->tex2 = SCE_Texture_Create (SCE_TEX_3D, 0, 0, 0)))
+        goto fail;
+    if (!(pipe->tc_mat = SCE_TexData_Create ()))
+        goto fail;
+    if (!(pipe->tc_mat2 = SCE_TexData_Create ()))
+        goto fail;
+    if (!(pipe->material = SCE_Texture_Create (SCE_TEX_3D, 0, 0, 0)))
+        goto fail;
+    if (!(pipe->material2 = SCE_Texture_Create (SCE_TEX_3D, 0, 0, 0)))
         goto fail;
     /* TODO: we dont want PXF_LUMINANCE, and ToTexture() actually sucks because
        it chooses a shitty format */
@@ -293,8 +330,27 @@ static int SCE_VOTerrain_BuildPipeline (SCE_SVoxelOctreeTerrain *vt,
                         SCE_UNSIGNED_BYTE);
     SCE_Texture_AddTexData (pipe->tex2, SCE_TEX_3D, pipe->tc2);
 
+    SCE_Grid_ToTexture (&pipe->grid2, pipe->tc_mat, SCE_PXF_LUMINANCE,
+                        SCE_UNSIGNED_BYTE);
+    SCE_Texture_AddTexData (pipe->material, SCE_TEX_3D, pipe->tc_mat);
+    SCE_Grid_ToTexture (&pipe->grid2, pipe->tc_mat2, SCE_PXF_LUMINANCE,
+                        SCE_UNSIGNED_BYTE);
+    SCE_Texture_AddTexData (pipe->material2, SCE_TEX_3D, pipe->tc_mat2);
+
+    SCE_Texture_SetUnit (pipe->tex, 0);
+    SCE_Texture_SetUnit (pipe->tex2, 0);
+    /* vrender expects the material texture to be bound on texunit 1 */
+    SCE_Texture_SetUnit (pipe->material, 1);
+    SCE_Texture_SetUnit (pipe->material2, 1);
+
     SCE_Texture_Build (pipe->tex, SCE_FALSE);
     SCE_Texture_Build (pipe->tex2, SCE_FALSE);
+    SCE_Texture_Build (pipe->material, SCE_FALSE);
+    SCE_Texture_Build (pipe->material2, SCE_FALSE);
+    SCE_Texture_Pixelize (pipe->material, SCE_TRUE);
+    SCE_Texture_Pixelize (pipe->material2, SCE_TRUE);
+    SCE_Texture_SetFilter (pipe->material, SCE_TEX_NEAREST);
+    SCE_Texture_SetFilter (pipe->material2, SCE_TEX_NEAREST);
 
     geom = SCE_VRender_GetFinalGeometry (&pipe->template);
     if (SCE_Mesh_SetGeometry (&pipe->mesh, geom, SCE_FALSE) < 0)
@@ -311,15 +367,23 @@ static int SCE_VOTerrain_BuildPipeline (SCE_SVoxelOctreeTerrain *vt,
         goto fail;
     if (!(pipe->normals = SCE_malloc (n * 9 * sizeof *pipe->normals)))
         goto fail;
+    if (pipe->use_materials) {
+        if (!(pipe->materials = SCE_malloc (n * 3 * sizeof *pipe->materials)))
+            goto fail;
+    }
     if (!(pipe->indices = SCE_malloc (n * 15 * sizeof (SCEuint))))
         goto fail;
-    if (!(pipe->anchors = SCE_malloc (dim * dim * 6 * sizeof *pipe->anchors)))
+    if (!(pipe->anchors = SCE_malloc (n * 3 * sizeof *pipe->anchors)))
         goto fail;
-    size  = vt->comp_pos ? 4 : 4 * sizeof (SCEvertices);
-    size += vt->comp_nor ? 4 : 3 * sizeof (SCEvertices);
-    size *= n * 3;
+    size = n * 3 * 7 * sizeof (SCEvertices);
     if (!(pipe->interleaved = SCE_malloc (size)))
         goto fail;
+
+    /* encode offsets */
+    pipe->vstride = vt->comp_pos ? 4 : 3 * sizeof (SCEvertices);
+    pipe->nstride = vt->comp_nor ? 4 : 3 * sizeof (SCEvertices);
+    pipe->mstride = pipe->use_materials ? 1 : 0;
+    pipe->stride = pipe->vstride + pipe->nstride + pipe->mstride;
 
     SCE_QEMD_SetMaxVertices (&pipe->qmesh, n * 3);
     SCE_QEMD_SetMaxIndices (&pipe->qmesh, n * 15);
@@ -332,23 +396,28 @@ fail:
     return SCE_ERROR;
 }
 
-static int SCE_VOTerrain_MakeRegionGeometry (SCE_SGeometry *geom)
+static int SCE_VOTerrain_MakeRegionGeometry (SCE_SGeometry *geom, int mat)
 {
-    SCE_SGeometryArray ar1, ar2;
+    SCE_SGeometryArray ar1, ar2, ar3;
 
     SCE_Geometry_Init (geom);
     SCE_Geometry_InitArray (&ar1);
     SCE_Geometry_InitArray (&ar2);
+    SCE_Geometry_InitArray (&ar3);
     SCE_Geometry_SetArrayData (&ar1, SCE_POSITION, SCE_VERTICES_TYPE, 0, 3,
                                NULL, SCE_FALSE);
     SCE_Geometry_SetArrayData (&ar2, SCE_NORMAL, SCE_VERTICES_TYPE, 0, 3,
                                NULL, SCE_FALSE);
+    SCE_Geometry_SetArrayData (&ar3, SCE_ICOLOR, SCE_UNSIGNED_BYTE, 0, 1,
+                               NULL, SCE_FALSE);
     SCE_Geometry_AttachArray (&ar1, &ar2);
-    if (SCE_Geometry_AddArrayRecDup (geom, &ar1, SCE_FALSE) < 0)
+    if (mat)
+        SCE_Geometry_AttachArray (&ar2, &ar3);
+    if (!SCE_Geometry_AddArrayRecDup (geom, &ar1, SCE_FALSE))
         goto fail;
     SCE_Geometry_InitArray (&ar1);
     SCE_Geometry_SetArrayIndices (&ar1, SCE_INDICES_TYPE, NULL, SCE_FALSE);
-    if (SCE_Geometry_SetIndexArrayDup (geom, &ar1, SCE_FALSE) < 0)
+    if (!SCE_Geometry_SetIndexArrayDup (geom, &ar1, SCE_FALSE))
         goto fail;
     SCE_Geometry_SetPrimitiveType (geom, SCE_TRIANGLES);
 
@@ -363,7 +432,8 @@ int SCE_VOTerrain_Build (SCE_SVoxelOctreeTerrain *vt)
     if (SCE_VOTerrain_BuildPipeline (vt, &vt->pipe) < 0)
         goto fail;
 
-    if (SCE_VOTerrain_MakeRegionGeometry (&vt->region_geom) < 0)
+    if (SCE_VOTerrain_MakeRegionGeometry (&vt->region_geom,
+                                          vt->pipe.use_materials) < 0)
         goto fail;
 
     return SCE_OK;
@@ -896,10 +966,17 @@ static int SCE_VOTerrain_Stage1 (SCE_SVoxelOctreeTerrain *vt,
     if (SCE_VWorld_GetRegion (vt->vw, region->level->level, &rect,
                               SCE_Grid_GetRaw (&pipe->grid)) < 0)
         goto fail;
+    if (pipe->use_materials) {
+        if (SCE_VWorld_GetRegion (vt->mw, region->level->level, &rect,
+                                  SCE_Grid_GetRaw (&pipe->grid2)) < 0)
+            goto fail;
+    }
 
     /* upload */
     glPixelStorei (GL_UNPACK_ALIGNMENT, 2);
     SCE_Texture_Update (pipe->tex);
+    if (pipe->use_materials)
+        SCE_Texture_Update (pipe->material);
     glPixelStorei (GL_UNPACK_ALIGNMENT, 4);
     SCE_List_Appendl (&pipe->stages[1], &region->it); /* onto the next stage */
 
@@ -921,8 +998,8 @@ static int SCE_VOTerrain_Stage2 (SCE_SVoxelOctreeTerrain *vt,
     region = SCE_List_GetData (SCE_List_GetFirst (&pipe->stages[1]));
     SCE_List_Removel (&region->it);
 
-    if (SCE_VRender_Hardware (&pipe->template, pipe->tex, &pipe->vmesh,
-                              1, 1, 1) < 0)
+    if (SCE_VRender_Hardware (&pipe->template, pipe->tex, pipe->material,
+                              &pipe->vmesh, 1, 1, 1) < 0)
         goto fail;
 
     if (!SCE_VRender_IsEmpty (&pipe->vmesh))
@@ -956,18 +1033,21 @@ static void SCE_VOTerrain_Decode (SCE_SVOTerrainPipeline *pipe)
     size_t i;
     SCEindices *ind1 = NULL;
     SCEuint *ind2 = NULL;
+    float material;
+    SCEvertices *interleaved = pipe->interleaved;
 
     /* vertices */
     /* TODO: this stride is defined upon the geometry as defined by the
        vrender module */
-    /* TODO: for some reason vrender position data is 4 components vector */
     for (i = 0; i < pipe->n_vertices; i++) {
-        memcpy (&pipe->vertices[i * 3],
-                &pipe->interleaved[i * 7],
-                3 * sizeof *pipe->vertices);
-        memcpy (&pipe->normals[i * 3],
-                &pipe->interleaved[i * 7 + 4],
-                3 * sizeof *pipe->vertices);
+        memcpy (&pipe->vertices[i * 3], &interleaved[i * 7],
+                3 * sizeof (SCEvertices));
+        if (pipe->use_materials) {
+            material = interleaved[i * 7 + 3];
+            pipe->materials[i] = (SCEubyte)(material * 255.0);
+        }
+        memcpy (&pipe->normals[i * 3], &interleaved[i * 7 + 4],
+                3 * sizeof (SCEvertices));
     }
 
     /* indices */
@@ -981,33 +1061,69 @@ static void SCE_VOTerrain_Encode (SCE_SVOTerrainPipeline *pipe)
 {
     long i;
 
+    /* TODO: dont use memcpy if the data type of interleaved changes */
     for (i = 0; i < pipe->n_vertices; i++) {
-        memcpy (&pipe->interleaved[i * 6],
+        memcpy (&pipe->interleaved[i * pipe->stride],
                 &pipe->vertices[i * 3],
                 3 * sizeof *pipe->vertices);
-        memcpy (&pipe->interleaved[i * 6 + 3],
+        memcpy (&pipe->interleaved[i * pipe->stride + pipe->vstride],
                 &pipe->normals[i * 3],
                 3 * sizeof *pipe->vertices);
+        if (pipe->use_materials) {
+            memcpy (&pipe->interleaved[i * pipe->stride + pipe->vstride +
+                                       pipe->nstride],
+                    &pipe->materials[i], sizeof *pipe->materials);
+        }
     }
 }
 
-static size_t SCE_VOTerrain_Anchors (SCEvertices *vertices, size_t n_vertices,
-                                     float inf, float sup, SCEindices *out)
+static SCEuint
+SCE_VOTerrain_Anchors (SCEvertices *vertices, SCEubyte *materials,
+                       size_t n_vertices, SCEindices *indices,
+                       size_t n_indices, float inf, float sup,
+                       SCEubyte *out)
 {
-    SCEuint i, j;
+    SCEuint i, n = 0;
     SCEvertices *v;
+    SCEubyte a, b, c;
+    SCEindices i0, i1, i2;
 
-    j = 0;
+    /* borders */
     for (i = 0; i < n_vertices; i++) {
         v = &vertices[i * 3];
         if (v[0] < inf || v[0] > sup ||
             v[1] < inf || v[1] > sup ||
             v[2] < inf || v[2] > sup) {
-            out[j++] = i;
+            out[i] = SCE_TRUE;
+            n++;
+        } else {
+            out[i] = SCE_FALSE;
         }
     }
 
-    return j;
+    /* materials */
+    for (i = 0; i < n_indices; i += 3) {
+        i0 = indices[i];
+        i1 = indices[i + 1];
+        i2 = indices[i + 2];
+
+        a = out[i0];
+        b = out[i1];
+        c = out[i2];
+
+        if (materials[i0] != materials[i1])
+            out[i0] = out[i1] = SCE_TRUE;
+        if (materials[i1] != materials[i2])
+            out[i1] = out[i2] = SCE_TRUE;
+        if (materials[i0] != materials[i2])
+            out[i0] = out[i2] = SCE_TRUE;
+
+        if (a != out[i0]) n++;
+        if (b != out[i1]) n++;
+        if (c != out[i2]) n++;
+    }
+
+    return n;
 }
 
 /* decimate the geometry */
@@ -1015,7 +1131,7 @@ static int SCE_VOTerrain_Stage3 (SCE_SVoxelOctreeTerrain *vt,
                                  SCE_SVOTerrainPipeline *pipe)
 {
     SCE_SVOTerrainRegion *region;
-    SCEuint n_collapses;
+    SCEuint n_collapses, n_anchors;
     size_t size, stride;
     float inf, sup;
 
@@ -1029,26 +1145,28 @@ static int SCE_VOTerrain_Stage3 (SCE_SVoxelOctreeTerrain *vt,
     pipe->n_vertices = SCE_Mesh_GetNumVertices (&pipe->mesh);
     pipe->n_indices = SCE_Mesh_GetNumIndices (&pipe->mesh);
     SCE_Mesh_DownloadAllVertices (&pipe->mesh, SCE_MESH_STREAM_G,
-                                  pipe->interleaved);
+                                  (SCEvertices*)pipe->interleaved);
     SCE_Mesh_DownloadAllIndices (&pipe->mesh, pipe->indices);
 
     /* decode (might include decompression) */
-    /* TODO: handle materials brah */
     SCE_VOTerrain_Decode (pipe);
 
+#if 1
     /* decimate */
     inf = 0.00001 + 1.0 / vt->w;
     sup = (vt->w - 4.0) / (vt->w - 1.0) - 0.0001;
-    pipe->n_anchors = SCE_VOTerrain_Anchors (pipe->vertices, pipe->n_vertices,
-                                             inf, sup, pipe->anchors);
-    SCE_QEMD_Set (&pipe->qmesh, pipe->vertices, pipe->normals, pipe->indices,
-                  pipe->n_vertices, pipe->n_indices);
-    SCE_QEMD_AnchorVertices (&pipe->qmesh, pipe->anchors, pipe->n_anchors);
+    n_anchors = SCE_VOTerrain_Anchors (pipe->vertices, pipe->materials,
+                                       pipe->n_vertices, pipe->indices,
+                                       pipe->n_indices, inf, sup,pipe->anchors);
+    SCE_QEMD_Set (&pipe->qmesh, pipe->vertices, pipe->normals, pipe->materials,
+                  pipe->anchors, pipe->indices, pipe->n_vertices,
+                  pipe->n_indices);
     /* aiming at 60% vertex reduction */
-    n_collapses = (pipe->n_vertices - pipe->n_anchors) * 0.6;
+    n_collapses = (pipe->n_vertices - n_anchors) * 0.6;
     SCE_QEMD_Process (&pipe->qmesh, n_collapses);
-    SCE_QEMD_Get (&pipe->qmesh, pipe->vertices, pipe->normals, pipe->indices,
-                  &pipe->n_vertices, &pipe->n_indices);
+    SCE_QEMD_Get (&pipe->qmesh, pipe->vertices, pipe->normals, pipe->materials,
+                  pipe->indices, &pipe->n_vertices, &pipe->n_indices);
+#endif
 
     /* encode (might include compression) */
     SCE_VOTerrain_Encode (pipe);
@@ -1060,10 +1178,10 @@ static int SCE_VOTerrain_Stage3 (SCE_SVoxelOctreeTerrain *vt,
                                    pipe->index_pool) < 0)
         goto fail;
 
-    stride = 6 * sizeof (SCEvertices);
+    stride = pipe->stride;
     size = stride * pipe->n_vertices;
     SCE_Mesh_UploadVertices (&region->mesh, SCE_MESH_STREAM_G,
-                             pipe->interleaved, 0, size);
+                             (SCEvertices*)pipe->interleaved, 0, size);
     size = pipe->n_indices * sizeof *pipe->indices;
     SCE_Mesh_UploadIndices (&region->mesh, pipe->indices, size);
 
@@ -1085,6 +1203,13 @@ static void SCE_VOTerrain_SwitchPipelineTextures (SCE_SVOTerrainPipeline *pipe)
     pipe->tex = pipe->tex2;
     pipe->tc2 = tc;
     pipe->tex2 = tex;
+
+    tc = pipe->tc_mat;
+    tex = pipe->material;
+    pipe->tc_mat = pipe->tc_mat2;
+    pipe->material = pipe->material2;
+    pipe->tc_mat2 = tc;
+    pipe->material2 = tex;
 }
 static int SCE_VOTerrain_UpdatePipeline (SCE_SVoxelOctreeTerrain *vt,
                                          SCE_SVOTerrainPipeline *pipe)

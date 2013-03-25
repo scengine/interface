@@ -84,9 +84,11 @@ struct sce_svoterrainlevel {
 typedef struct sce_svoterrainpipeline SCE_SVOTerrainPipeline;
 struct sce_svoterrainpipeline {
     SCE_SVoxelTemplate template;
-    SCE_SGrid grid;
+    SCE_SGrid grid, grid2;      /* density and material */
     SCE_STexData *tc, *tc2;
-    SCE_STexture *tex, *tex2;
+    SCE_STexture *tex, *tex2;   /* rename them "density" or something? */
+    SCE_STexData *tc_mat, *tc_mat2;
+    SCE_STexture *material, *material2;
     SCE_SMesh mesh, mesh2;
     SCE_SVoxelMesh vmesh, vmesh2;
     SCE_RBufferPool *vertex_pool;
@@ -94,18 +96,24 @@ struct sce_svoterrainpipeline {
     SCE_RBufferPool default_vertex_pool;
     SCE_RBufferPool default_index_pool;
 
+    int use_materials;
+
     /* pipeline stages */
     SCE_SList stages[SCE_VOTERRAIN_NUM_PIPELINE_STAGES];
 
     SCE_SQEMMesh qmesh;
     SCEvertices *vertices;
     SCEvertices *normals;
+    SCEubyte *materials;
+    SCEubyte *anchors;
     SCEindices *indices;
-    SCEindices *anchors;
-    SCEvertices *interleaved;
+    SCEubyte *interleaved;
     SCEuint n_vertices;
     SCEuint n_indices;
-    SCEuint n_anchors;
+
+    size_t vstride, nstride, mstride;
+    size_t stride;              /* final stride in \c interleaved =
+                                   \c vstride + \c nstride + \c mstride */
 };
 
 
@@ -113,7 +121,8 @@ struct sce_svoterrainpipeline {
 
 typedef struct sce_svoxeloctreeterrain SCE_SVoxelOctreeTerrain;
 struct sce_svoxeloctreeterrain {
-    SCE_SVoxelWorld *vw;
+    SCE_SVoxelWorld *vw;        /* density */
+    SCE_SVoxelWorld *mw;        /* materials */
     SCEuint n_levels;
     SCEuint w, h, d;            /* dimensions of a region */
     SCEuint n_regions;          /* width of a level */
@@ -143,6 +152,7 @@ void SCE_VOTerrain_SetNumRegions (SCE_SVoxelOctreeTerrain*, SCEuint);
 SCEuint SCE_VOTerrain_GetNumRegions (const SCE_SVoxelOctreeTerrain*);
 void SCE_VOTerrain_SetUnit (SCE_SVoxelOctreeTerrain*, float);
 void SCE_VOTerrain_SetShader (SCE_SVoxelOctreeTerrain*, SCE_SShader*);
+void SCE_VOTerrain_UseMaterials (SCE_SVoxelOctreeTerrain*, int);
 
 int SCE_VOTerrain_Build (SCE_SVoxelOctreeTerrain*);
 
