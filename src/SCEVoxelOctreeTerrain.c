@@ -1112,26 +1112,28 @@ SCE_VOTerrain_Anchors (SCEvertices *vertices, SCEubyte *materials,
         }
     }
 
-    /* materials */
-    for (i = 0; i < n_indices; i += 3) {
-        i0 = indices[i];
-        i1 = indices[i + 1];
-        i2 = indices[i + 2];
+    if (materials) {
+        /* materials */
+        for (i = 0; i < n_indices; i += 3) {
+            i0 = indices[i];
+            i1 = indices[i + 1];
+            i2 = indices[i + 2];
 
-        a = out[i0];
-        b = out[i1];
-        c = out[i2];
+            a = out[i0];
+            b = out[i1];
+            c = out[i2];
 
-        if (materials[i0] != materials[i1])
-            out[i0] = out[i1] = SCE_TRUE;
-        if (materials[i1] != materials[i2])
-            out[i1] = out[i2] = SCE_TRUE;
-        if (materials[i0] != materials[i2])
-            out[i0] = out[i2] = SCE_TRUE;
+            if (materials[i0] != materials[i1])
+                out[i0] = out[i1] = SCE_TRUE;
+            if (materials[i1] != materials[i2])
+                out[i1] = out[i2] = SCE_TRUE;
+            if (materials[i0] != materials[i2])
+                out[i0] = out[i2] = SCE_TRUE;
 
-        if (a != out[i0]) n++;
-        if (b != out[i1]) n++;
-        if (c != out[i2]) n++;
+            if (a != out[i0]) n++;
+            if (b != out[i1]) n++;
+            if (c != out[i2]) n++;
+        }
     }
 
     return n;
