@@ -271,6 +271,19 @@ void SCE_VOTerrain_UseMaterials (SCE_SVoxelOctreeTerrain *vt, int use)
     SCE_VRender_UseMaterials (&vt->pipe.template, use);
 }
 
+SCEuint SCE_VOTerrain_GetWidth (const SCE_SVoxelOctreeTerrain *vt)
+{
+    return vt->w;
+}
+SCEuint SCE_VOTerrain_GetHeight (const SCE_SVoxelOctreeTerrain *vt)
+{
+    return vt->h;
+}
+SCEuint SCE_VOTerrain_GetDepth (const SCE_SVoxelOctreeTerrain *vt)
+{
+    return vt->d;
+}
+
 
 static int SCE_VOTerrain_BuildPipeline (SCE_SVoxelOctreeTerrain *vt,
                                         SCE_SVOTerrainPipeline *pipe)

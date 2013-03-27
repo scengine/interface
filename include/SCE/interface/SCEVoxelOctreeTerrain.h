@@ -154,6 +154,10 @@ void SCE_VOTerrain_SetUnit (SCE_SVoxelOctreeTerrain*, float);
 void SCE_VOTerrain_SetShader (SCE_SVoxelOctreeTerrain*, SCE_SShader*);
 void SCE_VOTerrain_UseMaterials (SCE_SVoxelOctreeTerrain*, int);
 
+SCEuint SCE_VOTerrain_GetWidth (const SCE_SVoxelOctreeTerrain*);
+SCEuint SCE_VOTerrain_GetHeight (const SCE_SVoxelOctreeTerrain*);
+SCEuint SCE_VOTerrain_GetDepth (const SCE_SVoxelOctreeTerrain*);
+
 int SCE_VOTerrain_Build (SCE_SVoxelOctreeTerrain*);
 
 int SCE_VOTerrain_SetPosition (SCE_SVoxelOctreeTerrain*, long, long, long);
