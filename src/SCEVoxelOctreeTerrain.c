@@ -569,7 +569,8 @@ SCE_VOTerrain_AddNewRegion (SCE_SVoxelOctreeTerrain *vt, SCEuint level,
     SCE_VOctree_SetNodeData (node, region);
     /* TODO: freefunc */
     /* actually we dont really need any, since we keep every
-       region in tl->regions */
+       region in tl->regions... but we still want to put them back in
+       vt->pool */
     SCE_VOctree_SetNodeFreeFunc (node, NULL);
     SCE_List_Appendl (&region->level->regions, &region->it3);
     return SCE_OK;
@@ -679,15 +680,13 @@ fail:
     return SCE_ERROR;
 }
 
-static int SCE_VOTerrain_SetLevelPosition (SCE_SVoxelOctreeTerrain *vt,
-                                           SCEuint level, long x, long y,
-                                           long z)
+static int SCE_VOTerrain_MoveLevel (const SCE_SVoxelOctreeTerrain *vt,
+                                    SCE_SVOTerrainLevel *tl, long x, long y,
+                                    long z)
 {
     int moved = SCE_FALSE;
     long threshold;
     long w, h, d;
-    SCE_SLongRect3 rect;
-    SCE_SVOTerrainLevel *tl = &vt->levels[level];
 
     tl->x = x;
     tl->y = y;
@@ -729,10 +728,22 @@ static int SCE_VOTerrain_SetLevelPosition (SCE_SVoxelOctreeTerrain *vt,
         tl->origin_z -= 2 * vt->d;
     }
 
-    SCE_VOTerrain_GetCurrentRectangle (vt, level, &rect);
-    if (moved && SCE_VOTerrain_UpdateLevel (vt, level, &rect) < 0) {
-        SCEE_LogSrc ();
-        return SCE_ERROR;
+    return moved;
+}
+
+static int SCE_VOTerrain_SetLevelPosition (SCE_SVoxelOctreeTerrain *vt,
+                                           SCEuint level, long x, long y,
+                                           long z)
+{
+    SCE_SVOTerrainLevel *tl = &vt->levels[level];
+
+    if (SCE_VOTerrain_MoveLevel (vt, tl, x, y, z)) {
+        SCE_SLongRect3 rect;
+        SCE_VOTerrain_GetCurrentRectangle (vt, level, &rect);
+        if (SCE_VOTerrain_UpdateLevel (vt, level, &rect) < 0) {
+            SCEE_LogSrc ();
+            return SCE_ERROR;
+        }
     }
 
     return SCE_OK;
@@ -756,25 +767,46 @@ int SCE_VOTerrain_SetPosition (SCE_SVoxelOctreeTerrain *vt, long x, long y,
     return SCE_OK;
 }
 
-void SCE_VOTerrain_GetRectangle (const SCE_SVoxelOctreeTerrain *vt,
-                                 SCEuint level, SCE_SLongRect3 *r)
-{
-    long x, y, z;
-    x = vt->x << level;
-    y = vt->y << level;
-    z = vt->z << level;
-    SCE_Rectangle3_SetFromCenterl (r, x, y, z, vt->w, vt->h, vt->d);
-}
-void SCE_VOTerrain_GetCurrentRectangle (const SCE_SVoxelOctreeTerrain *vt,
-                                        SCEuint level, SCE_SLongRect3 *rect)
+static void SCE_VOTerrain_GetLevelRectangle (const SCE_SVoxelOctreeTerrain *vt,
+                                             const SCE_SVOTerrainLevel *tl,
+                                             SCE_SLongRect3 *rect)
 {
     long w, h, d;
-    const SCE_SVOTerrainLevel *tl = &vt->levels[level];
     w = vt->n_regions * vt->w;
     h = vt->n_regions * vt->h;
     d = vt->n_regions * vt->d;
     SCE_Rectangle3_SetFromOriginl (rect, tl->origin_x, tl->origin_y,
                                    tl->origin_z, w, h, d);
+}
+/**
+ * \brief Gets the theoretical rectangle of a level given an absolute position
+ * \param vt a terrain
+ * \param x,y,z position of the new center in level's space
+ * \param level level
+ * \param rect rect
+ */
+void SCE_VOTerrain_GetRectangle (const SCE_SVoxelOctreeTerrain *vt,
+                                 long x, long y, long z, SCEuint level,
+                                 SCE_SLongRect3 *rect)
+{
+    SCE_SVOTerrainLevel tl, *ptr = &vt->levels[level];
+
+    tl.level = ptr->level;
+    tl.x = ptr->x;
+    tl.y = ptr->y;
+    tl.z = ptr->z;
+    tl.origin_x = ptr->origin_x;
+    tl.origin_y = ptr->origin_y;
+    tl.origin_z = ptr->origin_z;
+
+    SCE_VOTerrain_MoveLevel (vt, &tl, x, y, z);
+    SCE_VOTerrain_GetLevelRectangle (vt, &tl, rect);
+}
+void SCE_VOTerrain_GetCurrentRectangle (const SCE_SVoxelOctreeTerrain *vt,
+                                        SCEuint level, SCE_SLongRect3 *rect)
+{
+    const SCE_SVOTerrainLevel *tl = &vt->levels[level];
+    SCE_VOTerrain_GetLevelRectangle (vt, tl, rect);
 }
 
 size_t SCE_VOTerrain_GetUsedVRAM (const SCE_SVoxelOctreeTerrain *vt)
@@ -876,6 +908,9 @@ static int SCE_VOTerrain_UpdateGeometry (SCE_SVoxelOctreeTerrain *vt)
             return SCE_ERROR;
         }
     }
+    /* TODO: do the same for vt->mw, but cafeful: it will call
+       SCE_VOTerrain_Region(, SCE_VOTERRAIN_REGION_PIPELINE) twice if both
+       vw and mw have the same region updated (which happens quite often) */
 
     return SCE_OK;
 }

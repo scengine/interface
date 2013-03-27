@@ -161,8 +161,8 @@ SCEuint SCE_VOTerrain_GetDepth (const SCE_SVoxelOctreeTerrain*);
 int SCE_VOTerrain_Build (SCE_SVoxelOctreeTerrain*);
 
 int SCE_VOTerrain_SetPosition (SCE_SVoxelOctreeTerrain*, long, long, long);
-void SCE_VOTerrain_GetRectangle (const SCE_SVoxelOctreeTerrain*, SCEuint,
-                                 SCE_SLongRect3*);
+void SCE_VOTerrain_GetRectangle (const SCE_SVoxelOctreeTerrain*, long, long,
+                                 long, SCEuint, SCE_SLongRect3*);
 void SCE_VOTerrain_GetCurrentRectangle (const SCE_SVoxelOctreeTerrain*, SCEuint,
                                         SCE_SLongRect3*);
 size_t SCE_VOTerrain_GetUsedVRAM (const SCE_SVoxelOctreeTerrain*);
