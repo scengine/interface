@@ -238,8 +238,6 @@ void SCE_VOTerrain_SetVoxelWorld (SCE_SVoxelOctreeTerrain *vt,
     vt->w = SCE_VWorld_GetWidth (vw);
     vt->h = SCE_VWorld_GetHeight (vw);
     vt->d = SCE_VWorld_GetDepth (vw);
-    /* reset vt->origin_* values and allocate regions */
-    SCE_VOTerrain_SetPosition (vt, vt->x, vt->y, vt->z);
 }
 void SCE_VOTerrain_SetMaterialWorld (SCE_SVoxelOctreeTerrain *vt,
                                      SCE_SVoxelWorld *mw)
