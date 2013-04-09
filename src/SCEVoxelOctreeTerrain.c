@@ -194,6 +194,7 @@ void SCE_VOTerrain_Init (SCE_SVoxelOctreeTerrain *vt)
         vt->levels[i].level = i;
     }
     vt->shader = NULL;
+    vt->diffuse = NULL;
 }
 void SCE_VOTerrain_Clear (SCE_SVoxelOctreeTerrain *vt)
 {
@@ -238,6 +239,8 @@ void SCE_VOTerrain_SetVoxelWorld (SCE_SVoxelOctreeTerrain *vt,
     vt->w = SCE_VWorld_GetWidth (vw);
     vt->h = SCE_VWorld_GetHeight (vw);
     vt->d = SCE_VWorld_GetDepth (vw);
+    /* TODO: depending on the size of the cells, they might contain more than
+       256**2 vertices, which is the maximum supported by SCEindices */
 }
 void SCE_VOTerrain_SetMaterialWorld (SCE_SVoxelOctreeTerrain *vt,
                                      SCE_SVoxelWorld *mw)
@@ -264,6 +267,11 @@ void SCE_VOTerrain_SetUnit (SCE_SVoxelOctreeTerrain *vt, float unit)
 void SCE_VOTerrain_SetShader (SCE_SVoxelOctreeTerrain *vt, SCE_SShader *shader)
 {
     vt->shader = shader;
+}
+void SCE_VOTerrain_SetDiffuseTexture (SCE_SVoxelOctreeTerrain *vt,
+                                      SCE_STexture *tex)
+{
+    vt->diffuse = tex;
 }
 void SCE_VOTerrain_UseMaterials (SCE_SVoxelOctreeTerrain *vt, int use)
 {
@@ -1288,6 +1296,7 @@ void SCE_VOTerrain_Render (SCE_SVoxelOctreeTerrain *vt)
        with this kind of terrain we dont need special shadow shaders */
 
     SCE_Shader_Use (vt->shader);
+    SCE_Texture_Use (vt->diffuse);
 
     SCE_List_ForEach (it, &vt->to_render) {
         region = SCE_List_GetData (it);
@@ -1300,5 +1309,6 @@ void SCE_VOTerrain_Render (SCE_SVoxelOctreeTerrain *vt)
         SCE_Mesh_Unuse ();
     }
 
+    SCE_Texture_Use (NULL);
     SCE_Shader_Use (NULL);
 }

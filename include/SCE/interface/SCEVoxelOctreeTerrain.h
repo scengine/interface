@@ -106,6 +106,8 @@ struct sce_svoterrainpipeline {
     SCEvertices *normals;
     SCEubyte *materials;
     SCEubyte *anchors;
+    /* TODO: depending on the size of the cells, they might contain more than
+       256**2 vertices, which is the maximum supported by SCEindices */
     SCEindices *indices;
     SCEubyte *interleaved;
     SCEuint n_vertices;
@@ -139,6 +141,8 @@ struct sce_svoxeloctreeterrain {
     SCE_SList to_render;
     SCE_SVOTerrainLevel levels[SCE_VOTERRAIN_MAX_LEVELS];
     SCE_SShader *shader;
+
+    SCE_STexture *diffuse; /* textures of materials (2D texture array) */
 };
 
 void SCE_VOTerrain_Init (SCE_SVoxelOctreeTerrain*);
@@ -152,6 +156,7 @@ void SCE_VOTerrain_SetNumRegions (SCE_SVoxelOctreeTerrain*, SCEuint);
 SCEuint SCE_VOTerrain_GetNumRegions (const SCE_SVoxelOctreeTerrain*);
 void SCE_VOTerrain_SetUnit (SCE_SVoxelOctreeTerrain*, float);
 void SCE_VOTerrain_SetShader (SCE_SVoxelOctreeTerrain*, SCE_SShader*);
+void SCE_VOTerrain_SetDiffuseTexture (SCE_SVoxelOctreeTerrain*, SCE_STexture*);
 void SCE_VOTerrain_UseMaterials (SCE_SVoxelOctreeTerrain*, int);
 
 SCEuint SCE_VOTerrain_GetWidth (const SCE_SVoxelOctreeTerrain*);
