@@ -578,8 +578,9 @@ static void* SCE_Texture_LoadResource (const char *name, int force, void *data)
 /**
  * \brief Loads and creates a new texture from one or more files
  * \param type force the texture's type to load, if SCE_TEX_CUBE is specified,
- * six parameters are expected in \p args defining respectively posx, negx,
+ * six textures are expected in \p names defining respectively posx, negx,
  * posy, negy, posz and negz cube face's image
+ * if SCE_TEX_2D_ARRAY is specified, \p d textures are expected in \p names
  * \param w,h,d force the new texture's dimentions (0 to keep unchanged)
  * \param names the array of the file names
  * \returns the new texture
