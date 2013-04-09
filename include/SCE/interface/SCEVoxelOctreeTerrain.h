@@ -83,7 +83,7 @@ struct sce_svoterrainlevel {
 
 typedef struct sce_svoterrainpipeline SCE_SVOTerrainPipeline;
 struct sce_svoterrainpipeline {
-    SCE_SVoxelTemplate template;
+    SCE_SVoxelTemplate temp;
     SCE_SGrid grid, grid2;      /* density and material */
     SCE_STexData *tc, *tc2;
     SCE_STexture *tex, *tex2;   /* rename them "density" or something? */

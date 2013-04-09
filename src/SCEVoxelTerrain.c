@@ -159,10 +159,10 @@ void SCE_VTerrain_Init (SCE_SVoxelTerrain *vt)
 {
     size_t i;
 
-    SCE_VRender_Init (&vt->template);
+    SCE_VRender_Init (&vt->temp);
     vt->comp_pos = vt->comp_nor = SCE_FALSE;
     vt->rpipeline = SCE_VRENDER_SOFTWARE;
-    SCE_VRender_SetPipeline (&vt->template, vt->rpipeline);
+    SCE_VRender_SetPipeline (&vt->temp, vt->rpipeline);
     vt->cut = 0;
     SCE_VTerrain_InitHybridGenerator (&vt->hybrid);
     vt->vertex_pool = vt->index_pool = NULL;
@@ -198,7 +198,7 @@ void SCE_VTerrain_Clear (SCE_SVoxelTerrain *vt)
 {
     size_t i;
 
-    SCE_VRender_Clear (&vt->template);
+    SCE_VRender_Clear (&vt->temp);
     SCE_VTerrain_ClearHybridGenerator (&vt->hybrid);
     for (i = 0; i < SCE_NUM_VTERRAIN_SHADERS; i++)
         SCE_VTerrain_ClearShader (&vt->shaders[i]);
@@ -360,23 +360,23 @@ void SCE_VTerrain_SetNumSubRegions (SCE_SVoxelTerrain *vt, SCEuint n)
 void SCE_VTerrain_CompressPosition (SCE_SVoxelTerrain *vt, int comp)
 {
     vt->comp_pos = comp;
-    SCE_VRender_CompressPosition (&vt->template, comp);
+    SCE_VRender_CompressPosition (&vt->temp, comp);
 }
 void SCE_VTerrain_CompressNormal (SCE_SVoxelTerrain *vt, int comp)
 {
     vt->comp_nor = comp;
-    SCE_VRender_CompressNormal (&vt->template, comp);
+    SCE_VRender_CompressNormal (&vt->temp, comp);
 }
 void SCE_VTerrain_SetPipeline (SCE_SVoxelTerrain *vt,
                                 SCE_EVoxelRenderPipeline pipeline)
 {
     vt->rpipeline = pipeline;
-    SCE_VRender_SetPipeline (&vt->template, pipeline);
+    SCE_VRender_SetPipeline (&vt->temp, pipeline);
 }
 void SCE_VTerrain_SetAlgorithm (SCE_SVoxelTerrain *vt,
                                 SCE_EVoxelRenderAlgorithm algo)
 {
-    SCE_VRender_SetAlgorithm (&vt->template, algo);
+    SCE_VRender_SetAlgorithm (&vt->temp, algo);
 }
 void SCE_VTerrain_SetHybrid (SCE_SVoxelTerrain *vt, SCEuint cut)
 {
@@ -390,13 +390,13 @@ void SCE_VTerrain_SetVertexBufferPool (SCE_SVoxelTerrain *vt,
                                        SCE_RBufferPool *pool)
 {
     vt->vertex_pool = pool;
-    SCE_VRender_SetVertexBufferPool (&vt->template, pool);
+    SCE_VRender_SetVertexBufferPool (&vt->temp, pool);
 }
 void SCE_VTerrain_SetIndexBufferPool (SCE_SVoxelTerrain *vt,
                                       SCE_RBufferPool *pool)
 {
     vt->index_pool = pool;
-    SCE_VRender_SetIndexBufferPool (&vt->template, pool);
+    SCE_VRender_SetIndexBufferPool (&vt->temp, pool);
 }
 void SCE_VTerrain_EnableMaterials (SCE_SVoxelTerrain *vt)
 {
@@ -507,7 +507,7 @@ static int SCE_VTerrain_BuildLevel (SCE_SVoxelTerrain *vt,
         tl->regions[i].level = tl;
         SCE_Mesh_Init (&tl->mesh[i]);
 
-        geom = SCE_VRender_GetFinalGeometry (&vt->template);
+        geom = SCE_VRender_GetFinalGeometry (&vt->temp);
         if (SCE_Mesh_SetGeometry (&tl->mesh[i], geom, SCE_FALSE) < 0)
             goto fail;
         SCE_Mesh_AutoBuild (&tl->mesh[i]);
@@ -822,13 +822,13 @@ int SCE_VTerrain_Build (SCE_SVoxelTerrain *vt)
     if (vt->built)
         return SCE_OK;
 
-    SCE_VRender_SetDimensions (&vt->template, vt->subregion_dim,
+    SCE_VRender_SetDimensions (&vt->temp, vt->subregion_dim,
                                vt->subregion_dim, vt->subregion_dim);
-    SCE_VRender_SetVolumeDimensions (&vt->template, vt->width,
+    SCE_VRender_SetVolumeDimensions (&vt->temp, vt->width,
                                      vt->height, vt->depth);
-    SCE_VRender_SetCompressedScale (&vt->template, vt->n_subregions);
+    SCE_VRender_SetCompressedScale (&vt->temp, vt->n_subregions);
 
-    if (SCE_VRender_Build (&vt->template) < 0)
+    if (SCE_VRender_Build (&vt->temp) < 0)
         goto fail;
 
     if (vt->cut) {
@@ -1630,7 +1630,7 @@ int SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
 
         switch (vt->rpipeline) {
         case SCE_VRENDER_SOFTWARE:
-            if (SCE_VRender_Software (&vt->template, &tr->level->grid, &tr->vm,
+            if (SCE_VRender_Software (&vt->temp, &tr->level->grid, &tr->vm,
                                       x, y, z) < 0)
                 goto fail;
             break;
@@ -1647,7 +1647,7 @@ int SCE_VTerrain_Update (SCE_SVoxelTerrain *vt)
                 /* TODO: direct member access */
                 ib->ia.type = SCE_UNSIGNED_INT;
             }
-            if (SCE_VRender_Hardware (&vt->template, tr->level->tex, NULL,
+            if (SCE_VRender_Hardware (&vt->temp, tr->level->tex, NULL,
                                       &tr->vm, x, y, z) < 0)
                 goto fail;
 

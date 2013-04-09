@@ -148,7 +148,7 @@ typedef struct sce_svoxelterrain SCE_SVoxelTerrain;
  * grids.
  */
 struct sce_svoxelterrain {
-    SCE_SVoxelTemplate template;
+    SCE_SVoxelTemplate temp;
     int comp_pos, comp_nor;     /**< Compress positions? normals? */
     SCE_EVoxelRenderPipeline rpipeline;
     SCEuint cut;                /**< cut for the hybrid generation method */

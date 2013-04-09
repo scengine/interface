@@ -102,8 +102,8 @@ static void SCE_VOTerrain_InitPipeline (SCE_SVOTerrainPipeline *pipe)
 {
     int i;
 
-    SCE_VRender_Init (&pipe->template);
-    SCE_VRender_SetPipeline (&pipe->template, SCE_VRENDER_HARDWARE);
+    SCE_VRender_Init (&pipe->temp);
+    SCE_VRender_SetPipeline (&pipe->temp, SCE_VRENDER_HARDWARE);
     SCE_Grid_Init (&pipe->grid);
     SCE_Grid_Init (&pipe->grid2);
     pipe->tc = pipe->tc2 = NULL;
@@ -146,7 +146,7 @@ static void SCE_VOTerrain_ClearPipeline (SCE_SVOTerrainPipeline *pipe)
 {
     int i;
 
-    SCE_VRender_Clear (&pipe->template);
+    SCE_VRender_Clear (&pipe->temp);
     SCE_Texture_Delete (pipe->tex);
     SCE_Texture_Delete (pipe->tex2);
     SCE_Mesh_Clear (&pipe->mesh);
@@ -268,7 +268,7 @@ void SCE_VOTerrain_SetShader (SCE_SVoxelOctreeTerrain *vt, SCE_SShader *shader)
 void SCE_VOTerrain_UseMaterials (SCE_SVoxelOctreeTerrain *vt, int use)
 {
     vt->pipe.use_materials = use;
-    SCE_VRender_UseMaterials (&vt->pipe.template, use);
+    SCE_VRender_UseMaterials (&vt->pipe.temp, use);
 }
 
 SCEuint SCE_VOTerrain_GetWidth (const SCE_SVoxelOctreeTerrain *vt)
@@ -292,14 +292,14 @@ static int SCE_VOTerrain_BuildPipeline (SCE_SVoxelOctreeTerrain *vt,
     size_t n, dim, size;
     SCE_SGeometry *geom = NULL;
 
-    w = SCE_VWorld_GetWidth (vt->vw);
-    h = SCE_VWorld_GetHeight (vt->vw);
-    d = SCE_VWorld_GetDepth (vt->vw);
+    w = vt->w;
+    h = vt->h;
+    d = vt->d;
 
-    SCE_VRender_SetDimensions (&pipe->template, w+2, h+2, d+2);
-    SCE_VRender_SetVolumeDimensions (&pipe->template, w + 4, h + 4, d + 4);
-    SCE_VRender_SetCompressedScale (&pipe->template, 1.0);
-    if (SCE_VRender_Build (&pipe->template) < 0)
+    SCE_VRender_SetDimensions (&pipe->temp, w+2, h+2, d+2);
+    SCE_VRender_SetVolumeDimensions (&pipe->temp, w + 4, h + 4, d + 4);
+    SCE_VRender_SetCompressedScale (&pipe->temp, 1.0);
+    if (SCE_VRender_Build (&pipe->temp) < 0)
         goto fail;
 
     /* one row on each side for normals, one row at the end for complete
@@ -363,7 +363,7 @@ static int SCE_VOTerrain_BuildPipeline (SCE_SVoxelOctreeTerrain *vt,
     SCE_Texture_SetFilter (pipe->material, SCE_TEX_NEAREST);
     SCE_Texture_SetFilter (pipe->material2, SCE_TEX_NEAREST);
 
-    geom = SCE_VRender_GetFinalGeometry (&pipe->template);
+    geom = SCE_VRender_GetFinalGeometry (&pipe->temp);
     if (SCE_Mesh_SetGeometry (&pipe->mesh, geom, SCE_FALSE) < 0)
         goto fail;
     if (SCE_Mesh_SetGeometry (&pipe->mesh2, geom, SCE_FALSE) < 0)
@@ -1044,7 +1044,7 @@ static int SCE_VOTerrain_Stage2 (SCE_SVoxelOctreeTerrain *vt,
     region = SCE_List_GetData (SCE_List_GetFirst (&pipe->stages[1]));
     SCE_List_Removel (&region->it);
 
-    if (SCE_VRender_Hardware (&pipe->template, pipe->tex, pipe->material,
+    if (SCE_VRender_Hardware (&pipe->temp, pipe->tex, pipe->material,
                               &pipe->vmesh, 1, 1, 1) < 0)
         goto fail;
 
