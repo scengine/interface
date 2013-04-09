@@ -201,7 +201,8 @@ static int SCE_Scene_MakeBoundingVolumes (SCE_SScene *scene)
 
     SCE_Vector3_Set (v, 0.0, 0.0, 0.0);
     SCE_Box_SetFromCenter (&box, v, 1.0, 1.0, 1.0);
-    if (!(geom = SCE_BoxGeom_Create (&box, SCE_LINES, SCE_BOX_NONE_TEXCOORD)))
+    if (!(geom = SCE_BoxGeom_Create (&box, SCE_LINES, SCE_BOX_NONE_TEXCOORD,
+                                     SCE_BOX_NONE_NORMALS)))
         goto fail;
     if (!(scene->bbmesh = SCE_Mesh_CreateFrom (geom, SCE_TRUE)))
         goto fail;

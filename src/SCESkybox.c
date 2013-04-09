@@ -124,12 +124,13 @@ int SCE_Skybox_SetTexture (SCE_SSkybox *skybox, SCE_STexture *tex,
 
     type = SCE_Texture_GetType (tex);
     if (type == SCE_TEX_CUBE) {
-        geom = SCE_BoxGeom_Create (&box, SCE_TRIANGLES,
-                                   SCE_BOX_CUBEMAP_TEXCOORD);
+        geom = SCE_BoxGeom_Create (&box, SCE_TRIANGLES,SCE_BOX_CUBEMAP_TEXCOORD,
+                                   SCE_BOX_NONE_NORMALS);
     } else {
         if (!mode)              /* he lies. */
             mode = SCE_BOX_INTERIOR_TEXCOORD;
-        geom = SCE_BoxGeom_Create (&box, SCE_TRIANGLES, mode);
+        geom = SCE_BoxGeom_Create (&box, SCE_TRIANGLES, mode,
+                                   SCE_BOX_NONE_NORMALS);
     }
     if (!geom)
         goto fail;
