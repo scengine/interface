@@ -965,6 +965,8 @@ void SCE_VTerrain_GetRectangle (const SCE_SVoxelTerrain *vt, SCEuint level,
                                 SCE_SLongRect3 *r)
 {
     long x, y, z;
+    /* TODO: how can this work? it should be >> level
+       in fact this function is never used anywhere */
     x = vt->x << level;
     y = vt->y << level;
     z = vt->z << level;
