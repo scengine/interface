@@ -837,7 +837,6 @@ static void SCE_VOTerrain_MakeRegionMatrix (SCE_SVoxelOctreeTerrain *vt,
     float scale;
 
     w = vt->w + 4;
-    w2 = w - 2;
 
     /* voxel scale */
     SCE_Matrix4_Scale (region->matrix, vt->scale, vt->scale, vt->scale);
@@ -846,16 +845,9 @@ static void SCE_VOTerrain_MakeRegionMatrix (SCE_SVoxelOctreeTerrain *vt,
     SCE_Matrix4_MulScale (region->matrix, scale, scale, scale);
     /* translate */
     SCE_VOctree_GetNodeOriginv (region->node, &x, &y, &z);
-    /* TODO: why -1 ??? probably because we now generate one extra row */
-    x_ = x * (w2 - 1.0) / (w - 1.0) - 1;
-    y_ = y * (w2 - 1.0) / (w - 1.0) - 1;
-    z_ = z * (w2 - 1.0) / (w - 1.0) - 1;
-
-    SCE_Matrix4_MulTranslate (region->matrix, x_, y_, z_);
+    SCE_Matrix4_MulTranslate (region->matrix, x - 1, y - 1, z - 1);
     /* voxel unit */
-    scale = (w - 1.0) / (w2 - 1.0);
-    SCE_Matrix4_MulScale (region->matrix, scale, scale, scale);
-    SCE_Matrix4_MulScale (region->matrix, vt->w, vt->h, vt->d);
+    SCE_Matrix4_MulScale (region->matrix, w, w, w);
 }
 
 
