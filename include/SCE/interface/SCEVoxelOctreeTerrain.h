@@ -143,6 +143,7 @@ struct sce_svoxeloctreeterrain {
     SCE_SShader *shader;
 
     SCE_STexture *diffuse; /* textures of materials (2D texture array) */
+    SCE_STexture *normal;  /* normal maps */
 };
 
 void SCE_VOTerrain_Init (SCE_SVoxelOctreeTerrain*);
@@ -157,6 +158,7 @@ SCEuint SCE_VOTerrain_GetNumRegions (const SCE_SVoxelOctreeTerrain*);
 void SCE_VOTerrain_SetUnit (SCE_SVoxelOctreeTerrain*, float);
 void SCE_VOTerrain_SetShader (SCE_SVoxelOctreeTerrain*, SCE_SShader*);
 void SCE_VOTerrain_SetDiffuseTexture (SCE_SVoxelOctreeTerrain*, SCE_STexture*);
+void SCE_VOTerrain_SetNormalTexture (SCE_SVoxelOctreeTerrain*, SCE_STexture*);
 void SCE_VOTerrain_UseMaterials (SCE_SVoxelOctreeTerrain*, int);
 
 SCEuint SCE_VOTerrain_GetWidth (const SCE_SVoxelOctreeTerrain*);

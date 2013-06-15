@@ -195,6 +195,7 @@ void SCE_VOTerrain_Init (SCE_SVoxelOctreeTerrain *vt)
     }
     vt->shader = NULL;
     vt->diffuse = NULL;
+    vt->normal = NULL;
 }
 void SCE_VOTerrain_Clear (SCE_SVoxelOctreeTerrain *vt)
 {
@@ -272,6 +273,11 @@ void SCE_VOTerrain_SetDiffuseTexture (SCE_SVoxelOctreeTerrain *vt,
                                       SCE_STexture *tex)
 {
     vt->diffuse = tex;
+}
+void SCE_VOTerrain_SetNormalTexture (SCE_SVoxelOctreeTerrain *vt,
+                                     SCE_STexture *tex)
+{
+    vt->normal = tex;
 }
 void SCE_VOTerrain_UseMaterials (SCE_SVoxelOctreeTerrain *vt, int use)
 {
@@ -1296,7 +1302,11 @@ void SCE_VOTerrain_Render (SCE_SVoxelOctreeTerrain *vt)
        with this kind of terrain we dont need special shadow shaders */
 
     SCE_Shader_Use (vt->shader);
+    SCE_Texture_BeginLot ();
     SCE_Texture_Use (vt->diffuse);
+    if (vt->normal)
+        SCE_Texture_Use (vt->normal);
+    SCE_Texture_EndLot ();
 
     SCE_List_ForEach (it, &vt->to_render) {
         region = SCE_List_GetData (it);
@@ -1309,6 +1319,6 @@ void SCE_VOTerrain_Render (SCE_SVoxelOctreeTerrain *vt)
         SCE_Mesh_Unuse ();
     }
 
-    SCE_Texture_Use (NULL);
+    SCE_Texture_Flush ();
     SCE_Shader_Use (NULL);
 }
