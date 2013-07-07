@@ -253,6 +253,10 @@ SCE_SVoxelWorld* SCE_VOTerrain_GetVoxelWorld (SCE_SVoxelOctreeTerrain *vt)
 {
     return vt->vw;
 }
+SCE_SVoxelWorld* SCE_VOTerrain_GetMaterialWorld (SCE_SVoxelOctreeTerrain *vt)
+{
+    return vt->mw;
+}
 void SCE_VOTerrain_SetNumRegions (SCE_SVoxelOctreeTerrain *vt, SCEuint n)
 {
     vt->n_regions = n;

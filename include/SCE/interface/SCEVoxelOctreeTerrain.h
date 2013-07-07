@@ -152,7 +152,9 @@ SCE_SVoxelOctreeTerrain* SCE_VOTerrain_Create (void);
 void SCE_VOTerrain_Delete (SCE_SVoxelOctreeTerrain*);
 
 void SCE_VOTerrain_SetVoxelWorld (SCE_SVoxelOctreeTerrain*, SCE_SVoxelWorld*);
+void SCE_VOTerrain_SetMaterialWorld (SCE_SVoxelOctreeTerrain*, SCE_SVoxelWorld*);
 SCE_SVoxelWorld* SCE_VOTerrain_GetVoxelWorld (SCE_SVoxelOctreeTerrain*);
+SCE_SVoxelWorld* SCE_VOTerrain_GetMaterialWorld (SCE_SVoxelOctreeTerrain*);
 void SCE_VOTerrain_SetNumRegions (SCE_SVoxelOctreeTerrain*, SCEuint);
 SCEuint SCE_VOTerrain_GetNumRegions (const SCE_SVoxelOctreeTerrain*);
 void SCE_VOTerrain_SetUnit (SCE_SVoxelOctreeTerrain*, float);
