@@ -2098,7 +2098,7 @@ static void SCE_Scene_DrawBB (SCE_SBoundingBox *box, const SCE_TMatrix4 m)
     b = SCE_BoundingBox_GetBox (box);
 
     SCE_Box_GetCenterv (b, center);
-    SCE_Box_GetDimensionsv (b, &dim[0], &dim[1], &dim[2]);
+    SCE_Box_GetDimensionsv (b, dim);
     SCE_Matrix4_Translatev (mat, center);
     SCE_Matrix4_MulCopy (mat, m);
     SCE_Matrix4_MulScalev (mat, dim);
