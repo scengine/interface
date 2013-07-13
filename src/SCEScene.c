@@ -853,6 +853,7 @@ int SCE_Scene_MakeOctree (SCE_SScene *scene, unsigned int rec,
                           int loose, float margin)
 {
     SCE_Scene_EraseOctreeInternal (scene->octree);
+    /* dirty, free memory but keeps size data */
     SCE_Octree_Clear (scene->octree);
     if (!loose)                 /* shield! */
         margin = 0.0;
@@ -1208,6 +1209,15 @@ void SCE_Scene_UseCamera (SCE_SCamera *cam)
 }
 
 
+/* TODO: tmp. for some reason the scene disappears when using
+   shadows + deferred + alphatest + looking at a kinda special angle... weird */
+static void SCE_Scene_ResetEntityProperties (void)
+{
+    SCE_SSceneEntity a;
+    SCE_SceneEntity_Init (&a);
+    SCE_SceneEntity_ApplyProperties (&a);
+}
+
 static void SCE_Scene_ForwardRender (SCE_SScene *scene, SCE_SCamera *cam,
                                      SCE_STexture *target,
                                      SCE_EBoxFace cubeface)
@@ -1245,9 +1255,11 @@ static void SCE_Scene_ForwardRender (SCE_SScene *scene, SCE_SCamera *cam,
         SCE_VTerrain_Render (scene->vterrain);
     }
     if (scene->voterrain) {
+        SCE_Scene_ResetEntityProperties ();
         SCE_VOTerrain_Render (scene->voterrain);
     }
     SCE_Scene_RenderEntities (scene, &scene->entities);
+    SCE_Scene_ResetEntityProperties ();
 
     SCE_Light_Use (NULL);
     SCE_Light_ActivateLighting (SCE_FALSE);
@@ -1734,9 +1746,11 @@ void SCE_Deferred_Render (SCE_SDeferred *def, void *scene_,
         SCE_VTerrain_Render (scene->vterrain);
     }
     if (scene->voterrain) {
+        SCE_Scene_ResetEntityProperties ();
         SCE_VOTerrain_Render (scene->voterrain);
     }
     SCE_Scene_RenderEntities (scene, &scene->entities);
+    SCE_Scene_ResetEntityProperties ();
     SCE_SceneEntity_SetDefaultShader (NULL);
 
     scene->state->rendertarget = def->targets[SCE_DEFERRED_LIGHT_TARGET];
