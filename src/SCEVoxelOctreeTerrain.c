@@ -1141,21 +1141,11 @@ SCE_VOTerrain_Anchors (SCEvertices *vertices, SCEubyte *materials,
 {
     SCEuint i, n = 0;
     SCEvertices *v;
-    SCEubyte a, b, c;
+    SCEubyte a;
     SCEindices i0, i1, i2;
 
-    /* borders */
-    for (i = 0; i < n_vertices; i++) {
-        v = &vertices[i * 3];
-        if (v[0] < inf || v[0] > sup ||
-            v[1] < inf || v[1] > sup ||
-            v[2] < inf || v[2] > sup) {
-            out[i] = SCE_TRUE;
-            n++;
-        } else {
-            out[i] = SCE_FALSE;
-        }
-    }
+    for (i = 0; i < n_vertices; i++)
+        out[i] = 0;
 
     if (materials) {
         /* materials */
@@ -1164,20 +1154,27 @@ SCE_VOTerrain_Anchors (SCEvertices *vertices, SCEubyte *materials,
             i1 = indices[i + 1];
             i2 = indices[i + 2];
 
-            a = out[i0];
-            b = out[i1];
-            c = out[i2];
+            out[i0] = 18 + materials[i0];
+            out[i1] = 18 + materials[i1];
+            out[i2] = 18 + materials[i2];
+        }
+    }
 
-            if (materials[i0] != materials[i1])
-                out[i0] = out[i1] = SCE_TRUE;
-            if (materials[i1] != materials[i2])
-                out[i1] = out[i2] = SCE_TRUE;
-            if (materials[i0] != materials[i2])
-                out[i0] = out[i2] = SCE_TRUE;
+    /* borders (overwrite material value) */
+    for (i = 0; i < n_vertices; i++) {
+        v = &vertices[i * 3];
+        a = 0;
 
-            if (a != out[i0]) n++;
-            if (b != out[i1]) n++;
-            if (c != out[i2]) n++;
+        if (v[0] < inf || v[0] > sup)
+            a |= 1;
+        if (v[1] < inf || v[1] > sup)
+            a |= 2;
+        if (v[2] < inf || v[2] > sup)
+            a |= 4;
+
+        if (a) {
+            out[i] = a;
+            n++;
         }
     }
 
@@ -1211,16 +1208,21 @@ static int SCE_VOTerrain_Stage3 (SCE_SVoxelOctreeTerrain *vt,
 
 #if 1
     /* decimate */
+#if 0
     inf = 0.00001 + 1.0 / vt->w;
     sup = (vt->w - 4.0) / (vt->w - 1.0) - 0.0001;
+#else
+    inf = 0.00001;
+    sup = (vt->w - 4.0) / (vt->w - 1.0);
+#endif
     n_anchors = SCE_VOTerrain_Anchors (pipe->vertices, pipe->materials,
                                        pipe->n_vertices, pipe->indices,
                                        pipe->n_indices, inf, sup,pipe->anchors);
     SCE_QEMD_Set (&pipe->qmesh, pipe->vertices, pipe->normals, pipe->materials,
                   pipe->anchors, pipe->indices, pipe->n_vertices,
                   pipe->n_indices);
-    /* aiming at 60% vertex reduction */
-    n_collapses = (pipe->n_vertices - n_anchors) * 0.6;
+    /* aiming at ~75% vertex reduction */
+    n_collapses = (pipe->n_vertices - n_anchors) * 0.70;
     SCE_QEMD_Process (&pipe->qmesh, n_collapses);
     SCE_QEMD_Get (&pipe->qmesh, pipe->vertices, pipe->normals, pipe->materials,
                   pipe->indices, &pipe->n_vertices, &pipe->n_indices);
